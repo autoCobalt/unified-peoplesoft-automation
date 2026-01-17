@@ -1,0 +1,87 @@
+/* ===== TAB NAVIGATION ===== */
+
+.tab-navigation {
+  background: linear-gradient(180deg, #1a1f26 0%, #141920 100%);
+  border: 1px solid var(--border-muted);
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.tab-list {
+  display: flex;
+  gap: 2px;
+}
+
+/* ===== TAB BUTTON ===== */
+
+.tab-button {
+  position: relative;
+  flex: 1;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+  z-index: 1;
+}
+
+.tab-button:last-child {
+  border-right: none;
+}
+
+.tab-button:hover:not(.active) {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tab-button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* ===== ACTIVE TAB ===== */
+
+.tab-button.active {
+  color: var(--text-primary);
+}
+
+/* ===== TAB INDICATOR (Animated background fill) ===== */
+
+.tab-indicator {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(88, 166, 255, 0.15) 0%, rgba(88, 166, 255, 0.08) 100%);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  border-radius: 4px;
+  z-index: -1;
+  box-shadow: 0 0 12px rgba(88, 166, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ===== RESPONSIVE: Wrap tabs on smaller viewports ===== */
+
+@media (max-width: 768px) {
+  .tab-list {
+    flex-wrap: wrap;
+  }
+
+  .tab-button {
+    flex: 1 1 calc(50% - 1px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* Remove right border from even tabs (end of each row) */
+  .tab-button:nth-child(even) {
+    border-right: none;
+  }
+
+  /* Remove bottom border from last row (last 2 tabs) */
+  .tab-button:nth-last-child(-n+2) {
+    border-bottom: none;
+  }
+}

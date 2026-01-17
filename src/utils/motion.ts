@@ -18,7 +18,7 @@ export const transitionDefault: Transition = {
 
 /** Faster transition for subtle animations */
 export const transitionFast: Transition = {
-  duration: 0.3,
+  duration: 0.1,
 };
 
 /** Spring transition for tab indicators and layout animations */

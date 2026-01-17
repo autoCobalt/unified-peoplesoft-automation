@@ -1,22 +1,14 @@
 /* ===== MODE BANNER ===== */
 .mode-banner {
-  position: fixed;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: var(--max-width);
   padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-sm);
   font-size: 0.875rem;
   font-weight: 500;
-  z-index: 1000;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  border-bottom-left-radius: var(--border-radius);
-  border-bottom-right-radius: var(--border-radius);
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
 }
 
 .mode-banner.mode-development {

@@ -79,29 +79,6 @@ a:hover {
   color: var(--accent-highlight);
 }
 
-button {
-  border-radius: var(--border-radius-sm);
-  border: 1px solid transparent;
-  padding: var(--space-sm) var(--space-md);
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: border-color 0.25s, background-color 0.25s;
-}
-
-button:hover {
-  border-color: var(--accent-primary);
-  background-color: var(--bg-secondary);
-}
-
-button:focus,
-button:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
-}
 
 /* ==============================================
    App Layout
@@ -109,10 +86,10 @@ button:focus-visible {
 
 .app {
   min-height: 100vh;
+  min-width: 375px;
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: var(--space-md);
-  padding-top: calc(var(--space-xl) + var(--space-lg)); /* Account for fixed mode banner */
+  padding: 0 var(--space-md) var(--space-md);
 }
 
 .main-content {
@@ -155,4 +132,55 @@ button:focus-visible {
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.02em;
+}
+
+/* ==============================================
+   Feature Panels (Shared)
+   ============================================== */
+
+.feature-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--border-radius);
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-placeholder {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.placeholder-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-md);
+  opacity: 0.6;
+}
+
+.panel-placeholder h2 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.panel-placeholder p {
+  font-size: 0.875rem;
+  margin-bottom: var(--space-md);
+}
+
+.placeholder-badge {
+  display: inline-block;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }

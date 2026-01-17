@@ -1,0 +1,10 @@
+/* ===== SMARTFORM PANEL ===== */
+
+/*
+ * Note: Shared .feature-panel and .panel-placeholder styles
+ * are defined in src/index.css for use across all features.
+ */
+
+.smartform-panel {
+  /* Feature-specific styles go here */
+}
