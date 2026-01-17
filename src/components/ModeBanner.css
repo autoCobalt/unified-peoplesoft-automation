@@ -1,0 +1,71 @@
+/* ===== MODE BANNER ===== */
+.mode-banner {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--max-width);
+  padding: var(--space-sm) var(--space-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  border-bottom-left-radius: var(--border-radius);
+  border-bottom-right-radius: var(--border-radius);
+}
+
+.mode-banner.mode-development {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--status-success) 20%, var(--bg-primary)) 0%,
+    color-mix(in srgb, var(--status-success) 30%, var(--bg-secondary)) 100%
+  );
+  color: var(--status-success);
+}
+
+.mode-banner.mode-production {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--status-error) 20%, var(--bg-primary)) 0%,
+    color-mix(in srgb, var(--status-error) 30%, var(--bg-secondary)) 100%
+  );
+  color: var(--status-error);
+}
+
+.mode-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.mode-development .mode-indicator {
+  background-color: var(--status-success);
+  box-shadow: 0 0 8px var(--status-success);
+}
+
+.mode-production .mode-indicator {
+  background-color: var(--status-error);
+  box-shadow: 0 0 8px var(--status-error);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.mode-text {
+  font-weight: 600;
+}
+
+.mode-description {
+  opacity: 0.8;
+  font-weight: 400;
+}
