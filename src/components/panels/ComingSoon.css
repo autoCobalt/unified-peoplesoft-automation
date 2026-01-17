@@ -1,6 +1,6 @@
 /* ===== COMING SOON PANEL ===== */
 
 .coming-soon-panel {
-  /* Uses shared .feature-panel and .panel-placeholder styles from SmartFormPanel.css */
+  /* Uses shared .feature-panel and .panel-placeholder styles from src/index.css */
   /* Feature-specific overrides can go here */
 }

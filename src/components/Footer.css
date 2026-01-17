@@ -1,0 +1,16 @@
+/* ===== FOOTER ===== */
+
+.app-footer {
+  padding: var(--space-sm) var(--space-md);
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.footer-copyright {
+  opacity: 0.6;
+}

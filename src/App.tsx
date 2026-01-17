@@ -5,12 +5,19 @@
  * Tab state is managed here and passed down to components.
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { ConnectionProvider } from './context';
-import { Header, ModeBanner, TabNavigation, ComingSoon } from './components';
-import { SmartFormPanel } from './features/smartform';
-import { DEFAULT_TAB, type TabId } from './types';
+import {
+  Footer,
+  Header,
+  ModeBanner,
+  TabNavigation,
+  AnimatedPanel,
+  ComingSoon,
+  SmartFormPanel,
+} from './components';
+import { DEFAULT_TAB, TABS, type TabId } from './types';
 
 /**
  * Main App Content
@@ -20,18 +27,32 @@ import { DEFAULT_TAB, type TabId } from './types';
  */
 function AppContent() {
   const [activeTab, setActiveTab] = useState<TabId>(DEFAULT_TAB);
+  const [direction, setDirection] = useState(0);
+  const prevIndexRef = useRef(0);
+
+  /**
+   * Handles tab changes and calculates animation direction.
+   * Direction is 1 for forward (right) and -1 for backward (left).
+   */
+  const handleTabChange = (newTabId: TabId) => {
+    const newIndex = TABS.findIndex((t) => t.id === newTabId);
+    const prevIndex = prevIndexRef.current;
+
+    setDirection(newIndex > prevIndex ? 1 : -1);
+    prevIndexRef.current = newIndex;
+    setActiveTab(newTabId);
+  };
 
   /**
    * Renders the appropriate panel based on the active tab.
-   * Uses a key prop to trigger AnimatePresence exit/enter animations.
    */
   const renderActivePanel = () => {
     switch (activeTab) {
       case 'smartform':
-        return <SmartFormPanel key="smartform" />;
+        return <SmartFormPanel />;
       default:
         // All other tabs show the ComingSoon placeholder
-        return <ComingSoon key={activeTab} tabId={activeTab} />;
+        return <ComingSoon tabId={activeTab} />;
     }
   };
 
@@ -40,11 +61,16 @@ function AppContent() {
       <ModeBanner />
       <Header />
       <main className="main-content">
-        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-        <AnimatePresence mode="wait">
-          {renderActivePanel()}
-        </AnimatePresence>
+        <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
+        <div style={{ perspective: '1000px', overflow: 'hidden' }}>
+          <AnimatePresence mode="wait" custom={direction}>
+            <AnimatedPanel panelKey={activeTab} direction={direction}>
+              {renderActivePanel()}
+            </AnimatedPanel>
+          </AnimatePresence>
+        </div>
       </main>
+      <Footer />
     </div>
   );
 }

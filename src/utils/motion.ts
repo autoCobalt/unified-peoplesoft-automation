@@ -64,6 +64,47 @@ export const scaleFade = {
 };
 
 /**
+ * Card stack 3D transition
+ * Use for: Tab panels, page transitions
+ * Requires: direction prop (1 = forward, -1 = backward)
+ */
+export const cardStackVariants: Variants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? 100 : -100,
+    rotateY: direction > 0 ? 25 : -25,
+    rotateZ: direction > 0 ? 12 : -12,
+    scale: 0.88,
+    opacity: 0,
+    filter: 'blur(3px)',
+  }),
+  center: {
+    x: 0,
+    rotateY: 0,
+    rotateZ: 0,
+    scale: 1,
+    opacity: 1,
+    filter: 'blur(0px)',
+  },
+  exit: (direction: number) => ({
+    x: direction > 0 ? -100 : 100,
+    rotateY: direction > 0 ? -25 : 25,
+    rotateZ: direction > 0 ? -12 : 12,
+    scale: 0.88,
+    opacity: 0,
+    filter: 'blur(3px)',
+  }),
+};
+
+export const cardStackTransition: Transition = {
+  x: { type: 'spring', stiffness: 400, damping: 30 },
+  rotateY: { type: 'spring', stiffness: 400, damping: 30 },
+  rotateZ: { type: 'spring', stiffness: 400, damping: 30 },
+  scale: { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
+  opacity: { duration: 0.175, ease: 'easeOut' },
+  filter: { duration: 0.175 },
+};
+
+/**
  * Simple fade in
  * Use for: Sections, containers, subtle entrances
  */

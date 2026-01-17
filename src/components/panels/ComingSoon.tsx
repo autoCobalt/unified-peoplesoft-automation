@@ -3,11 +3,11 @@
  *
  * Generic placeholder for features that haven't been implemented yet.
  * Displays the tab name and description with a "Coming Soon" badge.
+ *
+ * Animation is handled by the parent AnimatedPanel wrapper.
  */
 
-import { motion } from 'framer-motion';
-import { TABS, type TabId } from '../types';
-import { scaleFade } from '../utils';
+import { TABS, type TabId } from '../../types';
 import './ComingSoon.css';
 
 interface ComingSoonProps {
@@ -33,19 +33,13 @@ export function ComingSoon({ tabId }: ComingSoonProps) {
   }
 
   return (
-    <motion.section
-      className="feature-panel coming-soon-panel"
-      initial={scaleFade.initial}
-      animate={scaleFade.animate}
-      exit={scaleFade.exit}
-      transition={scaleFade.transition}
-    >
+    <section className="feature-panel coming-soon-panel">
       <div className="panel-placeholder">
         <div className="placeholder-icon">{TAB_ICONS[tabId]}</div>
         <h2>{tab.label}</h2>
         <p>{tab.description}</p>
         <span className="placeholder-badge">Coming Soon</span>
       </div>
-    </motion.section>
+    </section>
   );
 }

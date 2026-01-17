@@ -1,5 +1,5 @@
 /**
- * SmartForm feature barrel export
+ * SmartForm panel barrel export
  */
 
 export { SmartFormPanel } from './SmartFormPanel';
