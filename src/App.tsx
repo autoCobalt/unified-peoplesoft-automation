@@ -4,7 +4,7 @@ import viteLogo from '/vite.svg'
 import './App.css'
 
 // Application mode from environment variables
-const appMode = import.meta.env.VITE_APP_MODE || 'development';
+const appMode = (import.meta.env.VITE_APP_MODE as string | undefined) ?? 'development';
 const isDevelopment = appMode === 'development';
 
 function App() {
@@ -35,7 +35,7 @@ function App() {
       </div>
       <h1>Unified PeopleSoft Automation</h1>
       <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
+        <button onClick={() => { setCount((count) => count + 1) }}>
           count is {count}
         </button>
         <p>
