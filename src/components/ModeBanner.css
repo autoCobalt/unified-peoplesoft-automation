@@ -11,6 +11,12 @@
   border-radius: 0 0 var(--border-radius) var(--border-radius);
 }
 
+.mode-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .mode-banner.mode-development {
   background: linear-gradient(135deg,
     color-mix(in srgb, var(--status-success) 20%, var(--bg-primary)) 0%,
@@ -132,4 +138,27 @@
 
 .dev-button-disconnect:hover {
   background: rgba(248, 81, 73, 0.3);
+}
+
+/* Responsive: wrap and center when viewport is narrow */
+@media (max-width: 850px) {
+  .mode-banner {
+    flex-wrap: wrap;
+  }
+
+  .dev-separator {
+    display: none;
+  }
+
+  .dev-controls {
+    margin-left: 0;
+    flex-basis: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 510px) {
+  .mode-description {
+    display: none;
+  }
 }

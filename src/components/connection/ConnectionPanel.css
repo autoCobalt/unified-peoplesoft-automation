@@ -28,7 +28,7 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-default);
   border-radius: var(--border-radius);
-  padding: var(--space-md);
+  padding: var(--space-md) var(--space-sm);
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 

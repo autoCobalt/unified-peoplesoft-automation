@@ -44,6 +44,7 @@
   --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 
   /* Sizing */
+  --min-width: 375px;
   --max-width: 950px;
   --border-radius: 8px;
   --border-radius-sm: 4px;

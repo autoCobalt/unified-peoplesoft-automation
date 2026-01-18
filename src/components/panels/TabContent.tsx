@@ -36,6 +36,7 @@ const PANEL_MAP: Record<TabId, React.ComponentType> = {
 export function TabContent() {
   const [activeTab, setActiveTab] = useState<TabId>(DEFAULT_TAB);
   const [direction, setDirection] = useState(0);
+  const [transitionId, setTransitionId] = useState(0);
   const prevIndexRef = useRef(0);
 
   /**
@@ -43,11 +44,15 @@ export function TabContent() {
    * Direction is 1 for forward (right) and -1 for backward (left).
    */
   const handleTabChange = (newTabId: TabId) => {
+    // Ignore clicks on the already-active tab
+    if (newTabId === activeTab) return;
+
     const newIndex = TABS.findIndex((t) => t.id === newTabId);
     const prevIndex = prevIndexRef.current;
 
     setDirection(newIndex > prevIndex ? 1 : -1);
     prevIndexRef.current = newIndex;
+    setTransitionId((id) => (id + 1) % 7);
     setActiveTab(newTabId);
   };
 
@@ -60,7 +65,7 @@ export function TabContent() {
       <div style={{ perspective: '1000px', overflow: 'hidden' }}>
         <AnimatePresence mode="popLayout" custom={direction}>
           <motion.div
-            key={activeTab}
+            key={`${activeTab}-${String(transitionId)}`}
             custom={direction}
             variants={cardStackVariants}
             initial="enter"

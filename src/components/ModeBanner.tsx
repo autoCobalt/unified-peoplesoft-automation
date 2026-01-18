@@ -50,15 +50,17 @@ export function ModeBanner() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 1, delay: 0.5 }}
     >
-      <span className="mode-indicator"></span>
-      <span className="mode-text">
-        {isDevelopment ? 'Development Mode' : 'Production Mode'}
-      </span>
-      <span className="mode-description">
-        {isDevelopment
-          ? '— Using mock data and placeholder servers'
-          : '— Connected to live PeopleSoft & Oracle systems'}
-      </span>
+      <div className="mode-info">
+        <span className="mode-indicator"></span>
+        <span className="mode-text">
+          {isDevelopment ? 'Development Mode' : 'Production Mode'}
+        </span>
+        <span className="mode-description">
+          {isDevelopment
+            ? '— Using mock data and placeholder servers'
+            : '— Connected to live PeopleSoft & Oracle systems'}
+        </span>
+      </div>
 
       {isDevelopment && (
         <div className="dev-controls">

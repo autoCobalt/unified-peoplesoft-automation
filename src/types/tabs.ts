@@ -6,27 +6,16 @@
  */
 
 /* ==============================================
-   Tab Type Definitions
+   Tab Base Type (for validation)
    ============================================== */
 
 /**
- * Union type of all valid tab identifiers
- * Add new tab IDs here as features are added
+ * Base configuration shape for a single tab
+ * Used to validate TABS entries while allowing literal type inference
  */
-export type TabId =
-  | 'smartform'
-  | 'edw-transfers'
-  | 'bulk-paf'
-  | 'parking-deductions'
-  | 'ci-record-entry'
-  | 'mass-email-notices';
-
-/**
- * Configuration for a single tab
- */
-export interface TabConfig {
+interface TabConfigBase {
   /** Unique identifier for the tab */
-  id: TabId;
+  id: string;
   /** Display label shown in the UI */
   label: string;
   /** PeopleSoft Component Interface name (used for SOAP calls) */
@@ -36,14 +25,17 @@ export interface TabConfig {
 }
 
 /* ==============================================
-   Tab Configuration Data
+   Tab Configuration Data (Source of Truth)
    ============================================== */
 
 /**
  * All available tabs in the application
  * Order determines display order in the TabNavigation component
+ *
+ * NOTE: This array is the single source of truth.
+ * The TabId type is automatically derived from this data.
  */
-export const TABS: TabConfig[] = [
+export const TABS = [
   {
     id: 'smartform',
     label: 'SmartForm',
@@ -80,9 +72,44 @@ export const TABS: TabConfig[] = [
     ciName: 'N/A',
     description: 'Emails sent from department accounts using templates',
   },
-];
+] as const satisfies readonly TabConfigBase[];
+
+/* ==============================================
+   Derived Types
+   ============================================== */
 
 /**
- * Default tab to show on application load
+ * Union type of all valid tab identifiers
+ * Automatically derived from TABS array - no manual maintenance needed
  */
-export const DEFAULT_TAB: TabId = 'smartform';
+export type TabId = (typeof TABS)[number]['id'];
+
+/**
+ * Configuration for a single tab (with narrowed id type)
+ */
+export interface TabConfig {
+  /** Unique identifier for the tab */
+  id: TabId;
+  /** Display label shown in the UI */
+  label: string;
+  /** PeopleSoft Component Interface name (used for SOAP calls) */
+  ciName: string;
+  /** Brief description of what this tab does */
+  description: string;
+}
+
+/* ==============================================
+   Default Tab Configuration
+   ============================================== */
+
+/**
+ * Index of the default tab to show on application load
+ * Change this number to set a different default tab
+ */
+export const DEFAULT_TAB_INDEX = 1;
+
+/**
+ * Default tab ID derived from the index
+ * This ensures the default always references a valid tab
+ */
+export const DEFAULT_TAB: TabId = TABS[DEFAULT_TAB_INDEX].id;
