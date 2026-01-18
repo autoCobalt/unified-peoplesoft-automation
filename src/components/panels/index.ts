@@ -1,10 +1,8 @@
 /**
  * Panels barrel export
  *
- * All tab panel components are exported from here.
- * AnimatedPanel is the wrapper, others are the panel content.
+ * TabContent is the main component that manages tab state and renders panels.
+ * Individual panels are internal to TabContent and not exported.
  */
 
-export { AnimatedPanel } from './AnimatedPanel';
-export { ComingSoon } from './ComingSoon';
-export { SmartFormPanel } from './smartform';
+export { TabContent } from './TabContent';

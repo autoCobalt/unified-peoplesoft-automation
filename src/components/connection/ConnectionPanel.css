@@ -1,0 +1,347 @@
+/**
+ * Connection Panel Styles
+ *
+ * Styles for Oracle and PeopleSoft connection panels.
+ * Includes connected state styling with green borders and collapse behavior.
+ */
+
+/* ==============================================
+   Connection Panel Container
+   ============================================== */
+
+.connection-panel-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.connection-panel-container.fully-connected {
+  /* When both panels are connected, the container uses minimal spacing */
+  gap: var(--space-sm);
+}
+
+/* ==============================================
+   Connection Panel (Individual)
+   ============================================== */
+
+.connection-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--border-radius);
+  padding: var(--space-md);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.connection-panel.connected {
+  border-color: var(--status-success);
+  box-shadow: 0 0 0 1px var(--status-success), 0 0 20px rgba(63, 185, 80, 0.15);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.panel-header h2 {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ==============================================
+   Connected State (Single Line)
+   ============================================== */
+
+.connected-single-line {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.connected-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.connected-title {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.connected-user-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(63, 185, 80, 0.1);
+  border-radius: var(--border-radius-sm);
+}
+
+.connected-user-badge .check-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--status-success);
+  flex-shrink: 0;
+}
+
+.connected-user-badge span {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--status-success);
+}
+
+.connected-badge {
+  padding: 2px 6px;
+  background: rgba(63, 185, 80, 0.15);
+  border-radius: var(--border-radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--status-success);
+  margin-left: auto;
+}
+
+.info-toggle-compact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: 1px solid var(--border-default);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.info-toggle-compact:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.info-toggle-compact .chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s;
+}
+
+.info-toggle-compact .chevron.open {
+  transform: rotate(180deg);
+}
+
+.connected-single-line .info-content {
+  margin-top: var(--space-xs);
+}
+
+/* ==============================================
+   Form Styles
+   ============================================== */
+
+.connection-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.form-group label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.form-group input {
+  padding: 6px var(--space-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+}
+
+.form-group input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* ==============================================
+   Submit Button
+   ============================================== */
+
+.connection-panel .submit-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--accent-primary);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  color: var(--bg-primary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: var(--space-xs);
+}
+
+.connection-panel .submit-button:hover:not(:disabled) {
+  background: var(--accent-highlight);
+}
+
+.connection-panel .submit-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Spinner */
+.connection-panel .spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ==============================================
+   Error Message
+   ============================================== */
+
+.connection-panel .error-message {
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid var(--status-error);
+  border-radius: var(--border-radius-sm);
+  color: var(--status-error);
+  font-size: 13px;
+}
+
+/* ==============================================
+   Connection Info Section
+   ============================================== */
+
+.connection-info {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-muted);
+}
+
+.info-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+}
+
+.info-toggle:hover {
+  color: var(--text-primary);
+}
+
+.info-toggle .chevron {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s;
+}
+
+.info-toggle .chevron.open {
+  transform: rotate(180deg);
+}
+
+.info-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--bg-tertiary);
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.info-label {
+  color: var(--text-secondary);
+}
+
+.info-value {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 11px;
+}
+
+.info-row.highlight {
+  padding-top: var(--space-sm);
+  margin-top: var(--space-sm);
+  border-top: 1px solid var(--border-muted);
+}
+
+.info-value.service-name {
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.info-badge {
+  margin-left: auto;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-tertiary);
+  border-radius: var(--border-radius-sm);
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+/* ==============================================
+   Responsive
+   ============================================== */
+
+@media (max-width: 768px) {
+  .connection-panel-container {
+    grid-template-columns: 1fr;
+  }
+}

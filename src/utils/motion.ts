@@ -96,12 +96,12 @@ export const cardStackVariants: Variants = {
 };
 
 export const cardStackTransition: Transition = {
-  x: { type: 'spring', stiffness: 400, damping: 30 },
-  rotateY: { type: 'spring', stiffness: 400, damping: 30 },
-  rotateZ: { type: 'spring', stiffness: 400, damping: 30 },
-  scale: { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
-  opacity: { duration: 0.175, ease: 'easeOut' },
-  filter: { duration: 0.175 },
+  x: { type: 'spring', stiffness: 300, damping: 28 },
+  rotateY: { type: 'spring', stiffness: 300, damping: 28 },
+  rotateZ: { type: 'spring', stiffness: 300, damping: 28 },
+  scale: { duration: 0.25, ease: [0.22, 1, 0.36, 1] },
+  opacity: { duration: 0.2, ease: 'easeOut' },
+  filter: { duration: 0.2 },
 };
 
 /**

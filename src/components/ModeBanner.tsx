@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useConnection } from '../context';
 import './ModeBanner.css';
 
 // Application mode from environment variables
@@ -13,9 +15,34 @@ const isDevelopment = appMode === 'development';
  * - Development: Green banner, uses mock data and placeholder servers
  * - Production: Red banner, connects to live PeopleSoft & Oracle systems
  *
+ * In development mode, includes helper buttons to quickly simulate
+ * connections without using the browser console.
+ *
  * Animates in from the top with a slide-down fade effect.
  */
 export function ModeBanner() {
+  const [devUsername, setDevUsername] = useState('dev_user');
+  const {
+    oracleState,
+    soapState,
+    disconnectAll,
+  } = useConnection();
+
+  const hasAnyConnection = oracleState.isConnected || soapState.isConnected;
+
+  const handleSimulateOracle = () => {
+    window.devSimulate?.oracleConnect(devUsername);
+  };
+
+  const handleSimulateSoap = () => {
+    window.devSimulate?.soapConnect(devUsername);
+  };
+
+  const handleSimulateBoth = () => {
+    window.devSimulate?.oracleConnect(devUsername);
+    window.devSimulate?.soapConnect(devUsername);
+  };
+
   return (
     <motion.div
       className={`mode-banner ${isDevelopment ? 'mode-development' : 'mode-production'}`}
@@ -32,6 +59,57 @@ export function ModeBanner() {
           ? '— Using mock data and placeholder servers'
           : '— Connected to live PeopleSoft & Oracle systems'}
       </span>
+
+      {isDevelopment && (
+        <div className="dev-controls">
+          <span className="dev-separator">|</span>
+          <input
+            type="text"
+            className="dev-username-input"
+            value={devUsername}
+            onChange={(e) => { setDevUsername(e.target.value); }}
+            placeholder="username"
+            title="Username for simulated connections"
+          />
+          <button
+            type="button"
+            className="dev-button"
+            onClick={handleSimulateOracle}
+            disabled={oracleState.isConnected}
+            title="Simulate Oracle connection"
+          >
+            Oracle
+          </button>
+          <button
+            type="button"
+            className="dev-button"
+            onClick={handleSimulateSoap}
+            disabled={soapState.isConnected}
+            title="Simulate PeopleSoft connection"
+          >
+            PeopleSoft
+          </button>
+          <button
+            type="button"
+            className="dev-button dev-button-both"
+            onClick={handleSimulateBoth}
+            disabled={oracleState.isConnected && soapState.isConnected}
+            title="Simulate both connections"
+          >
+            Both
+          </button>
+          {hasAnyConnection && (
+            <button
+              type="button"
+              className="dev-button dev-button-disconnect"
+              onClick={disconnectAll}
+              title="Disconnect all"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }
