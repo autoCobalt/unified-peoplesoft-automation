@@ -206,16 +206,17 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
   }, [disconnectOracle, disconnectSoap]);
 
   /* ============================================
-     Dev Simulation Helpers (DEV MODE ONLY)
+     Dev Simulation Helpers (DEVELOPMENT MODE ONLY)
 
-     These helpers are ONLY created and exposed in
-     development mode. In production builds, this
-     entire block is eliminated by the bundler.
+     These helpers are created when VITE_APP_MODE is
+     set to 'development'. They allow quick testing
+     of connection states without real credentials.
      ============================================ */
 
   useEffect(() => {
-    // Early return in production - no dev helpers exist
-    if (!import.meta.env.DEV) {
+    // Only create dev helpers when app mode is development
+    const appMode = (import.meta.env.VITE_APP_MODE as string | undefined) ?? 'development';
+    if (appMode !== 'development') {
       return;
     }
 

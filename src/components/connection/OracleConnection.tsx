@@ -65,6 +65,7 @@ export function OracleConnection() {
           >
             <div className="connected-line">
               <h2 className="connected-title">Oracle SQL</h2>
+              <span className="connected-service-name">{oracleConfig.serviceName}</span>
               <div className="connected-user-badge">
                 <svg viewBox="0 0 24 24" fill="none" className="check-icon">
                   <path
@@ -213,7 +214,7 @@ export function OracleConnection() {
                     />
                   </svg>
                   Connection Info
-                  <span className="info-badge">Service: {oracleConfig.serviceName}</span>
+                  <span className="info-badge">Service Name: {oracleConfig.serviceName}</span>
                 </button>
 
                 <AnimatePresence>
