@@ -12,26 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { TabNavigation } from '../TabNavigation';
 import { cardStackVariants, cardStackTransition } from '../../utils';
 import { DEFAULT_TAB, TABS, type TabId } from '../../types';
-
-// Panel imports
-import { SmartFormPanel } from './smartform';
-import { EdwTransfersPanel } from './edw-transfers';
-import { BulkPafPanel } from './bulk-paf';
-import { ParkingDeductionsPanel } from './parking-deductions';
-import { CiRecordEntryPanel } from './ci-record-entry';
-import { MassEmailNoticesPanel } from './mass-email-notices';
-
-/**
- * Maps tab IDs to their corresponding panel components.
- */
-const PANEL_MAP: Record<TabId, React.ComponentType> = {
-  'smartform': SmartFormPanel,
-  'edw-transfers': EdwTransfersPanel,
-  'bulk-paf': BulkPafPanel,
-  'parking-deductions': ParkingDeductionsPanel,
-  'ci-record-entry': CiRecordEntryPanel,
-  'mass-email-notices': MassEmailNoticesPanel,
-};
+import { PANEL_REGISTRY } from './panelRegistry';
 
 export function TabContent() {
   const [activeTab, setActiveTab] = useState<TabId>(DEFAULT_TAB);
@@ -57,7 +38,7 @@ export function TabContent() {
   };
 
   // Get the panel component for the active tab
-  const ActivePanel = PANEL_MAP[activeTab];
+  const ActivePanel = PANEL_REGISTRY[activeTab];
 
   return (
     <>
