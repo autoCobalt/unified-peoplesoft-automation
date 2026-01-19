@@ -14,19 +14,18 @@ import { useConnection } from '../../context';
  * PeopleSoft SOAP configuration from environment variables
  */
 const soapConfig = {
-  protocol: import.meta.env.VITE_PS_PROTOCOL as string || 'https',
-  server: import.meta.env.VITE_PS_SERVER as string || 'Not configured',
-  port: import.meta.env.VITE_PS_PORT as string || '443',
-  siteName: import.meta.env.VITE_PS_SITE_NAME as string || 'N/A',
-  portal: import.meta.env.VITE_PS_PORTAL as string || 'N/A',
-  node: import.meta.env.VITE_PS_NODE as string || 'N/A',
+  protocol: (import.meta.env.VITE_PS_PROTOCOL as string | undefined) ?? 'https',
+  server: (import.meta.env.VITE_PS_SERVER as string | undefined) ?? 'Not configured',
+  port: (import.meta.env.VITE_PS_PORT as string | undefined) ?? '443',
+  siteName: (import.meta.env.VITE_PS_SITE_NAME as string | undefined) ?? 'N/A',
+  portal: (import.meta.env.VITE_PS_PORTAL as string | undefined) ?? 'N/A',
+  node: (import.meta.env.VITE_PS_NODE as string | undefined) ?? 'N/A',
 };
 
 export function SoapConnection() {
   const {
     soapState,
     soapCredentials,
-    setSoapCredentials,
     connectSoap,
   } = useConnection();
 
@@ -38,9 +37,7 @@ export function SoapConnection() {
   const displayUsername = soapCredentials?.username ?? username;
 
   const handleConnect = () => {
-    const credentials = { username, password };
-    setSoapCredentials(credentials);
-    void connectSoap(credentials);
+    void connectSoap({ username, password });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -67,7 +64,10 @@ export function SoapConnection() {
             transition={{ duration: 0.2 }}
           >
             <div className="connected-line">
-              <h2 className="connected-title">PeopleSoft CI</h2>
+              <h2 className="connected-title">
+                <span className="title-full">PeopleSoft CI</span>
+                <span className="title-short">PeopleSoft</span>
+              </h2>
               <div className="connected-user-badge">
                 <svg viewBox="0 0 24 24" fill="none" className="check-icon">
                   <path

@@ -14,16 +14,15 @@ import { useConnection } from '../../context';
  * Oracle configuration from environment variables
  */
 const oracleConfig = {
-  hostname: import.meta.env.VITE_ORACLE_HOSTNAME as string || 'Not configured',
-  port: import.meta.env.VITE_ORACLE_PORT as string || '1521',
-  serviceName: import.meta.env.VITE_ORACLE_SERVICE_NAME as string || 'N/A',
+  hostname: (import.meta.env.VITE_ORACLE_HOSTNAME as string | undefined) ?? 'Not configured',
+  port: (import.meta.env.VITE_ORACLE_PORT as string | undefined) ?? '1521',
+  serviceName: (import.meta.env.VITE_ORACLE_SERVICE_NAME as string | undefined) ?? 'N/A',
 };
 
 export function OracleConnection() {
   const {
     oracleState,
     oracleCredentials,
-    setOracleCredentials,
     connectOracle,
   } = useConnection();
 
@@ -35,9 +34,7 @@ export function OracleConnection() {
   const displayUsername = oracleCredentials?.username ?? username;
 
   const handleConnect = () => {
-    const credentials = { username, password };
-    setOracleCredentials(credentials);
-    void connectOracle(credentials);
+    void connectOracle({ username, password });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -64,7 +61,10 @@ export function OracleConnection() {
             transition={{ duration: 0.2 }}
           >
             <div className="connected-line">
-              <h2 className="connected-title">Oracle SQL</h2>
+              <h2 className="connected-title">
+                <span className="title-full">Oracle SQL</span>
+                <span className="title-short">Oracle</span>
+              </h2>
               <span className="connected-service-name">{oracleConfig.serviceName}</span>
               <div className="connected-user-badge">
                 <svg viewBox="0 0 24 24" fill="none" className="check-icon">

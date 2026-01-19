@@ -23,6 +23,7 @@ export function TabContent() {
   /**
    * Handles tab changes and calculates animation direction.
    * Direction is 1 for forward (right) and -1 for backward (left).
+   * Each transition gets a unique ID to prevent key collisions.
    */
   const handleTabChange = (newTabId: TabId) => {
     // Ignore clicks on the already-active tab
@@ -33,7 +34,7 @@ export function TabContent() {
 
     setDirection(newIndex > prevIndex ? 1 : -1);
     prevIndexRef.current = newIndex;
-    setTransitionId((id) => (id + 1) % 7);
+    setTransitionId((id) => (id + 1) % 128);
     setActiveTab(newTabId);
   };
 

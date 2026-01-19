@@ -64,7 +64,6 @@ export function ModeBanner() {
 
       {isDevelopment && (
         <div className="dev-controls">
-          <span className="dev-separator">|</span>
           <input
             type="text"
             className="dev-username-input"

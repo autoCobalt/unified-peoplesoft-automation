@@ -18,6 +18,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
   type ReactNode,
 } from 'react';
 import type {
@@ -72,12 +73,14 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     useState<OracleConnectionState>(initialOracleState);
   const [oracleCredentials, setOracleCredentialsState] =
     useState<OracleCredentials | null>(null);
+  const oracleConnectingRef = useRef(false);
 
   // SOAP state
   const [soapState, setSoapState] =
     useState<SoapConnectionState>(initialSoapState);
   const [soapCredentials, setSoapCredentialsState] =
     useState<SoapCredentials | null>(null);
+  const soapConnectingRef = useRef(false);
 
   /* ============================================
      Oracle Actions
@@ -91,6 +94,11 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
 
   const connectOracle = useCallback(
     async (creds?: OracleCredentials): Promise<boolean> => {
+      // Prevent concurrent connection attempts
+      if (oracleConnectingRef.current) {
+        return false;
+      }
+
       const credentials = creds ?? oracleCredentials;
       if (!credentials) {
         setOracleState((prev) => ({
@@ -100,6 +108,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         return false;
       }
 
+      oracleConnectingRef.current = true;
       setOracleState((prev) => ({
         ...prev,
         isConnecting: true,
@@ -128,6 +137,8 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
           error: message,
         });
         return false;
+      } finally {
+        oracleConnectingRef.current = false;
       }
     },
     [oracleCredentials]
@@ -149,6 +160,11 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
 
   const connectSoap = useCallback(
     async (creds?: SoapCredentials): Promise<boolean> => {
+      // Prevent concurrent connection attempts
+      if (soapConnectingRef.current) {
+        return false;
+      }
+
       const credentials = creds ?? soapCredentials;
       if (!credentials) {
         setSoapState((prev) => ({
@@ -158,6 +174,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         return false;
       }
 
+      soapConnectingRef.current = true;
       setSoapState((prev) => ({
         ...prev,
         isConnecting: true,
@@ -186,6 +203,8 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
           error: message,
         });
         return false;
+      } finally {
+        soapConnectingRef.current = false;
       }
     },
     [soapCredentials]

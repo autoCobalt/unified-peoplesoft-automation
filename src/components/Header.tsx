@@ -53,7 +53,11 @@ export function Header() {
               strokeLinejoin="round"
             />
           </svg>
-          <h1>Unified PeopleSoft Automation</h1>
+          <h1>
+            <span className="title-full">Unified PeopleSoft Automation</span>
+            <span className="title-short">PeopleSoft Automation</span>
+            <span className="title-tiny">PS Automation</span>
+          </h1>
         </div>
 
         {hasActiveConnection && (
