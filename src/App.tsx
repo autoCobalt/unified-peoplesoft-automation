@@ -5,7 +5,7 @@
  * Component order defines the visual hierarchy of the application.
  */
 
-import { ConnectionProvider } from './context';
+import { AppProviders } from './context';
 import { ConnectionPanel, Footer, Header, ModeBanner, TabContent } from './components';
 
 /**
@@ -34,9 +34,9 @@ function AppContent() {
  */
 function App() {
   return (
-    <ConnectionProvider>
+    <AppProviders>
       <AppContent />
-    </ConnectionProvider>
+    </AppProviders>
   );
 }
 

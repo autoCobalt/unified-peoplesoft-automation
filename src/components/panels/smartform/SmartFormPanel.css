@@ -1,10 +1,26 @@
 /* ===== SMARTFORM PANEL ===== */
 
 /*
- * Note: Shared .feature-panel and .panel-placeholder styles
- * are defined in src/index.css for use across all panels.
+ * Main SmartForm panel layout styles.
+ * Section-specific styles are co-located in Sections/*.css
  */
 
 .smartform-panel {
-  /* Feature-specific styles go here */
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--space-sm) var(--space-sm);
+}
+
+/* Ensure smooth height transitions for collapsible sections */
+.smartform-panel > div {
+  overflow: hidden;
+}
+
+/* Panel scrollable area for table content */
+@media (max-height: 700px) {
+  .smartform-panel {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+  }
 }

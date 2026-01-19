@@ -65,6 +65,7 @@ Desktop.ini
 # Local-only folder for personal docs, proprietary modules, and sensitive config
 .private/
 .private
+claude*
 
 # ===== MISC =====
 *.pem

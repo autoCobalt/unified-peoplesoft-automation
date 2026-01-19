@@ -106,7 +106,7 @@ export interface TabConfig {
  * Index of the default tab to show on application load
  * Change this number to set a different default tab
  */
-export const DEFAULT_TAB_INDEX = 1;
+export const DEFAULT_TAB_INDEX = 0;
 
 /**
  * Default tab ID derived from the index

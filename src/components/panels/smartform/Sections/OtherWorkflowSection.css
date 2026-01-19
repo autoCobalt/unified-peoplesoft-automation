@@ -1,0 +1,141 @@
+/* ===== OTHER WORKFLOW SECTION ===== */
+
+.sf-other-container {
+  padding: 1rem 0;
+  border-top: 1px solid var(--border-secondary);
+  margin-top: 0.5rem;
+}
+
+.sf-other-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Empty State */
+.sf-other-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--status-success);
+  font-size: 0.875rem;
+}
+
+.sf-other-empty-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Action Button */
+.sf-other-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-inverse, #fff);
+  background: var(--accent-primary);
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sf-other-action-button:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.sf-other-action-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.sf-other-action-button--processing {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+}
+
+/* Spinner */
+.sf-other-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--border-secondary);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: sf-other-spin 0.8s linear infinite;
+}
+
+@keyframes sf-other-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Position Count */
+.sf-other-count {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Status Messages */
+.sf-other-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.sf-other-status--success {
+  color: var(--status-success);
+}
+
+.sf-other-status-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Complete Message */
+.sf-other-complete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--status-success);
+  background: color-mix(in srgb, var(--status-success) 10%, transparent);
+  border-radius: 0.5rem;
+}
+
+.sf-other-complete-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Error Message */
+.sf-other-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  color: var(--status-error);
+  background: color-mix(in srgb, var(--status-error) 10%, transparent);
+  border-radius: 0.5rem;
+}
+
+.sf-other-error-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  font-weight: 700;
+  background: var(--status-error);
+  color: var(--text-inverse, #fff);
+  border-radius: 50%;
+  font-size: 0.75rem;
+}

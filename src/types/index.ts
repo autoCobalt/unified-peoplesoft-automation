@@ -7,3 +7,4 @@
 
 export * from './connection';
 export * from './tabs';
+export * from './smartform';
