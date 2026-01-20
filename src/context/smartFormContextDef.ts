@@ -48,9 +48,6 @@ export interface SmartFormContextType {
   // Prepared Submission Data (persists across workflow steps and tab switches)
   preparedPositionData: PreparedSubmission[];
   preparedJobData: PreparedSubmission[];
-
-  // Utility
-  getStepProgress: (workflow: 'manager' | 'other') => { current: number; total: number } | null;
 }
 
 /* ==============================================

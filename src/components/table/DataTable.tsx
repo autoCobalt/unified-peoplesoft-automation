@@ -303,8 +303,7 @@ export function DataTable<TData>({
                           key={column.id}
                           className={`
                             ${getAlignClass(column.align)}
-                            ${column.mono ? 'dt-cell--mono' : ''}
-                            ${column.type === 'mono' ? 'dt-cell--mono' : ''}
+                            ${(column.mono || column.type === 'mono') ? 'dt-cell--mono' : ''}
                             ${column.type === 'number' ? 'dt-cell--number' : ''}
                             ${cellClass}
                           `.trim()}

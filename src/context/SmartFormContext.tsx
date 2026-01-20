@@ -396,18 +396,6 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     return distinctPositions.size;
   }, [state.queryResults]);
 
-  const getStepProgress = useCallback(
-    (workflow: 'manager' | 'other'): { current: number; total: number } | null => {
-      const step = workflow === 'manager' ? state.managerWorkflow : state.otherWorkflow;
-
-      if ('current' in step && 'total' in step) {
-        return { current: step.current, total: step.total };
-      }
-      return null;
-    },
-    [state.managerWorkflow, state.otherWorkflow]
-  );
-
   /* ==============================================
      Context Value
      ============================================== */
@@ -431,7 +419,6 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       distinctPositionCount,
       preparedPositionData,
       preparedJobData,
-      getStepProgress,
     }),
     [
       state,
@@ -451,7 +438,6 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       distinctPositionCount,
       preparedPositionData,
       preparedJobData,
-      getStepProgress,
     ]
   );
 

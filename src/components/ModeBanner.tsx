@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useConnection } from '../context';
+import { slideDownBanner } from '../utils/motion';
 import './ModeBanner.css';
 
 // Application mode from environment variables
@@ -46,9 +47,7 @@ export function ModeBanner() {
   return (
     <motion.div
       className={`mode-banner ${isDevelopment ? 'mode-development' : 'mode-production'}`}
-      initial={{ opacity: 1, y: '-100%' }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 1, delay: 0.5 }}
+      {...slideDownBanner}
     >
       <div className="mode-info">
         <span className="mode-indicator"></span>

@@ -14,6 +14,7 @@
  */
 
 import { useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useSmartForm } from '../../../../context';
 import type {
   ManagerWorkflowStepName,
@@ -23,6 +24,7 @@ import type {
   ColumnDef,
 } from '../../../../types';
 import { useWorkflowState, useWorkflowTasks } from '../../../../hooks';
+import { slideUpFadeInstantExit } from '../../../../utils';
 import {
   WorkflowActionButton,
   WorkflowChecklist,
@@ -169,7 +171,12 @@ export function ManagerWorkflowSection() {
 
   return (
     <section className="sf-workflow-container">
-      <h3 className="sf-workflow-title">Manager Approval Workflow</h3>
+      <motion.h3
+        className="sf-workflow-title"
+        {...slideUpFadeInstantExit}
+      >
+        Manager Approval Workflow
+      </motion.h3>
 
       {/* Task Checklist */}
       <WorkflowChecklist tasks={checklistTasks} />

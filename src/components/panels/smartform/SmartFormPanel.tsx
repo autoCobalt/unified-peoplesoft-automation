@@ -21,7 +21,12 @@ import {
   OtherWorkflowSection,
   DataTableSection,
 } from './Sections';
-import { scaleFade } from '../../../utils/motion';
+import {
+  scaleFade,
+  expandCollapse,
+  slideHorizontalVariants,
+  transitionQuick,
+} from '../../../utils/motion';
 import './SmartFormPanel.css';
 
 /**
@@ -52,32 +57,30 @@ export function SmartFormPanel() {
       {/* Workflow + Table (visible after query) */}
       <AnimatePresence>
         {hasQueried && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-
+          <motion.div {...expandCollapse}>
             {/* Workflow Section based on active sub-tab */}
             <AnimatePresence mode="wait">
               {activeSubTab === 'manager' ? (
                 <motion.div
                   key="manager-workflow"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.2 }}
+                  custom={-1}
+                  variants={slideHorizontalVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={transitionQuick}
                 >
                   <ManagerWorkflowSection />
                 </motion.div>
               ) : (
                 <motion.div
                   key="other-workflow"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.2 }}
+                  custom={1}
+                  variants={slideHorizontalVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={transitionQuick}
                 >
                   <OtherWorkflowSection />
                 </motion.div>

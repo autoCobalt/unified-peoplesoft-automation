@@ -80,35 +80,11 @@ export function isActivelyProcessing(
  * Get the index of a step in the step order array.
  * Returns -1 if step is not found.
  */
-export function getStepIndex<TStepName extends string>(
+function getStepIndex<TStepName extends string>(
   stepName: TStepName,
   stepOrder: readonly TStepName[]
 ): number {
   return stepOrder.indexOf(stepName);
-}
-
-/**
- * Check if current step is at or past a target step.
- *
- * @example
- * if (isAtOrPastStep(currentStep, 'approved', stepOrder)) {
- *   // Show approved content
- * }
- */
-export function isAtOrPastStep<TStepName extends string>(
-  currentStepName: TStepName,
-  targetStepName: TStepName,
-  stepOrder: readonly TStepName[]
-): boolean {
-  const currentIndex = getStepIndex(currentStepName, stepOrder);
-  const targetIndex = getStepIndex(targetStepName, stepOrder);
-
-  // If either step not found, return false
-  if (currentIndex === -1 || targetIndex === -1) {
-    return false;
-  }
-
-  return currentIndex >= targetIndex;
 }
 
 /* ==============================================

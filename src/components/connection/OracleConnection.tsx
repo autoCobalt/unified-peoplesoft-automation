@@ -9,6 +9,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useConnection } from '../../context';
+import {
+  slideLeftFadeStagger,
+  fadeInOut,
+  expandCollapseQuick,
+  buttonInteraction,
+  slideDownSmallFade,
+} from '../../utils/motion';
 
 /**
  * Oracle configuration from environment variables
@@ -45,9 +52,7 @@ export function OracleConnection() {
   return (
     <motion.div
       className={`connection-panel oracle-panel ${oracleState.isConnected ? 'connected' : ''}`}
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay: 0.1 }}
+      {...slideLeftFadeStagger}
     >
       <AnimatePresence mode="wait">
         {oracleState.isConnected ? (
@@ -55,10 +60,7 @@ export function OracleConnection() {
           <motion.div
             key="connected"
             className="connected-single-line"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            {...fadeInOut}
           >
             <div className="connected-line">
               <h2 className="connected-title">
@@ -103,10 +105,7 @@ export function OracleConnection() {
               {showInfo && (
                 <motion.div
                   className="info-content"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+                  {...expandCollapseQuick}
                 >
                   <div className="info-row">
                     <span className="info-label">Hostname:</span>
@@ -128,10 +127,7 @@ export function OracleConnection() {
           /* Disconnected State - Full Form */
           <motion.div
             key="disconnected"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            {...fadeInOut}
           >
             <div className="panel-header">
               <h2>Oracle SQL Connection</h2>
@@ -165,8 +161,7 @@ export function OracleConnection() {
                 type="submit"
                 className="submit-button"
                 disabled={oracleState.isConnecting || !username || !password}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                {...buttonInteraction}
               >
                 {oracleState.isConnecting ? (
                   <>
@@ -182,9 +177,7 @@ export function OracleConnection() {
                 {oracleState.error && (
                   <motion.div
                     className="error-message"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
+                    {...slideDownSmallFade}
                   >
                     {oracleState.error}
                   </motion.div>
@@ -219,10 +212,7 @@ export function OracleConnection() {
                   {showInfo && (
                     <motion.div
                       className="info-content"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
+                      {...expandCollapseQuick}
                     >
                       <div className="info-row">
                         <span className="info-label">Database Type:</span>

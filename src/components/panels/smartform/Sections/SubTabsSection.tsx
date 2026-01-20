@@ -48,7 +48,7 @@ export function SubTabsSection() {
               <motion.div
                 className="sf-subtab-indicator"
                 layoutId="smartform-subtab-indicator"
-                transition={transitionSpring}
+                {...transitionSpring}
               />
             )}
           </button>

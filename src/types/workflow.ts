@@ -117,14 +117,6 @@ export function isIdleStep<T extends WorkflowStepBase>(
    ============================================== */
 
 /**
- * Extract the step name string from a workflow step union.
- *
- * @example
- * type MyStepName = StepName<MyWorkflowStep>; // 'idle' | 'processing' | 'complete' | 'error'
- */
-export type StepName<T extends WorkflowStepBase> = T['step'];
-
-/**
  * Normalized progress object for UI display.
  * Provides computed values from raw current/total.
  */

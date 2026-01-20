@@ -84,20 +84,6 @@ export const TABS = [
  */
 export type TabId = (typeof TABS)[number]['id'];
 
-/**
- * Configuration for a single tab (with narrowed id type)
- */
-export interface TabConfig {
-  /** Unique identifier for the tab */
-  id: TabId;
-  /** Display label shown in the UI */
-  label: string;
-  /** PeopleSoft Component Interface name (used for SOAP calls) */
-  ciName: string;
-  /** Brief description of what this tab does */
-  description: string;
-}
-
 /* ==============================================
    Default Tab Configuration
    ============================================== */

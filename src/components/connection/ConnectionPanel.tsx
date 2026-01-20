@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { useConnection } from '../../context';
 import { OracleConnection } from './OracleConnection';
 import { SoapConnection } from './SoapConnection';
+import { fadeIn } from '../../utils/motion';
 import './ConnectionPanel.css';
 
 export function ConnectionPanel() {
@@ -17,9 +18,7 @@ export function ConnectionPanel() {
   return (
     <motion.section
       className={`connection-panel-container ${isFullyConnected ? 'fully-connected' : ''}`}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
+      {...fadeIn}
     >
       <OracleConnection />
       <SoapConnection />

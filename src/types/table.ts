@@ -236,12 +236,3 @@ export interface DataTableProps<TData> {
   /** Whether to show row numbers as first column */
   showRowNumbers?: boolean;
 }
-
-/* ==============================================
-   Utility Types
-   ============================================== */
-
-/**
- * Helper type to extract the data type from a columns array.
- */
-export type InferDataType<T> = T extends ColumnDef<infer U>[] ? U : never;

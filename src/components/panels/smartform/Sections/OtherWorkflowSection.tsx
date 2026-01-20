@@ -17,6 +17,7 @@ import { motion } from 'framer-motion';
 import { useSmartForm } from '../../../../context';
 import type { OtherWorkflowStepName } from '../../../../types';
 import { useWorkflowState } from '../../../../hooks';
+import { fadeIn } from '../../../../utils/motion';
 import {
   WorkflowActionButton,
   WorkflowStatusMessage,
@@ -115,8 +116,7 @@ export function OtherWorkflowSection() {
         {stepName === 'positions-created' && (
           <motion.span
             className="sf-other-status sf-other-status--success"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            {...fadeIn}
           >
             <svg viewBox="0 0 24 24" fill="none" className="sf-other-status-icon" aria-hidden="true">
               <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

@@ -10,7 +10,7 @@
 
 import { motion } from 'framer-motion';
 import { TABS, type TabId } from '../types';
-import { slideUpFade } from '../utils';
+import { slideUpFadeDelay, transitionSpring } from '../utils';
 import './TabNavigation.css';
 
 interface TabNavigationProps {
@@ -26,9 +26,7 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
       className="tab-navigation"
       role="tablist"
       aria-label="Feature tabs"
-      initial={slideUpFade.initial}
-      animate={slideUpFade.animate}
-      transition={{ ...slideUpFade.transition, delay: 0.1 }}
+      {...slideUpFadeDelay}
     >
       <div className="tab-list">
         {TABS.map((tab) => {
@@ -50,7 +48,7 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
                 <motion.div
                   className="tab-indicator"
                   layoutId="tab-indicator"
-                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                  {...transitionSpring}
                 />
               )}
             </button>

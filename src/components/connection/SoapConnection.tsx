@@ -9,6 +9,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useConnection } from '../../context';
+import {
+  slideRightFadeStagger,
+  fadeInOut,
+  expandCollapseQuick,
+  buttonInteraction,
+  slideDownSmallFade,
+} from '../../utils/motion';
 
 /**
  * PeopleSoft SOAP configuration from environment variables
@@ -48,9 +55,7 @@ export function SoapConnection() {
   return (
     <motion.div
       className={`connection-panel soap-panel ${soapState.isConnected ? 'connected' : ''}`}
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay: 0.2 }}
+      {...slideRightFadeStagger}
     >
       <AnimatePresence mode="wait">
         {soapState.isConnected ? (
@@ -58,10 +63,7 @@ export function SoapConnection() {
           <motion.div
             key="connected"
             className="connected-single-line"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            {...fadeInOut}
           >
             <div className="connected-line">
               <h2 className="connected-title">
@@ -105,10 +107,7 @@ export function SoapConnection() {
               {showInfo && (
                 <motion.div
                   className="info-content"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+                  {...expandCollapseQuick}
                 >
                   <div className="info-row">
                     <span className="info-label">Server:</span>
@@ -132,10 +131,7 @@ export function SoapConnection() {
           /* Disconnected State - Full Form */
           <motion.div
             key="disconnected"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            {...fadeInOut}
           >
             <div className="panel-header">
               <h2>PeopleSoft CI Connection</h2>
@@ -169,8 +165,7 @@ export function SoapConnection() {
                 type="submit"
                 className="submit-button"
                 disabled={soapState.isConnecting || !username || !password}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                {...buttonInteraction}
               >
                 {soapState.isConnecting ? (
                   <>
@@ -186,9 +181,7 @@ export function SoapConnection() {
                 {soapState.error && (
                   <motion.div
                     className="error-message"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
+                    {...slideDownSmallFade}
                   >
                     {soapState.error}
                   </motion.div>
@@ -222,10 +215,7 @@ export function SoapConnection() {
                   {showInfo && (
                     <motion.div
                       className="info-content"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
+                      {...expandCollapseQuick}
                     >
                       <div className="info-row">
                         <span className="info-label">Server:</span>
