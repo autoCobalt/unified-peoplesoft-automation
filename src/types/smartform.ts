@@ -112,12 +112,11 @@ export interface PreparedSubmission {
  * The Manager workflow follows these steps:
  * 1. idle → preparing (Prepare CI submissions)
  * 2. prepared (Shows prepared submission tables)
- * 3. browser-opening → browser-open (Launch browser)
- * 4. approving (Process approvals via automation)
- * 5. approved
- * 6. submitting-position (Submit CI_POSITION_DATA)
- * 7. submitting-job (Submit CI_JOB_DATA)
- * 8. complete
+ * 3. approving (Process approvals via browser automation - browser opens automatically)
+ * 4. approved
+ * 5. submitting-position (Submit CI_POSITION_DATA)
+ * 6. submitting-job (Submit CI_JOB_DATA)
+ * 7. complete
  *
  * Can transition to 'error' from any step.
  */
@@ -125,8 +124,6 @@ export type ManagerWorkflowStep =
   | { step: 'idle' }
   | { step: 'preparing'; ciType: 'position' | 'job' }
   | { step: 'prepared'; positionData: PreparedSubmission[]; jobData: PreparedSubmission[] }
-  | { step: 'browser-opening' }
-  | { step: 'browser-open' }
   | { step: 'approving'; current: number; total: number }
   | { step: 'approved' }
   | { step: 'submitting-position'; current: number; total: number }
@@ -150,16 +147,13 @@ export type ManagerWorkflowStepName = ManagerWorkflowStep['step'];
  * 2. positions-created
  *
  * Phase 2: Approval processing (if positions remain after refresh)
- * 3. browser-opening → browser-open
- * 4. approving
- * 5. complete
+ * 3. approving (browser opens automatically)
+ * 4. complete
  */
 export type OtherWorkflowStep =
   | { step: 'idle' }
   | { step: 'creating-positions'; current: number; total: number }
   | { step: 'positions-created'; count: number }
-  | { step: 'browser-opening' }
-  | { step: 'browser-open' }
   | { step: 'approving'; current: number; total: number }
   | { step: 'approved' }
   | { step: 'complete' }

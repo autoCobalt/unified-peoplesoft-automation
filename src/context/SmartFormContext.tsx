@@ -9,8 +9,9 @@
  * - CI submission preparation and tracking
  */
 
-import { useState, useCallback, useMemo, type ReactNode } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { SmartFormContext, type SmartFormContextType } from './smartFormContextDef';
+import { workflowApi } from '../services';
 import type {
   SmartFormState,
   SmartFormSubTab,
@@ -132,6 +133,9 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   // Core state
   const [state, setState] = useState<SmartFormState>(INITIAL_SMARTFORM_STATE);
 
+  // Polling cleanup ref
+  const stopPollingRef = useRef<(() => void) | null>(null);
+
   // Prepared submission storage (separate from workflow state for cleaner updates)
   const [preparedPositionData, setPreparedPositionData] = useState<PreparedSubmission[]>([]);
   const [preparedJobData, setPreparedJobData] = useState<PreparedSubmission[]>([]);
@@ -233,31 +237,101 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     });
   }, [state.queryResults, setManagerWorkflow]);
 
-  const openBrowser = useCallback(async () => {
-    setManagerWorkflow({ step: 'browser-opening' });
-
-    // Simulate browser launch delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // TODO: Integrate with Playwright browser launch
-    setManagerWorkflow({ step: 'browser-open' });
-  }, [setManagerWorkflow]);
-
-  const processApprovals = useCallback(async () => {
+  /**
+   * Start the approval workflow via server API.
+   * Browser lifecycle is handled internally by the server.
+   */
+  const startApprovals = useCallback(async () => {
     const managerRecords = state.queryResults?.transactions.filter(
       r => r.approverType === 'Manager'
     ) ?? [];
 
-    const total = managerRecords.length;
-
-    for (let i = 0; i < total; i++) {
-      setManagerWorkflow({ step: 'approving', current: i + 1, total });
-      // Simulate approval processing
-      await new Promise(resolve => setTimeout(resolve, 300));
+    if (managerRecords.length === 0) {
+      setManagerWorkflow({ step: 'error', message: 'No transactions to approve' });
+      return;
     }
 
-    setManagerWorkflow({ step: 'approved' });
-  }, [state.queryResults, setManagerWorkflow]);
+    // Start approval workflow - browser opens internally on server
+    // Go directly to approving state (browser lifecycle is handled server-side)
+    setManagerWorkflow({ step: 'approving', current: 0, total: managerRecords.length });
+
+    const transactionIds = managerRecords.map(r => r.transaction);
+
+    // Get test site URL for development
+    const testSiteUrl = import.meta.env.VITE_APP_MODE === 'development'
+      ? `${window.location.origin}/test-site`
+      : undefined;
+
+    const response = await workflowApi.manager.startApprovals(transactionIds, testSiteUrl);
+
+    if (!response.success) {
+      const errorMessage = response.error.message;
+      setManagerWorkflow({
+        step: 'error',
+        message: errorMessage,
+      });
+      return;
+    }
+
+    // Workflow started - begin polling for status
+    setManagerWorkflow({ step: 'approving', current: 0, total: managerRecords.length });
+
+    // Stop any existing polling
+    if (stopPollingRef.current) {
+      stopPollingRef.current();
+    }
+
+    // Start polling for workflow status
+    stopPollingRef.current = workflowApi.manager.pollStatus((status, error) => {
+      if (error) {
+        setManagerWorkflow({ step: 'error', message: error });
+        return;
+      }
+
+      if (!status) return;
+
+      // Update progress based on server status
+      if (status.status === 'running' && status.progress) {
+        setManagerWorkflow({
+          step: 'approving',
+          current: status.progress.current,
+          total: status.progress.total,
+        });
+      } else if (status.status === 'completed') {
+        setManagerWorkflow({ step: 'approved' });
+        // Stop polling when complete
+        if (stopPollingRef.current) {
+          stopPollingRef.current();
+          stopPollingRef.current = null;
+        }
+      } else if (status.status === 'error') {
+        setManagerWorkflow({ step: 'error', message: status.error ?? 'Unknown error' });
+        if (stopPollingRef.current) {
+          stopPollingRef.current();
+          stopPollingRef.current = null;
+        }
+      } else if (status.status === 'cancelled') {
+        // User cancelled - revert to prepared state
+        setManagerWorkflow({
+          step: 'prepared',
+          positionData: preparedPositionData,
+          jobData: preparedJobData,
+        });
+        if (stopPollingRef.current) {
+          stopPollingRef.current();
+          stopPollingRef.current = null;
+        }
+      }
+    });
+  }, [state.queryResults, setManagerWorkflow, preparedPositionData, preparedJobData]);
+
+  // Legacy aliases for backward compatibility with existing UI
+  const openBrowser = startApprovals;
+  const processApprovals = useCallback(async () => {
+    // No-op - approvals are now processed as part of startApprovals
+    // This is kept for backward compatibility but the actual processing
+    // happens server-side when startApprovals is called
+  }, []);
 
   const submitPositionData = useCallback(async () => {
     const total = preparedPositionData.length;
@@ -347,17 +421,20 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   }, [state.queryResults, setOtherWorkflow, refreshQuery]);
 
   const processOtherApprovals = useCallback(async () => {
-    setOtherWorkflow({ step: 'browser-opening' });
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    setOtherWorkflow({ step: 'browser-open' });
-    await new Promise(resolve => setTimeout(resolve, 500));
-
     const otherRecords = state.queryResults?.transactions.filter(
       r => r.approverType === 'Other'
     ) ?? [];
 
+    if (otherRecords.length === 0) {
+      setOtherWorkflow({ step: 'complete' });
+      return;
+    }
+
+    // TODO: Implement Other workflow using workflowApi when Other endpoints are added
+    // For now, simulate the workflow locally (browser lifecycle will be handled server-side)
     const total = otherRecords.length;
+
+    // Go directly to approving state
 
     for (let i = 0; i < total; i++) {
       setOtherWorkflow({ step: 'approving', current: i + 1, total });
@@ -368,6 +445,15 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     await new Promise(resolve => setTimeout(resolve, 300));
     setOtherWorkflow({ step: 'complete' });
   }, [state.queryResults, setOtherWorkflow]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (stopPollingRef.current) {
+        stopPollingRef.current();
+      }
+    };
+  }, []);
 
   const resetOtherWorkflow = useCallback(() => {
     setOtherWorkflow(INITIAL_OTHER_WORKFLOW);

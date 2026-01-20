@@ -1,12 +1,11 @@
 /**
  * ManagerWorkflowSection Component
  *
- * Displays the 5-step Manager approval workflow:
+ * Displays the 4-step Manager approval workflow:
  * 1. Prepare CI submissions
- * 2. Open browser
- * 3. Process approvals
- * 4. Submit position data
- * 5. Submit job data
+ * 2. Process approvals (browser opens automatically)
+ * 3. Submit position data
+ * 4. Submit job data
  *
  * Features a progressive action button and prepared submission tables.
  * Uses shared workflow components for the checklist, button, and status messages.
@@ -36,14 +35,13 @@ import './ManagerWorkflowSection.css';
 /** Step order for status calculation */
 const STEP_ORDER: readonly ManagerWorkflowStepName[] = [
   'idle', 'preparing', 'prepared',
-  'browser-opening', 'browser-open',
   'approving', 'approved',
   'submitting-position', 'submitting-job', 'complete',
 ];
 
 /** Steps that indicate active processing */
 const PROCESSING_STEPS = [
-  'preparing', 'browser-opening', 'approving', 'submitting-position', 'submitting-job',
+  'preparing', 'approving', 'submitting-position', 'submitting-job',
 ];
 
 /**
@@ -83,7 +81,6 @@ export function ManagerWorkflowSection() {
     state,
     prepareSubmissions,
     openBrowser,
-    processApprovals,
     submitPositionData,
     submitJobData,
     preparedPositionData,
@@ -93,6 +90,7 @@ export function ManagerWorkflowSection() {
   const { managerWorkflow } = state;
 
   // Define workflow tasks
+  // Note: The "Process approvals" step opens a browser window automatically
   const tasks: WorkflowTask<ManagerWorkflowStepName>[] = useMemo(() => [
     {
       id: 'prepare',
@@ -103,20 +101,12 @@ export function ManagerWorkflowSection() {
       action: prepareSubmissions,
     },
     {
-      id: 'browser',
-      triggerStep: 'prepared',
-      completionStep: 'browser-open',
-      label: 'Open browser',
-      buttonLabel: 'Open Browser',
-      action: openBrowser,
-    },
-    {
       id: 'approvals',
-      triggerStep: 'browser-open',
+      triggerStep: 'prepared',
       completionStep: 'approved',
-      label: 'Process approvals',
+      label: 'Process approvals (opens browser)',
       buttonLabel: 'Process Approvals',
-      action: processApprovals,
+      action: openBrowser,
     },
     {
       id: 'position',
@@ -134,7 +124,7 @@ export function ManagerWorkflowSection() {
       buttonLabel: 'Submit CI_JOB_DATA',
       action: submitJobData,
     },
-  ], [prepareSubmissions, openBrowser, processApprovals, submitPositionData, submitJobData]);
+  ], [prepareSubmissions, openBrowser, submitPositionData, submitJobData]);
 
   // Use workflow state hook
   const {
@@ -171,16 +161,6 @@ export function ManagerWorkflowSection() {
 
   return (
     <section className="sf-workflow-container">
-      <motion.h3
-        className="sf-workflow-title"
-        {...slideUpFadeInstantExit}
-      >
-        Manager Approval Workflow
-      </motion.h3>
-
-      {/* Task Checklist */}
-      <WorkflowChecklist tasks={checklistTasks} />
-
       {/* Action Button */}
       {activeTask && !isComplete && !isError && (
         <div className="sf-workflow-action-container">
@@ -192,6 +172,16 @@ export function ManagerWorkflowSection() {
           />
         </div>
       )}
+
+      <motion.h3
+        className="sf-workflow-title"
+        {...slideUpFadeInstantExit}
+      >
+        Manager Approval Workflow
+      </motion.h3>
+
+      {/* Task Checklist */}
+      <WorkflowChecklist tasks={checklistTasks} />
 
       {/* Completion Message */}
       {isComplete && (

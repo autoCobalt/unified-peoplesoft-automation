@@ -4,3 +4,5 @@
 
 export { AppLogoIcon } from './AppLogoIcon';
 export { LogoutIcon } from './LogoutIcon';
+export { PlayIcon } from './PlayIcon';
+export { RefreshIcon } from './RefreshIcon';

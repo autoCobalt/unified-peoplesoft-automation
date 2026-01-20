@@ -8,23 +8,27 @@
 
 /* Container */
 .sf-workflow-container {
-  padding: 1rem 0;
+  padding: var(--space-xs) 0;
   border-top: 1px solid var(--border-secondary);
-  margin-top: 0.5rem;
+  margin-top: var(--space-xs);
 }
 
 .sf-workflow-title {
   font-size: 0.875rem;
+  padding: var(--space-xs) 0;
   font-weight: 600;
   color: var(--text-secondary);
-  margin: 0 0 1rem 0;
+  margin-bottom: var(--space-xs);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 /* Action Button Container */
 .sf-workflow-action-container {
-  margin: 1rem 0;
+  padding: var(--space-sm) 0;
+  display: flex;
+  justify-content: center;
+  margin: var(--space-xs) 0;
 }
 
 /* Submission Tables Container */

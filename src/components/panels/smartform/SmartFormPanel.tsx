@@ -44,26 +44,34 @@ export function SmartFormPanel() {
       className="feature-panel smartform-panel"
       {...scaleFade}
     >
-      {/* Header Row: Query Button + Sub-tabs + Stats */}
-      <div className="sf-header-row">
+      {/* Header Row: Button (left) + Tabs (center) + Total (right) */}
+      <div className={`sf-header-row ${hasQueried ? 'sf-header-row--queried' : ''}`}>
         <QueryOverviewSection />
-        {hasQueried && (
-          <div className="sf-subtabs-wrapper">
-            <SubTabsSection />
-          </div>
+        {hasQueried && state.queryResults && (
+          <>
+            <div className="sf-header-center">
+              <SubTabsSection />
+            </div>
+            <div className="sf-header-right">
+              <div className="sf-overview-total">
+                <span className="sf-overview-total-label">Total:</span>
+                <span className="sf-overview-total-value">{state.queryResults.totalCount}</span>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
       {/* Workflow + Table (visible after query) */}
       <AnimatePresence>
         {hasQueried && (
-          <motion.div {...expandCollapse}>
+          <motion.div className="sf-content" {...expandCollapse}>
             {/* Workflow Section based on active sub-tab */}
             <AnimatePresence mode="wait">
               {activeSubTab === 'manager' ? (
                 <motion.div
                   key="manager-workflow"
-                  custom={-1}
+                  custom={1}
                   variants={slideHorizontalVariants}
                   initial="enter"
                   animate="center"
@@ -75,7 +83,7 @@ export function SmartFormPanel() {
               ) : (
                 <motion.div
                   key="other-workflow"
-                  custom={1}
+                  custom={-1}
                   variants={slideHorizontalVariants}
                   initial="enter"
                   animate="center"

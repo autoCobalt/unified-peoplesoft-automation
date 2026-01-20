@@ -26,7 +26,7 @@ import './OtherWorkflowSection.css';
 
 /** Steps that indicate active processing */
 const PROCESSING_STEPS: OtherWorkflowStepName[] = [
-  'creating-positions', 'browser-opening', 'approving',
+  'creating-positions', 'approving',
 ];
 
 export function OtherWorkflowSection() {

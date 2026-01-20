@@ -3,25 +3,50 @@
  *
  * Reusable animation configurations for consistent motion across components.
  * Import these presets to maintain uniform animation timing and behavior.
+ *
+ * Organization:
+ * 1. Transition Timing - Raw duration/easing presets
+ * 2. Spreadable Transitions - Objects with `transition` key for spreading
+ * 3. Fade Animations - Opacity-based entrances/exits
+ * 4. Slide Animations (Vertical) - Y-axis movement
+ * 5. Slide Animations (Horizontal) - X-axis movement
+ * 6. Scale Animations - Size-based transitions
+ * 7. Expand/Collapse - Height-based animations
+ * 8. Card Stack / 3D - Complex directional variants
+ * 9. Interactive Presets - Hover/tap feedback
+ * 10. Stagger Animations - Parent/child cascading
  */
 
 import type { Variants, Transition } from 'framer-motion';
 
 /* ==============================================
-   Transition Presets
+   1. Transition Timing Presets
    ============================================== */
 
-/** Standard transition for most animations */
-export const transitionDefault: Transition = {
-  duration: 0.4,
-};
-
-/** Faster transition for subtle animations */
+/** Fast transition (0.1s) - for subtle, snappy animations */
 export const transitionFast: Transition = {
   duration: 0.1,
 };
 
-/** Spring transition for tab indicators and layout animations */
+/** Quick transition (0.2s) - for tab/panel switching */
+export const transitionQuick: Transition = {
+  duration: 0.2,
+};
+
+/** Default transition (0.4s) - standard timing for most animations */
+export const transitionDefault: Transition = {
+  duration: 0.4,
+};
+
+/* ==============================================
+   2. Spreadable Transition Presets
+   ============================================== */
+
+/**
+ * Spring transition for layout animations
+ * Use for: Tab indicators, layoutId elements
+ * Spread directly: {...transitionSpring}
+ */
 export const transitionSpring = {
   transition: {
     type: 'spring',
@@ -30,13 +55,33 @@ export const transitionSpring = {
   } as Transition,
 };
 
-/** Quick transition for tab/panel switching */
-export const transitionQuick: Transition = {
-  duration: 0.2,
+/* ==============================================
+   3. Fade Animations
+   ============================================== */
+
+/**
+ * Simple fade in
+ * Use for: Sections, containers, subtle entrances
+ */
+export const fadeIn = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  transition: transitionFast,
+};
+
+/**
+ * Fade in/out for AnimatePresence contexts
+ * Use for: Content that appears/disappears (connected states, form toggles)
+ */
+export const fadeInOut = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: transitionQuick,
 };
 
 /* ==============================================
-   Animation Presets (Initial/Animate pairs)
+   4. Slide Animations (Vertical)
    ============================================== */
 
 /**
@@ -60,6 +105,17 @@ export const slideDownBanner = {
 };
 
 /**
+ * Small slide down + fade (for error messages, tooltips)
+ * Use for: Error messages, notifications that appear above content
+ */
+export const slideDownSmallFade = {
+  initial: { opacity: 0, y: -10 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
+  transition: transitionQuick,
+};
+
+/**
  * Slide up from bottom + fade in
  * Use for: Navigation, bottom-positioned elements
  */
@@ -69,20 +125,95 @@ export const slideUpFade = {
   transition: transitionDefault,
 };
 
-/** Slide up from bottom with stagger delay (for sequential entrance) */
+/** Slide up with stagger delay (for sequential entrance) */
 export const slideUpFadeDelay = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.4, delay: 0.1 },
 };
 
-/** Slide up from bottom with instant exit (for titles in AnimatePresence) */
+/** Slide up with instant exit (for titles in AnimatePresence) */
 export const slideUpFadeInstantExit = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0 },
   transition: { duration: 0.4, exit: { duration: 0 } },
 };
+
+/* ==============================================
+   5. Slide Animations (Horizontal)
+   ============================================== */
+
+/**
+ * Slide in from left + fade
+ * Use for: Left-positioned panels
+ */
+export const slideLeftFade = {
+  initial: { opacity: 0, x: -20 },
+  animate: { opacity: 1, x: 0 },
+  transition: transitionDefault,
+};
+
+/** Slide from left with stagger delay (first in sequence) */
+export const slideLeftFadeStagger = {
+  initial: { opacity: 0, x: -20 },
+  animate: { opacity: 1, x: 0 },
+  transition: { duration: 0.4, delay: 0.1 },
+};
+
+/**
+ * Slide in from right + fade
+ * Use for: Right-positioned panels
+ */
+export const slideRightFade = {
+  initial: { opacity: 0, x: 20 },
+  animate: { opacity: 1, x: 0 },
+  transition: transitionDefault,
+};
+
+/** Slide from right with stagger delay (second in sequence) */
+export const slideRightFadeStagger = {
+  initial: { opacity: 0, x: 20 },
+  animate: { opacity: 1, x: 0 },
+  transition: { duration: 0.4, delay: 0.2 },
+};
+
+/**
+ * Horizontal slide variants for bidirectional tab/panel switching
+ * Use with AnimatePresence mode="wait"
+ * Direction: 1 = slide from right, -1 = slide from left
+ *
+ * @example
+ * <AnimatePresence mode="wait">
+ *   <motion.div
+ *     key={activeTab}
+ *     custom={direction}
+ *     variants={slideHorizontalVariants}
+ *     initial="enter"
+ *     animate="center"
+ *     exit="exit"
+ *     transition={transitionQuick}
+ *   />
+ * </AnimatePresence>
+ */
+export const slideHorizontalVariants: Variants = {
+  enter: (direction: number) => ({
+    opacity: 0,
+    x: direction > 0 ? 20 : -20,
+  }),
+  center: {
+    opacity: 1,
+    x: 0,
+  },
+  exit: (direction: number) => ({
+    opacity: 0,
+    x: direction > 0 ? -20 : 20,
+  }),
+};
+
+/* ==============================================
+   6. Scale Animations
+   ============================================== */
 
 /**
  * Scale up + fade in
@@ -94,6 +225,33 @@ export const scaleFade = {
   exit: { opacity: 0, scale: 0.95 },
   transition: transitionFast,
 };
+
+/* ==============================================
+   7. Expand/Collapse Animations
+   ============================================== */
+
+/**
+ * Expand/collapse with fade
+ * Use for: Collapsible sections, accordion content
+ */
+export const expandCollapse = {
+  initial: { opacity: 0, height: 0 },
+  animate: { opacity: 1, height: 'auto' },
+  exit: { opacity: 0, height: 0 },
+  transition: { duration: 0.3 },
+};
+
+/** Expand/collapse with quick timing (for info panels, tooltips) */
+export const expandCollapseQuick = {
+  initial: { opacity: 0, height: 0 },
+  animate: { opacity: 1, height: 'auto' },
+  exit: { opacity: 0, height: 0 },
+  transition: transitionQuick,
+};
+
+/* ==============================================
+   8. Card Stack / 3D Animations
+   ============================================== */
 
 /**
  * Card stack 3D transition
@@ -136,126 +294,8 @@ export const cardStackTransition: Transition = {
   filter: { duration: 0.2 },
 };
 
-/**
- * Simple fade in
- * Use for: Sections, containers, subtle entrances
- */
-export const fadeIn = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  transition: transitionFast,
-};
-
-/**
- * Simple fade in/out for AnimatePresence contexts
- * Use for: Content that appears/disappears (connected states, form toggles)
- */
-export const fadeInOut = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  exit: { opacity: 0 },
-  transition: transitionQuick,
-};
-
-/**
- * Slide in from left + fade
- * Use for: Left-positioned panels
- */
-export const slideLeftFade = {
-  initial: { opacity: 0, x: -20 },
-  animate: { opacity: 1, x: 0 },
-  transition: transitionDefault,
-};
-
-/** Slide in from left with stagger delay (first in sequence) */
-export const slideLeftFadeStagger = {
-  initial: { opacity: 0, x: -20 },
-  animate: { opacity: 1, x: 0 },
-  transition: { duration: 0.4, delay: 0.1 },
-};
-
-/**
- * Slide in from right + fade
- * Use for: Right-positioned panels
- */
-export const slideRightFade = {
-  initial: { opacity: 0, x: 20 },
-  animate: { opacity: 1, x: 0 },
-  transition: transitionDefault,
-};
-
-/** Slide in from right with stagger delay (second in sequence) */
-export const slideRightFadeStagger = {
-  initial: { opacity: 0, x: 20 },
-  animate: { opacity: 1, x: 0 },
-  transition: { duration: 0.4, delay: 0.2 },
-};
-
-/**
- * Small slide down + fade (for error messages, tooltips)
- * Use for: Error messages, notifications that appear above content
- */
-export const slideDownSmallFade = {
-  initial: { opacity: 0, y: -10 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
-  transition: transitionQuick,
-};
-
-/**
- * Expand/collapse with fade
- * Use for: Collapsible sections, accordion content
- */
-export const expandCollapse = {
-  initial: { opacity: 0, height: 0 },
-  animate: { opacity: 1, height: 'auto' },
-  exit: { opacity: 0, height: 0 },
-  transition: { duration: 0.3 },
-};
-
-/** Expand/collapse with quick timing (for info panels, tooltips) */
-export const expandCollapseQuick = {
-  initial: { opacity: 0, height: 0 },
-  animate: { opacity: 1, height: 'auto' },
-  exit: { opacity: 0, height: 0 },
-  transition: transitionQuick,
-};
-
-/**
- * Horizontal slide variants for bidirectional tab/panel switching
- * Use with AnimatePresence mode="wait"
- * Direction: 1 = slide from right, -1 = slide from left
- *
- * @example
- * <AnimatePresence mode="wait">
- *   <motion.div
- *     key={activeTab}
- *     custom={direction}
- *     variants={slideHorizontalVariants}
- *     initial="enter"
- *     animate="center"
- *     exit="exit"
- *     transition={transitionQuick}
- *   />
- * </AnimatePresence>
- */
-export const slideHorizontalVariants: Variants = {
-  enter: (direction: number) => ({
-    opacity: 0,
-    x: direction > 0 ? 20 : -20,
-  }),
-  center: {
-    opacity: 1,
-    x: 0,
-  },
-  exit: (direction: number) => ({
-    opacity: 0,
-    x: direction > 0 ? -20 : 20,
-  }),
-};
-
 /* ==============================================
-   Interactive Presets
+   9. Interactive Presets (Hover/Tap)
    ============================================== */
 
 /**
@@ -279,7 +319,7 @@ export const buttonScaleFade = {
 };
 
 /* ==============================================
-   Variant Presets (for complex animations)
+   10. Stagger Animations
    ============================================== */
 
 /**

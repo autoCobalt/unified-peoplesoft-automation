@@ -8,33 +8,76 @@
 .smartform-panel {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: 0;
-  padding: var(--space-sm) var(--space-sm);
+  padding: var(--space-xs) var(--space-xs);
 }
 
 /* Header Row: Query + SubTabs + Stats on same line */
 .sf-header-row {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 1rem;
-  padding: 1rem 0;
-  flex-wrap: wrap;
+  padding: var(--space-xs) 0;
 }
 
-.sf-subtabs-wrapper {
-  order: 3;
-  overflow: hidden;
+/* Queried state: button left, center content absolutely centered */
+.sf-header-row--queried {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* Workflow + Table content: centered */
+.sf-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Center content: absolutely positioned for true centering */
+.sf-header-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Right content: absolutely positioned at right edge */
+.sf-header-right {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
 }
 
 /* Responsive: stack header on narrow screens */
-@media (max-width: 600px) {
+@media (max-width: 830px) {
   .sf-header-row {
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
   }
 
-  .sf-subtabs-wrapper {
+  .sf-header-row--queried {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .sf-header-center {
+    position: static;
+    transform: none;
     order: 3;
+  }
+
+  .sf-header-right {
+    position: static;
+    order: 2;
   }
 }
 

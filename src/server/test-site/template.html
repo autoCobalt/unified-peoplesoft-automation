@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-var="TRANSACTION_NBR" data-template="Test Site - Transaction {value}">Test Site - Transaction</title>
+    <link rel="stylesheet" href="/test-site/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Internal System (Test Mock)</h1>
+            <p class="subtitle">This is a mock of your internal website for testing</p>
+        </header>
+
+        <main>
+            <section class="transaction-info">
+                <h2>Transaction Details</h2>
+                <div class="info-row">
+                    <span class="label">Transaction Number:</span>
+                    <span class="value" id="transactionNumber" data-var="TRANSACTION_NBR"></span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Status:</span>
+                    <span class="value status-pending" id="currentStatus">Pending Approval</span>
+                </div>
+            </section>
+
+            <section class="actions">
+                <h3>Available Actions</h3>
+                <a href="#" id="APPROVE_BIN" class="btn btn-primary" onclick="showConfirmModal(); return false;">
+                    Approve Transaction
+                </a>
+            </section>
+
+            <!-- Success Message (hidden initially) -->
+            <section id="successMessage" class="success-banner" style="display: none;">
+                <div class="success-icon">&#10004;</div>
+                <h2>Transaction Approved Successfully</h2>
+                <p data-var="TRANSACTION_NBR" data-template="Transaction {value} has been approved and processed."></p>
+            </section>
+        </main>
+
+        <!-- Confirmation Modal -->
+        <div id="ptModTable_3" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h3>Confirm Approval</h3>
+                <p>Are you sure you want to approve transaction <strong data-var="TRANSACTION_NBR"></strong>?</p>
+                <p class="warning">This action cannot be undone.</p>
+                <div class="modal-actions">
+                    <a href="#" id="ICYes" class="btn btn-success" onclick="confirmApproval(); return false;">
+                        Yes, Approve
+                    </a>
+                    <a href="#" id="ICNo" class="btn btn-secondary" onclick="hideConfirmModal(); return false;">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showConfirmModal() {
+            document.getElementById('ptModTable_3').style.display = 'flex';
+        }
+
+        function hideConfirmModal() {
+            document.getElementById('ptModTable_3').style.display = 'none';
+        }
+
+        function confirmApproval() {
+            // Hide modal
+            hideConfirmModal();
+
+            // Hide actions section
+            document.querySelector('.actions').style.display = 'none';
+
+            // Update status
+            const statusElement = document.getElementById('currentStatus');
+            statusElement.textContent = 'Approved';
+            statusElement.classList.remove('status-pending');
+            statusElement.classList.add('status-approved');
+
+            // Show success message
+            document.getElementById('successMessage').style.display = 'block';
+
+            // Scroll to success message
+            document.getElementById('successMessage').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
