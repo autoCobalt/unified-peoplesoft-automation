@@ -1,0 +1,51 @@
+/**
+ * Table Base CSS
+ *
+ * CSS custom properties for theming the DataTable component.
+ * Override via className prefix for feature-specific styling.
+ *
+ * @example
+ * .sf-table { --dt-header-bg: var(--bg-secondary); }
+ */
+
+/* === Root Variables (defaults) === */
+:root {
+  /* Colors */
+  --dt-header-bg: var(--bg-tertiary);
+  --dt-header-color: var(--text-tertiary);
+  --dt-row-bg: transparent;
+  --dt-row-bg-alt: var(--bg-secondary);
+  --dt-row-bg-hover: var(--bg-tertiary);
+  --dt-border-color: var(--border-secondary);
+  --dt-text-primary: var(--text-primary);
+  --dt-text-secondary: var(--text-secondary);
+  --dt-text-muted: var(--text-tertiary);
+
+  /* Status Colors */
+  --dt-status-pending-bg: var(--bg-tertiary);
+  --dt-status-pending-color: var(--text-tertiary);
+  --dt-status-processing-bg: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  --dt-status-processing-color: var(--accent-primary);
+  --dt-status-success-bg: color-mix(in srgb, var(--status-success) 15%, transparent);
+  --dt-status-success-color: var(--status-success);
+  --dt-status-error-bg: color-mix(in srgb, var(--status-error) 15%, transparent);
+  --dt-status-error-color: var(--status-error);
+  --dt-status-warning-bg: color-mix(in srgb, var(--status-warning, #f59e0b) 15%, transparent);
+  --dt-status-warning-color: var(--status-warning, #f59e0b);
+
+  /* Typography */
+  --dt-font-size: 0.8125rem;
+  --dt-font-size-header: 0.6875rem;
+  --dt-font-mono: var(--font-mono, ui-monospace, monospace);
+
+  /* Spacing */
+  --dt-cell-padding-y: 0.5rem;
+  --dt-cell-padding-x: 0.75rem;
+  --dt-border-radius: 0.375rem;
+
+  /* Button */
+  --dt-button-bg: var(--accent-primary);
+  --dt-button-color: var(--text-inverse, #fff);
+  --dt-button-padding-y: 0.25rem;
+  --dt-button-padding-x: 0.5rem;
+}

@@ -1,116 +1,110 @@
 /**
  * DataTableSection Component
  *
- * Displays the filtered transaction records in a scrollable table.
+ * Displays the filtered transaction records using the shared DataTable component.
  * Features:
  * - Row count and queue label in toolbar
  * - Date match highlighting
  * - Status badges with appropriate colors
  */
 
-import { motion } from 'framer-motion';
+import { useMemo } from 'react';
 import { useSmartForm } from '../../../../context';
-import type { SmartFormRecord } from '../../../../types';
-import { fadeIn } from '../../../../utils/motion';
+import type { SmartFormRecord, ColumnDef } from '../../../../types';
+import { DataTable } from '../../../table';
 import './DataTableSection.css';
 
-/** Map status to CSS modifier class */
-function getStatusClass(status: SmartFormRecord['status']): string {
-  const classMap: Record<SmartFormRecord['status'], string> = {
-    pending: 'sf-table-status-badge--pending',
-    processing: 'sf-table-status-badge--processing',
-    success: 'sf-table-status-badge--success',
-    error: 'sf-table-status-badge--error',
-  };
-  return classMap[status];
+/**
+ * Column definitions for the SmartForm transaction table.
+ * Defines structure, types, and conditional styling.
+ */
+function useTransactionColumns(): ColumnDef<SmartFormRecord>[] {
+  return useMemo(() => [
+    {
+      id: 'transaction',
+      header: 'Transaction',
+      accessor: 'transaction',
+      type: 'mono',
+    },
+    {
+      id: 'emplid',
+      header: 'Emplid',
+      accessor: 'emplid',
+      type: 'mono',
+    },
+    {
+      id: 'employeeName',
+      header: 'Employee Name',
+      accessor: 'employeeName',
+    },
+    {
+      id: 'currentEffdt',
+      header: 'Current Effdt',
+      accessor: 'currentEffdt',
+      type: 'mono',
+      cellClassName: (_value, row) =>
+        row.currentEffdt === row.newEffdt ? 'sf-table-cell--date-warning' : '',
+    },
+    {
+      id: 'newEffdt',
+      header: 'New Effdt',
+      accessor: 'newEffdt',
+      type: 'mono',
+      cellClassName: (_value, row) =>
+        row.currentEffdt === row.newEffdt ? 'sf-table-cell--date-warning' : '',
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      accessor: 'status',
+      type: 'status',
+      statusClassMap: {
+        pending: 'pending',
+        processing: 'processing',
+        success: 'success',
+        error: 'error',
+      },
+    },
+  ], []);
 }
 
 export function DataTableSection() {
   const { state, filteredRecords } = useSmartForm();
   const { activeSubTab } = state;
 
+  const columns = useTransactionColumns();
   const queueLabel = activeSubTab === 'manager' ? 'Manager' : 'Other';
   const rowCount = filteredRecords.length;
 
   return (
-    <motion.div
-      className="sf-table-container"
-      role="tabpanel"
-      id={`sf-tabpanel-${activeSubTab}`}
-      aria-labelledby={`sf-tab-${activeSubTab}`}
-      {...fadeIn}
-    >
-      {/* Toolbar */}
-      <div className="sf-table-toolbar">
-        <div className="sf-table-toolbar-left">
+    <DataTable
+      className="sf-table"
+      columns={columns}
+      data={filteredRecords}
+      keyAccessor="id"
+      showRowNumbers
+      emptyMessage="No transactions in this queue"
+      toolbar={{
+        left: (
           <span className="sf-table-row-count">
             {rowCount} row{rowCount !== 1 ? 's' : ''}
           </span>
-        </div>
-        <div className="sf-table-toolbar-right">
-          <span className="sf-table-queue-label">{queueLabel} Approval Queue</span>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="sf-table-scroll-container">
-        <table className="sf-table">
-          <thead>
-            <tr>
-              <th className="sf-table-col-number">#</th>
-              <th>Transaction</th>
-              <th>Emplid</th>
-              <th>Employee Name</th>
-              <th>Current Effdt</th>
-              <th>New Effdt</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRecords.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="sf-table-empty">
-                  No transactions in this queue
-                </td>
-              </tr>
-            ) : (
-              filteredRecords.map((record, index) => {
-                const datesMatch = record.currentEffdt === record.newEffdt;
-                return (
-                  <tr
-                    key={record.id}
-                    className={datesMatch ? 'sf-table-row--date-match' : ''}
-                  >
-                    <td className="sf-table-col-number">{index + 1}</td>
-                    <td className="sf-table-cell-mono">{record.transaction}</td>
-                    <td className="sf-table-cell-mono">{record.emplid}</td>
-                    <td>{record.employeeName}</td>
-                    <td
-                      className={`sf-table-cell-mono ${
-                        datesMatch ? 'sf-table-cell--date-warning' : ''
-                      }`}
-                    >
-                      {record.currentEffdt}
-                    </td>
-                    <td
-                      className={`sf-table-cell-mono ${
-                        datesMatch ? 'sf-table-cell--date-warning' : ''
-                      }`}
-                    >
-                      {record.newEffdt}
-                    </td>
-                    <td>
-                      <span className={`sf-table-status-badge ${getStatusClass(record.status)}`}>
-                        {record.status}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </motion.div>
+        ),
+        right: (
+          <span className="sf-table-queue-label">
+            {queueLabel} Approval Queue
+          </span>
+        ),
+      }}
+      rowConfig={{
+        className: (row) =>
+          row.currentEffdt === row.newEffdt ? 'sf-table-row--date-match' : '',
+      }}
+      tabPanel={{
+        id: `sf-tabpanel-${activeSubTab}`,
+        labelledBy: `sf-tab-${activeSubTab}`,
+      }}
+      ariaLabel={`${queueLabel} approval transactions`}
+    />
   );
 }

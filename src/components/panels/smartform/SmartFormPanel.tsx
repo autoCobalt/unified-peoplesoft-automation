@@ -39,10 +39,17 @@ export function SmartFormPanel() {
       className="feature-panel smartform-panel"
       {...scaleFade}
     >
-      {/* Query Button + Stats */}
-      <QueryOverviewSection />
+      {/* Header Row: Query Button + Sub-tabs + Stats */}
+      <div className="sf-header-row">
+        <QueryOverviewSection />
+        {hasQueried && (
+          <div className="sf-subtabs-wrapper">
+            <SubTabsSection />
+          </div>
+        )}
+      </div>
 
-      {/* Sub-tabs (visible after query) */}
+      {/* Workflow + Table (visible after query) */}
       <AnimatePresence>
         {hasQueried && (
           <motion.div
@@ -51,7 +58,6 @@ export function SmartFormPanel() {
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <SubTabsSection />
 
             {/* Workflow Section based on active sub-tab */}
             <AnimatePresence mode="wait">

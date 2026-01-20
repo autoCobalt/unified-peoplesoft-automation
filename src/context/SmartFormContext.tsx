@@ -384,10 +384,6 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     );
   }, [state.queryResults, state.activeSubTab]);
 
-  const managerRecords = useMemo(() => {
-    // Return prepared submissions for manager workflow display
-    return preparedPositionData;
-  }, [preparedPositionData]);
 
   const distinctPositionCount = useMemo(() => {
     if (!state.queryResults) return 0;
@@ -432,8 +428,9 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       processOtherApprovals,
       resetOtherWorkflow,
       filteredRecords,
-      managerRecords,
       distinctPositionCount,
+      preparedPositionData,
+      preparedJobData,
       getStepProgress,
     }),
     [
@@ -451,8 +448,9 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       processOtherApprovals,
       resetOtherWorkflow,
       filteredRecords,
-      managerRecords,
       distinctPositionCount,
+      preparedPositionData,
+      preparedJobData,
       getStepProgress,
     ]
   );

@@ -8,3 +8,5 @@
 export * from './connection';
 export * from './tabs';
 export * from './smartform';
+export * from './workflow';
+export * from './table';

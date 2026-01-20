@@ -1,0 +1,195 @@
+/* ===== DATA TABLE COMPONENT ===== */
+
+@import './table-base.css';
+
+/* === Container === */
+.dt-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* === Toolbar === */
+.dt-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  gap: 1rem;
+}
+
+.dt-toolbar-left,
+.dt-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* === Scroll Container === */
+.dt-scroll-container {
+  overflow-x: auto;
+  border: 1px solid var(--dt-border-color);
+  border-radius: var(--dt-border-radius);
+}
+
+/* === Table === */
+.dt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--dt-font-size);
+}
+
+/* === Header === */
+.dt-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.dt-table th {
+  padding: var(--dt-cell-padding-y) var(--dt-cell-padding-x);
+  font-size: var(--dt-font-size-header);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-align: left;
+  color: var(--dt-header-color);
+  background: var(--dt-header-bg);
+  border-bottom: 1px solid var(--dt-border-color);
+  white-space: nowrap;
+}
+
+/* === Body === */
+.dt-table td {
+  padding: var(--dt-cell-padding-y) var(--dt-cell-padding-x);
+  color: var(--dt-text-primary);
+  border-bottom: 1px solid var(--dt-border-color);
+  vertical-align: middle;
+}
+
+.dt-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Row hover */
+.dt-table tbody tr:hover {
+  background: var(--dt-row-bg-hover);
+}
+
+/* Clickable rows */
+.dt-row--clickable {
+  cursor: pointer;
+}
+
+/* === Cell Alignment === */
+.dt-cell--center,
+.dt-table th.dt-cell--center {
+  text-align: center;
+}
+
+.dt-cell--right,
+.dt-table th.dt-cell--right {
+  text-align: right;
+}
+
+/* === Cell Types === */
+.dt-cell--mono,
+.dt-mono {
+  font-family: var(--dt-font-mono);
+}
+
+.dt-cell--number,
+.dt-number {
+  font-family: var(--dt-font-mono);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Empty State === */
+.dt-empty {
+  text-align: center;
+  color: var(--dt-text-muted);
+  padding: 2rem var(--dt-cell-padding-x) !important;
+  font-style: italic;
+}
+
+/* === Status Badge === */
+.dt-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+}
+
+.dt-status--pending {
+  color: var(--dt-status-pending-color);
+  background: var(--dt-status-pending-bg);
+}
+
+.dt-status--processing,
+.dt-status--submitting {
+  color: var(--dt-status-processing-color);
+  background: var(--dt-status-processing-bg);
+}
+
+.dt-status--success,
+.dt-status--complete,
+.dt-status--completed {
+  color: var(--dt-status-success-color);
+  background: var(--dt-status-success-bg);
+}
+
+.dt-status--error,
+.dt-status--failed {
+  color: var(--dt-status-error-color);
+  background: var(--dt-status-error-bg);
+}
+
+.dt-status--warning {
+  color: var(--dt-status-warning-color);
+  background: var(--dt-status-warning-bg);
+}
+
+/* === Button === */
+.dt-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--dt-button-padding-y) var(--dt-button-padding-x);
+  font-size: var(--dt-font-size);
+  font-weight: 500;
+  color: var(--dt-button-color);
+  background: var(--dt-button-bg);
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+  white-space: nowrap;
+}
+
+.dt-button:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.dt-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* === Checkbox === */
+.dt-checkbox {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  accent-color: var(--accent-primary);
+}
+
+.dt-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

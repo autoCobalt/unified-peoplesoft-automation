@@ -1,0 +1,43 @@
+/* ===== WORKFLOW ACTION BUTTON ===== */
+
+@import './workflow-base.css';
+
+.wf-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--wf-gap);
+  padding: var(--wf-button-padding-y) var(--wf-button-padding-x);
+  font-size: var(--wf-font-size);
+  font-weight: var(--wf-font-weight-normal);
+  color: var(--wf-text-inverse);
+  background: var(--wf-accent);
+  border: none;
+  border-radius: var(--wf-border-radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.wf-action-button:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.wf-action-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.wf-action-button--processing {
+  background: var(--wf-bg-tertiary);
+  color: var(--wf-text-primary);
+  border: 1px solid var(--wf-border-primary);
+}
+
+/* Spinner */
+.wf-action-spinner {
+  width: var(--wf-spinner-size);
+  height: var(--wf-spinner-size);
+  border: 2px solid var(--wf-border-secondary);
+  border-top-color: var(--wf-accent);
+  border-radius: 50%;
+  animation: wf-spin 0.8s linear infinite;
+}

@@ -1,5 +1,12 @@
-/* ===== MANAGER WORKFLOW SECTION ===== */
+/* ===== MANAGER WORKFLOW SECTION =====
+ *
+ * Feature-specific styles for the Manager workflow.
+ * Generic workflow styles (checklist, button, status) are in
+ * src/components/workflow/ and imported by those components.
+ * Submission tables use the DataTable component from src/components/table/.
+ */
 
+/* Container */
 .sf-workflow-container {
   padding: 1rem 0;
   border-top: 1px solid var(--border-secondary);
@@ -15,189 +22,12 @@
   letter-spacing: 0.05em;
 }
 
-/* Task Checklist */
-.sf-workflow-checklist {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  list-style: none;
-  padding: 0;
-  margin: 0 0 1rem 0;
-}
-
-.sf-workflow-task {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0;
-  transition: opacity 0.2s ease;
-}
-
-.sf-workflow-task--pending {
-  opacity: 0.5;
-}
-
-.sf-workflow-task--active {
-  opacity: 1;
-}
-
-.sf-workflow-task--completed {
-  opacity: 0.7;
-}
-
-/* Task Indicator */
-.sf-workflow-task-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  font-size: 0.75rem;
-  font-weight: 600;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.sf-workflow-task--pending .sf-workflow-task-indicator {
-  background: var(--bg-tertiary);
-  color: var(--text-tertiary);
-  border: 1px solid var(--border-secondary);
-}
-
-.sf-workflow-task--active .sf-workflow-task-indicator {
-  background: var(--accent-primary);
-  color: var(--text-inverse, #fff);
-  border: 1px solid var(--accent-primary);
-}
-
-.sf-workflow-task--completed .sf-workflow-task-indicator {
-  background: var(--status-success);
-  color: var(--text-inverse, #fff);
-  border: 1px solid var(--status-success);
-}
-
-.sf-workflow-task-number {
-  font-variant-numeric: tabular-nums;
-}
-
-.sf-workflow-check-icon {
-  width: 0.875rem;
-  height: 0.875rem;
-}
-
-/* Task Label */
-.sf-workflow-task-label {
-  font-size: 0.875rem;
-  color: var(--text-primary);
-}
-
-.sf-workflow-task--pending .sf-workflow-task-label {
-  color: var(--text-tertiary);
-}
-
-.sf-workflow-task--completed .sf-workflow-task-label {
-  text-decoration: line-through;
-  color: var(--text-secondary);
-}
-
-/* Action Button */
+/* Action Button Container */
 .sf-workflow-action-container {
   margin: 1rem 0;
 }
 
-.sf-workflow-action-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-inverse, #fff);
-  background: var(--accent-primary);
-  border: none;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.sf-workflow-action-button:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
-
-.sf-workflow-action-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.sf-workflow-action-button--processing {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-primary);
-}
-
-/* Spinner */
-.sf-workflow-spinner {
-  width: 1rem;
-  height: 1rem;
-  border: 2px solid var(--border-secondary);
-  border-top-color: var(--accent-primary);
-  border-radius: 50%;
-  animation: sf-workflow-spin 0.8s linear infinite;
-}
-
-@keyframes sf-workflow-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Complete Message */
-.sf-workflow-complete {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--status-success);
-  background: color-mix(in srgb, var(--status-success) 10%, transparent);
-  border-radius: 0.5rem;
-  margin: 1rem 0;
-}
-
-.sf-workflow-complete-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-/* Error Message */
-.sf-workflow-error {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1rem;
-  font-size: 0.875rem;
-  color: var(--status-error);
-  background: color-mix(in srgb, var(--status-error) 10%, transparent);
-  border-radius: 0.5rem;
-  margin: 1rem 0;
-}
-
-.sf-workflow-error-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
-  font-weight: 700;
-  background: var(--status-error);
-  color: var(--text-inverse, #fff);
-  border-radius: 50%;
-  font-size: 0.75rem;
-}
-
-/* Submission Tables */
+/* Submission Tables Container */
 .sf-workflow-submissions {
   display: flex;
   flex-direction: column;
@@ -221,68 +51,17 @@
   font-family: var(--font-mono, monospace);
 }
 
+/* DataTable Overrides for Submission Tables */
 .sf-workflow-sub-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8125rem;
-  border: 1px solid var(--border-secondary);
-  border-radius: 0.375rem;
-  overflow: hidden;
-}
+  /* Compact sizing for workflow context */
+  --dt-font-size: 0.8125rem;
+  --dt-font-size-header: 0.6875rem;
+  --dt-cell-padding-x: 0.75rem;
+  --dt-cell-padding-y: 0.5rem;
 
-.sf-workflow-sub-table th,
-.sf-workflow-sub-table td {
-  padding: 0.5rem 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border-secondary);
-}
-
-.sf-workflow-sub-table th {
-  font-weight: 600;
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-tertiary);
-  background: var(--bg-tertiary);
-}
-
-.sf-workflow-sub-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.sf-workflow-sub-cell-mono {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.8125rem;
-}
-
-/* Submission Status Badges */
-.sf-workflow-sub-status {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.125rem 0.375rem;
-  font-size: 0.625rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  border-radius: 0.25rem;
-}
-
-.sf-workflow-sub-status--pending {
-  color: var(--text-tertiary);
-  background: var(--bg-tertiary);
-}
-
-.sf-workflow-sub-status--submitting {
-  color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
-}
-
-.sf-workflow-sub-status--success {
-  color: var(--status-success);
-  background: color-mix(in srgb, var(--status-success) 15%, transparent);
-}
-
-.sf-workflow-sub-status--error {
-  color: var(--status-error);
-  background: color-mix(in srgb, var(--status-error) 15%, transparent);
+  /* Custom status colors */
+  --dt-status-pending-bg: var(--bg-tertiary);
+  --dt-status-pending-color: var(--text-tertiary);
+  --dt-status-processing-bg: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  --dt-status-processing-color: var(--accent-primary);
 }

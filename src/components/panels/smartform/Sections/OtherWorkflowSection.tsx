@@ -9,12 +9,24 @@
  * - Single-line layout with action button and count display
  * - Auto-refresh after position creation
  * - Transitions to approval workflow when needed
+ *
+ * Uses shared workflow components for the button and status messages.
  */
 
 import { motion } from 'framer-motion';
 import { useSmartForm } from '../../../../context';
-import { buttonInteraction } from '../../../../utils/motion';
+import type { OtherWorkflowStepName } from '../../../../types';
+import { useWorkflowState } from '../../../../hooks';
+import {
+  WorkflowActionButton,
+  WorkflowStatusMessage,
+} from '../../../workflow';
 import './OtherWorkflowSection.css';
+
+/** Steps that indicate active processing */
+const PROCESSING_STEPS: OtherWorkflowStepName[] = [
+  'creating-positions', 'browser-opening', 'approving',
+];
 
 export function OtherWorkflowSection() {
   const {
@@ -22,23 +34,31 @@ export function OtherWorkflowSection() {
     distinctPositionCount,
     createPositionRecords,
     processOtherApprovals,
-    getStepProgress,
   } = useSmartForm();
 
   const { otherWorkflow, queryResults } = state;
-  const currentStep = otherWorkflow.step;
   const otherCount = queryResults?.otherCount ?? 0;
 
-  const progress = getStepProgress('other');
-  const isProcessing = ['creating-positions', 'browser-opening', 'approving'].includes(currentStep);
+  // Use workflow state hook
+  const {
+    stepName,
+    isProcessing,
+    isComplete,
+    isError,
+    errorMessage,
+    progress,
+  } = useWorkflowState({
+    workflowStep: otherWorkflow,
+    processingSteps: PROCESSING_STEPS,
+  });
 
   // Determine what action to show
   const getActionConfig = (): { label: string; action: () => Promise<void> } | null => {
     // If no other records, no action needed
-    if (otherCount === 0 && currentStep === 'idle') return null;
+    if (otherCount === 0 && stepName === 'idle') return null;
 
     // Phase 1: Position creation
-    if (currentStep === 'idle' && distinctPositionCount > 0) {
+    if (stepName === 'idle' && distinctPositionCount > 0) {
       return {
         label: 'Create Position Records',
         action: createPositionRecords,
@@ -46,8 +66,8 @@ export function OtherWorkflowSection() {
     }
 
     // Phase 2: Approval processing (after positions created or if no positions to create)
-    if (currentStep === 'positions-created' ||
-        (currentStep === 'idle' && distinctPositionCount === 0 && otherCount > 0)) {
+    if (stepName === 'positions-created' ||
+        (stepName === 'idle' && distinctPositionCount === 0 && otherCount > 0)) {
       return {
         label: 'Process Approvals',
         action: processOtherApprovals,
@@ -60,16 +80,13 @@ export function OtherWorkflowSection() {
   const actionConfig = getActionConfig();
 
   // Don't render if no other records and workflow is idle
-  if (otherCount === 0 && currentStep === 'idle') {
+  if (otherCount === 0 && stepName === 'idle') {
     return (
       <section className="sf-other-container">
-        <div className="sf-other-empty">
-          <svg viewBox="0 0 24 24" fill="none" className="sf-other-empty-icon">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-            <path d="M8 12L11 15L16 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span>No Other transactions pending</span>
-        </div>
+        <WorkflowStatusMessage
+          type="empty"
+          message="No Other transactions pending"
+        />
       </section>
     );
   }
@@ -78,70 +95,50 @@ export function OtherWorkflowSection() {
     <section className="sf-other-container">
       <div className="sf-other-content">
         {/* Action Button */}
-        {actionConfig && currentStep !== 'complete' && currentStep !== 'error' && (
-          <motion.button
-            className={`sf-other-action-button ${isProcessing ? 'sf-other-action-button--processing' : ''}`}
-            onClick={() => { void actionConfig.action(); }}
-            disabled={isProcessing}
-            {...buttonInteraction}
-          >
-            {isProcessing ? (
-              <>
-                <span className="sf-other-spinner" />
-                {progress ? `Processing ${String(progress.current)}/${String(progress.total)}...` : 'Processing...'}
-              </>
-            ) : (
-              actionConfig.label
-            )}
-          </motion.button>
+        {actionConfig && !isComplete && !isError && (
+          <WorkflowActionButton
+            label={actionConfig.label}
+            isProcessing={isProcessing}
+            progress={progress}
+            onAction={() => { void actionConfig.action(); }}
+          />
         )}
 
         {/* Position Count Display */}
-        {currentStep === 'idle' && distinctPositionCount > 0 && (
+        {stepName === 'idle' && distinctPositionCount > 0 && (
           <span className="sf-other-count">
             {distinctPositionCount} distinct position number{distinctPositionCount !== 1 ? 's' : ''}
           </span>
         )}
 
         {/* Positions Created Message */}
-        {currentStep === 'positions-created' && (
+        {stepName === 'positions-created' && (
           <motion.span
             className="sf-other-status sf-other-status--success"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            <svg viewBox="0 0 24 24" fill="none" className="sf-other-status-icon">
+            <svg viewBox="0 0 24 24" fill="none" className="sf-other-status-icon" aria-hidden="true">
               <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            {otherWorkflow.count} position{otherWorkflow.count !== 1 ? 's' : ''} created
+            {otherWorkflow.step === 'positions-created' ? otherWorkflow.count : 0} position{(otherWorkflow.step === 'positions-created' ? otherWorkflow.count : 0) !== 1 ? 's' : ''} created
           </motion.span>
         )}
 
         {/* Completion Message */}
-        {currentStep === 'complete' && (
-          <motion.div
-            className="sf-other-complete"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-          >
-            <svg viewBox="0 0 24 24" fill="none" className="sf-other-complete-icon">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-              <path d="M8 12L11 15L16 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span>Other Workflow Complete</span>
-          </motion.div>
+        {isComplete && (
+          <WorkflowStatusMessage
+            type="complete"
+            message="Other Workflow Complete"
+          />
         )}
 
         {/* Error Message */}
-        {currentStep === 'error' && (
-          <motion.div
-            className="sf-other-error"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <span className="sf-other-error-icon">!</span>
-            <span>{otherWorkflow.message}</span>
-          </motion.div>
+        {isError && errorMessage && (
+          <WorkflowStatusMessage
+            type="error"
+            message={errorMessage}
+          />
         )}
       </div>
     </section>

@@ -66,7 +66,6 @@ export function SoapConnection() {
             <div className="connected-line">
               <h2 className="connected-title">
                 <span className="title-full">PeopleSoft CI</span>
-                <span className="title-short">PeopleSoft</span>
               </h2>
               <div className="connected-user-badge">
                 <svg viewBox="0 0 24 24" fill="none" className="check-icon">
@@ -80,7 +79,6 @@ export function SoapConnection() {
                 </svg>
                 <span>{displayUsername}</span>
               </div>
-              <span className="connected-badge">Connected</span>
               <button
                 type="button"
                 className="info-toggle-compact"

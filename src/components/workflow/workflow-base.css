@@ -1,0 +1,50 @@
+/**
+ * Workflow Base CSS
+ *
+ * CSS custom properties for theming workflow components.
+ * Components use these variables with fallbacks to app theme.
+ *
+ * Override via className prefix:
+ *   .sf-workflow { --wf-accent: var(--accent-primary); }
+ *   .other-workflow { --wf-accent: var(--accent-secondary); }
+ */
+
+/* === Root Variables (defaults) === */
+:root {
+  /* Colors */
+  --wf-accent: var(--accent-primary);
+  --wf-success: var(--status-success);
+  --wf-error: var(--status-error);
+  --wf-text-primary: var(--text-primary);
+  --wf-text-secondary: var(--text-secondary);
+  --wf-text-tertiary: var(--text-tertiary);
+  --wf-text-inverse: var(--text-inverse, #fff);
+  --wf-bg-tertiary: var(--bg-tertiary);
+  --wf-border-primary: var(--border-primary);
+  --wf-border-secondary: var(--border-secondary);
+
+  /* Sizing */
+  --wf-indicator-size: 1.5rem;
+  --wf-button-padding-y: 0.625rem;
+  --wf-button-padding-x: 1.25rem;
+  --wf-spinner-size: 1rem;
+  --wf-icon-size: 1.25rem;
+
+  /* Typography */
+  --wf-font-size: 0.875rem;
+  --wf-font-size-small: 0.75rem;
+  --wf-font-weight-normal: 500;
+  --wf-font-weight-semibold: 600;
+
+  /* Spacing */
+  --wf-gap: 0.5rem;
+  --wf-gap-lg: 0.75rem;
+  --wf-border-radius: 0.5rem;
+}
+
+/* === Animation Keyframes === */
+@keyframes wf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

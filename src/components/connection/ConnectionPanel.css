@@ -28,7 +28,7 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-default);
   border-radius: var(--border-radius);
-  padding: var(--space-sm) var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -113,24 +113,13 @@
   color: var(--status-success);
 }
 
-.connected-badge {
-  padding: 2px 4px;
-  background: rgba(63, 185, 80, 0.15);
-  border-radius: var(--border-radius-sm);
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--status-success);
-  margin-left: auto;
-}
-
 .info-toggle-compact {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 24px;
   height: 24px;
+  margin-left: auto;
   background: none;
   border: 1px solid var(--border-default);
   border-radius: var(--border-radius-sm);
@@ -351,18 +340,8 @@
    Responsive
    ============================================== */
 
-@media (max-width: 768px) {
+@media (max-width: 620px) {
   .connection-panel-container {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 425px) {
-  .connected-title .title-full {
-    display: none;
-  }
-
-  .connected-title .title-short {
-    display: inline;
   }
 }

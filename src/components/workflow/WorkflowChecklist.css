@@ -1,0 +1,94 @@
+/* ===== WORKFLOW CHECKLIST ===== */
+
+@import './workflow-base.css';
+
+.wf-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wf-gap);
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem 0;
+}
+
+.wf-checklist-task {
+  display: flex;
+  align-items: center;
+  gap: var(--wf-gap-lg);
+  padding: var(--wf-gap) 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Task status states */
+.wf-checklist-task--pending {
+  opacity: 0.5;
+}
+
+.wf-checklist-task--active {
+  opacity: 1;
+}
+
+.wf-checklist-task--completed {
+  opacity: 0.7;
+}
+
+/* Task Indicator (circle with number or check) */
+.wf-checklist-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--wf-indicator-size);
+  height: var(--wf-indicator-size);
+  border-radius: 50%;
+  font-size: var(--wf-font-size-small);
+  font-weight: var(--wf-font-weight-semibold);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+/* Pending indicator */
+.wf-checklist-task--pending .wf-checklist-indicator {
+  background: var(--wf-bg-tertiary);
+  color: var(--wf-text-tertiary);
+  border: 1px solid var(--wf-border-secondary);
+}
+
+/* Active indicator */
+.wf-checklist-task--active .wf-checklist-indicator {
+  background: var(--wf-accent);
+  color: var(--wf-text-inverse);
+  border: 1px solid var(--wf-accent);
+}
+
+/* Completed indicator */
+.wf-checklist-task--completed .wf-checklist-indicator {
+  background: var(--wf-success);
+  color: var(--wf-text-inverse);
+  border: 1px solid var(--wf-success);
+}
+
+/* Number inside indicator */
+.wf-checklist-number {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Check icon inside indicator */
+.wf-checklist-check-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+/* Task label text */
+.wf-checklist-label {
+  font-size: var(--wf-font-size);
+  color: var(--wf-text-primary);
+}
+
+.wf-checklist-task--pending .wf-checklist-label {
+  color: var(--wf-text-tertiary);
+}
+
+.wf-checklist-task--completed .wf-checklist-label {
+  text-decoration: line-through;
+  color: var(--wf-text-secondary);
+}

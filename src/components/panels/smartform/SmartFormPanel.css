@@ -12,8 +12,34 @@
   padding: var(--space-sm) var(--space-sm);
 }
 
+/* Header Row: Query + SubTabs + Stats on same line */
+.sf-header-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.sf-subtabs-wrapper {
+  order: 3;
+  overflow: hidden;
+}
+
+/* Responsive: stack header on narrow screens */
+@media (max-width: 600px) {
+  .sf-header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sf-subtabs-wrapper {
+    order: 3;
+  }
+}
+
 /* Ensure smooth height transitions for collapsible sections */
-.smartform-panel > div {
+.smartform-panel > div:not(.sf-header-row) {
   overflow: hidden;
 }
 

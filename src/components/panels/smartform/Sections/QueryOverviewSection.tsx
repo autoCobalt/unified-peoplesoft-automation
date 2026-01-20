@@ -6,9 +6,9 @@
  * - Post-query: Shows "Refresh SmartForm" button + stats
  */
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useSmartForm } from '../../../../context';
-import { scaleFade, buttonInteraction } from '../../../../utils/motion';
+import { buttonInteraction } from '../../../../utils/motion';
 import './QueryOverviewSection.css';
 
 export function QueryOverviewSection() {
@@ -62,53 +62,13 @@ export function QueryOverviewSection() {
         )}
       </motion.button>
 
-      {/* Stats Display */}
-      <AnimatePresence mode="wait">
-        {!hasQueried ? (
-          <motion.div
-            key="pre-query"
-            className="sf-overview-message"
-            {...scaleFade}
-          >
-            <p>Please run SmartForm Query</p>
-          </motion.div>
-        ) : queryResults && (
-          <motion.div
-            key="post-query"
-            className="sf-overview-stats"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="sf-overview-stat sf-overview-stat--total">
-              <span className="sf-overview-stat-label">Total</span>
-              <span className="sf-overview-stat-value">{queryResults.totalCount}</span>
-            </div>
-            <div className="sf-overview-stat-divider" />
-            <div className="sf-overview-stat">
-              <span className="sf-overview-stat-label">Manager</span>
-              <span
-                className={`sf-overview-stat-value ${
-                  queryResults.managerCount === 0 ? 'sf-overview-stat-value--zero' : ''
-                }`}
-              >
-                {queryResults.managerCount}
-              </span>
-            </div>
-            <div className="sf-overview-stat">
-              <span className="sf-overview-stat-label">Other</span>
-              <span
-                className={`sf-overview-stat-value ${
-                  queryResults.otherCount === 0 ? 'sf-overview-stat-value--zero' : ''
-                }`}
-              >
-                {queryResults.otherCount}
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Total Display (only after query) */}
+      {hasQueried && queryResults && (
+        <div className="sf-overview-total">
+          <span className="sf-overview-total-label">Total:</span>
+          <span className="sf-overview-total-value">{queryResults.totalCount}</span>
+        </div>
+      )}
     </section>
   );
 }

@@ -63,7 +63,6 @@ export function OracleConnection() {
             <div className="connected-line">
               <h2 className="connected-title">
                 <span className="title-full">Oracle SQL</span>
-                <span className="title-short">Oracle</span>
               </h2>
               <span className="connected-service-name">{oracleConfig.serviceName}</span>
               <div className="connected-user-badge">
@@ -78,7 +77,6 @@ export function OracleConnection() {
                 </svg>
                 <span>{displayUsername}</span>
               </div>
-              <span className="connected-badge">Connected</span>
               <button
                 type="button"
                 className="info-toggle-compact"
