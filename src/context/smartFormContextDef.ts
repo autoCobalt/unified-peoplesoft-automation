@@ -32,9 +32,14 @@ export interface SmartFormContextType {
   prepareSubmissions: () => Promise<void>;
   openBrowser: () => Promise<void>;
   processApprovals: () => Promise<void>;
+  pauseApprovals: () => Promise<void>;
+  resumeApprovals: () => Promise<void>;
   submitPositionData: () => Promise<void>;
   submitJobData: () => Promise<void>;
   resetManagerWorkflow: () => void;
+
+  // Manager Workflow State (from polling)
+  isWorkflowPaused: boolean;
 
   // Other Workflow Actions
   createPositionRecords: () => Promise<void>;

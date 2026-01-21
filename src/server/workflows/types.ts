@@ -10,7 +10,7 @@
    ============================================== */
 
 /** Status of a workflow execution */
-export type WorkflowStatus = 'idle' | 'running' | 'completed' | 'error' | 'cancelled';
+export type WorkflowStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error' | 'cancelled';
 
 /** Progress information for workflows with multiple items */
 export interface WorkflowProgress {
@@ -33,6 +33,8 @@ export interface ManagerWorkflowState {
   progress: WorkflowProgress | null;
   /** Error message if status is 'error' */
   error: string | null;
+  /** Whether the workflow is currently paused (pauses between transactions) */
+  isPaused: boolean;
   /** Results from completed steps */
   results: {
     preparedCount?: number;
@@ -47,6 +49,7 @@ export const INITIAL_MANAGER_STATE: ManagerWorkflowState = {
   currentStep: 'idle',
   progress: null,
   error: null,
+  isPaused: false,
   results: {},
 };
 

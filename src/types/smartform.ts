@@ -124,7 +124,7 @@ export type ManagerWorkflowStep =
   | { step: 'idle' }
   | { step: 'preparing'; ciType: 'position' | 'job' }
   | { step: 'prepared'; positionData: PreparedSubmission[]; jobData: PreparedSubmission[] }
-  | { step: 'approving'; current: number; total: number }
+  | { step: 'approving'; current: number; total: number; currentItem?: string }
   | { step: 'approved' }
   | { step: 'submitting-position'; current: number; total: number }
   | { step: 'submitting-job'; current: number; total: number }

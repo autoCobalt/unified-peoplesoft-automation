@@ -3,11 +3,13 @@
  *
  * Reusable action button for workflow operations.
  * Displays spinner and progress counter when processing.
+ * When paused, retains processing styling but shows pause-specific text.
  *
  * @example
  * <WorkflowActionButton
  *   label="Process Approvals"
  *   isProcessing={isProcessing}
+ *   isPaused={isPaused}
  *   progress={progress}
  *   onAction={() => void processApprovals()}
  *   className="sf-workflow"
@@ -19,34 +21,65 @@ import { buttonInteraction } from '../../utils/motion';
 import type { WorkflowActionButtonProps } from '../../types/workflow';
 import './WorkflowActionButton.css';
 
+/**
+ * Renders the button content based on processing/paused state
+ */
+function renderButtonContent(
+  isProcessing: boolean,
+  isPaused: boolean,
+  progress: WorkflowActionButtonProps['progress'],
+  label: string
+): React.ReactNode {
+  // Paused state - show processing styling with pause message
+  if (isPaused && progress) {
+    return (
+      <>
+        <span className="wf-action-spinner wf-action-spinner--paused" aria-hidden="true" />
+        {`Paused: ${progress.currentItem ?? ''} ${String(progress.current)}/${String(progress.total)}`}
+      </>
+    );
+  }
+
+  // Active processing state
+  if (isProcessing) {
+    const progressText = progress
+      ? `Processing ${progress.currentItem ? `${progress.currentItem} ` : ''}${String(progress.current)}/${String(progress.total)}...`
+      : 'Processing...';
+
+    return (
+      <>
+        <span className="wf-action-spinner" aria-hidden="true" />
+        {progressText}
+      </>
+    );
+  }
+
+  // Idle state
+  return label;
+}
+
 export function WorkflowActionButton({
   label,
   isProcessing,
+  isPaused = false,
   progress,
   onAction,
   className = '',
   disabled = false,
 }: WorkflowActionButtonProps) {
   const baseClass = 'wf-action-button';
-  const processingClass = isProcessing ? `${baseClass}--processing` : '';
+  // Apply processing class for both processing and paused states (visual continuity)
+  const processingClass = (isProcessing || isPaused) ? `${baseClass}--processing` : '';
+  const pausedClass = isPaused ? `${baseClass}--paused` : '';
 
   return (
     <motion.button
-      className={`${baseClass} ${processingClass} ${className}`.trim()}
+      className={`${baseClass} ${processingClass} ${pausedClass} ${className}`.trim()}
       onClick={onAction}
-      disabled={isProcessing || disabled}
+      disabled={isProcessing || isPaused || disabled}
       {...buttonInteraction}
     >
-      {isProcessing ? (
-        <>
-          <span className="wf-action-spinner" aria-hidden="true" />
-          {progress
-            ? `Processing ${String(progress.current)}/${String(progress.total)}...`
-            : 'Processing...'}
-        </>
-      ) : (
-        label
-      )}
+      {renderButtonContent(isProcessing, isPaused, progress, label)}
     </motion.button>
   );
 }

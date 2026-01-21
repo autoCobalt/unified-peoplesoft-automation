@@ -1,6 +1,6 @@
 /* ===== DATA TABLE COMPONENT ===== */
 
-@import './table-base.css';
+@import './table-variables.css';
 
 /* === Container === */
 .dt-container {

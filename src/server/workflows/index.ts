@@ -11,6 +11,8 @@ import {
   handleApprove as managerApprove,
   handleStop as managerStop,
   handleReset as managerReset,
+  handlePause as managerPause,
+  handleResume as managerResume,
 } from './manager/index.js';
 
 /* ==============================================
@@ -54,6 +56,14 @@ export const workflowRoutes: Record<string, RouteConfig> = {
   '/api/workflows/manager/reset': {
     method: 'POST',
     handler: managerReset,
+  },
+  '/api/workflows/manager/pause': {
+    method: 'POST',
+    handler: managerPause,
+  },
+  '/api/workflows/manager/resume': {
+    method: 'POST',
+    handler: managerResume,
   },
 
   // Other Workflow routes will be added here

@@ -129,6 +129,8 @@ export interface WorkflowProgress {
   isComplete: boolean;
   /** Progress percentage (0-100) */
   percentage: number;
+  /** Current item identifier (e.g., transaction ID) for display */
+  currentItem?: string;
 }
 
 /* ==============================================
@@ -184,6 +186,8 @@ export interface WorkflowActionButtonProps {
   label: string;
   /** Whether workflow is currently processing */
   isProcessing: boolean;
+  /** Whether workflow is paused (shows processing styling with pause text) */
+  isPaused?: boolean;
   /** Progress info for loop operations */
   progress?: WorkflowProgress | null;
   /** Click handler */

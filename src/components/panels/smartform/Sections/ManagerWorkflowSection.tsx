@@ -81,10 +81,13 @@ export function ManagerWorkflowSection() {
     state,
     prepareSubmissions,
     openBrowser,
+    pauseApprovals,
+    resumeApprovals,
     submitPositionData,
     submitJobData,
     preparedPositionData,
     preparedJobData,
+    isWorkflowPaused,
   } = useSmartForm();
 
   const { managerWorkflow } = state;
@@ -167,9 +170,34 @@ export function ManagerWorkflowSection() {
           <WorkflowActionButton
             label={activeTask.buttonLabel}
             isProcessing={isProcessing}
+            isPaused={isWorkflowPaused}
             progress={progress}
             onAction={() => { void activeTask.action(); }}
           />
+          {/* Pause/Resume controls - visible at prepared step (disabled) and approving step (enabled) */}
+          {(stepName === 'prepared' || stepName === 'approving') && (
+            <div className="sf-workflow-pause-controls">
+              {!isWorkflowPaused ? (
+                <button
+                  type="button"
+                  className="sf-workflow-pause-btn"
+                  onClick={() => { void pauseApprovals(); }}
+                  disabled={stepName === 'prepared'}
+                  title={stepName === 'prepared' ? 'Pause will be available during approval processing' : 'Pause workflow between transactions'}
+                >
+                  ⏸ Pause
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="sf-workflow-resume-btn"
+                  onClick={() => { void resumeApprovals(); }}
+                >
+                  ▶ Resume
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

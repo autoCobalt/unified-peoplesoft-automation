@@ -16,7 +16,6 @@ import { workflowApi } from '../services';
 import type {
   SmartFormState,
   SmartFormSubTab,
-  SmartFormRecord,
   SmartFormQueryResult,
   ManagerWorkflowStep,
   OtherWorkflowStep,
@@ -27,93 +26,22 @@ import {
   INITIAL_MANAGER_WORKFLOW,
   INITIAL_OTHER_WORKFLOW,
 } from '../types';
-
-/* ==============================================
-   Mock Data (Development)
-   ============================================== */
-
-const MOCK_RECORDS: SmartFormRecord[] = [
-  {
-    id: '1',
-    transaction: 'TXN001',
-    emplid: '12345',
-    employeeName: 'John Doe',
-    currentEffdt: '2025-01-01',
-    newEffdt: '2025-02-01',
-    approverType: 'Manager',
-    status: 'pending',
-    positionNumber: 'POS001',
-  },
-  {
-    id: '2',
-    transaction: 'TXN002',
-    emplid: '12346',
-    employeeName: 'Jane Smith',
-    currentEffdt: '2025-01-15',
-    newEffdt: '2025-01-15', // Date match scenario
-    approverType: 'Manager',
-    status: 'pending',
-    positionNumber: 'POS002',
-  },
-  {
-    id: '3',
-    transaction: 'TXN003',
-    emplid: '12347',
-    employeeName: 'Bob Johnson',
-    currentEffdt: '2025-01-10',
-    newEffdt: '2025-03-01',
-    approverType: 'Other',
-    status: 'pending',
-    positionNumber: 'POS003',
-  },
-  {
-    id: '4',
-    transaction: 'TXN004',
-    emplid: '12348',
-    employeeName: 'Alice Williams',
-    currentEffdt: '2025-02-01',
-    newEffdt: '2025-02-15',
-    approverType: 'Manager',
-    status: 'pending',
-    positionNumber: 'POS004',
-  },
-  {
-    id: '5',
-    transaction: 'TXN005',
-    emplid: '12349',
-    employeeName: 'Charlie Brown',
-    currentEffdt: '2025-01-20',
-    newEffdt: '2025-04-01',
-    approverType: 'Other',
-    status: 'pending',
-    positionNumber: 'POS005',
-  },
-  {
-    id: '6',
-    transaction: 'TXN006',
-    emplid: '12350',
-    employeeName: 'Diana Prince',
-    currentEffdt: '2025-03-01',
-    newEffdt: '2025-03-15',
-    approverType: 'Other',
-    status: 'pending',
-    positionNumber: 'POS003', // Duplicate position number for testing
-  },
-];
+import { generateMockRecords } from '../dev-data';
 
 /**
- * Generate mock query results
- * In production, this would be replaced with actual Oracle API calls
+ * Generate mock query results.
+ * In production, this would be replaced with actual Oracle API calls.
  */
 function generateMockQueryResults(): SmartFormQueryResult {
-  const managerCount = MOCK_RECORDS.filter(r => r.approverType === 'Manager').length;
-  const otherCount = MOCK_RECORDS.filter(r => r.approverType === 'Other').length;
+  const records = generateMockRecords();
+  const managerCount = records.filter(r => r.approverType === 'Manager').length;
+  const otherCount = records.filter(r => r.approverType === 'Other').length;
 
   return {
-    totalCount: MOCK_RECORDS.length,
+    totalCount: records.length,
     managerCount,
     otherCount,
-    transactions: MOCK_RECORDS,
+    transactions: records,
     queriedAt: new Date(),
   };
 }
@@ -140,6 +68,9 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   // Prepared submission storage (separate from workflow state for cleaner updates)
   const [preparedPositionData, setPreparedPositionData] = useState<PreparedSubmission[]>([]);
   const [preparedJobData, setPreparedJobData] = useState<PreparedSubmission[]>([]);
+
+  // Track if workflow is paused (from server polling)
+  const [isWorkflowPaused, setIsWorkflowPaused] = useState(false);
 
   /* ==============================================
      Query Actions
@@ -252,11 +183,19 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       return;
     }
 
+    const transactionIds = managerRecords.map(r => r.transaction);
+    const firstTransactionId = transactionIds[0];
+
     // Start approval workflow - browser opens internally on server
     // Go directly to approving state (browser lifecycle is handled server-side)
-    setManagerWorkflow({ step: 'approving', current: 0, total: managerRecords.length });
-
-    const transactionIds = managerRecords.map(r => r.transaction);
+    // Use 1-indexed display for user-facing progress
+    // Include first transaction ID immediately so UI shows it while waiting for server
+    setManagerWorkflow({
+      step: 'approving',
+      current: 1,
+      total: managerRecords.length,
+      currentItem: firstTransactionId,
+    });
 
     // Get test site URL for development
     const testSiteUrl = isDevelopment
@@ -275,7 +214,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     }
 
     // Workflow started - begin polling for status
-    setManagerWorkflow({ step: 'approving', current: 0, total: managerRecords.length });
+    // Server will send back updated currentItem as it processes each transaction
 
     // Stop any existing polling
     if (stopPollingRef.current) {
@@ -286,6 +225,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     stopPollingRef.current = workflowApi.manager.pollStatus((status, error) => {
       if (error) {
         setManagerWorkflow({ step: 'error', message: error });
+        setIsWorkflowPaused(false);
         return;
       }
 
@@ -297,9 +237,22 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
           step: 'approving',
           current: status.progress.current,
           total: status.progress.total,
+          currentItem: status.progress.currentItem,
         });
+        setIsWorkflowPaused(false);
+      } else if (status.status === 'paused' && status.progress) {
+        // Workflow is paused - keep showing progress but mark as paused
+        setManagerWorkflow({
+          step: 'approving',
+          current: status.progress.current,
+          total: status.progress.total,
+          currentItem: status.progress.currentItem,
+        });
+        setIsWorkflowPaused(true);
+        // Keep polling - user might resume
       } else if (status.status === 'completed') {
         setManagerWorkflow({ step: 'approved' });
+        setIsWorkflowPaused(false);
         // Stop polling when complete
         if (stopPollingRef.current) {
           stopPollingRef.current();
@@ -307,6 +260,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         }
       } else if (status.status === 'error') {
         setManagerWorkflow({ step: 'error', message: status.error ?? 'Unknown error' });
+        setIsWorkflowPaused(false);
         if (stopPollingRef.current) {
           stopPollingRef.current();
           stopPollingRef.current = null;
@@ -318,6 +272,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
           positionData: preparedPositionData,
           jobData: preparedJobData,
         });
+        setIsWorkflowPaused(false);
         if (stopPollingRef.current) {
           stopPollingRef.current();
           stopPollingRef.current = null;
@@ -336,6 +291,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
 
   const submitPositionData = useCallback(async () => {
     const total = preparedPositionData.length;
+    const jobTotal = preparedJobData.length;
 
     for (let i = 0; i < total; i++) {
       setManagerWorkflow({ step: 'submitting-position', current: i + 1, total });
@@ -350,6 +306,13 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       // Simulate CI submission
       await new Promise(resolve => setTimeout(resolve, 400));
 
+      // For the last item, transition to next step BEFORE marking success
+      // This ensures both state updates are batched together, preventing
+      // a brief flash of the old button label
+      if (i === total - 1) {
+        setManagerWorkflow({ step: 'submitting-job', current: 0, total: jobTotal });
+      }
+
       // Mark as success (or error in real implementation)
       setPreparedPositionData(prev =>
         prev.map((sub, idx) =>
@@ -357,10 +320,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         )
       );
     }
-
-    // Position submission complete - step stays at 'submitting-position' with current === total
-    // Component checks progress to determine if actively processing vs ready for next action
-  }, [preparedPositionData, setManagerWorkflow]);
+  }, [preparedPositionData, preparedJobData.length, setManagerWorkflow]);
 
   const submitJobData = useCallback(async () => {
     const total = preparedJobData.length;
@@ -387,10 +347,33 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   }, [preparedJobData, setManagerWorkflow]);
 
   const resetManagerWorkflow = useCallback(() => {
+    // Stop polling if active
+    if (stopPollingRef.current) {
+      stopPollingRef.current();
+      stopPollingRef.current = null;
+    }
+    // Stop any running server workflow
+    void workflowApi.manager.stop();
+    // Reset local state
     setManagerWorkflow(INITIAL_MANAGER_WORKFLOW);
     setPreparedPositionData([]);
     setPreparedJobData([]);
+    setIsWorkflowPaused(false);
   }, [setManagerWorkflow]);
+
+  /**
+   * Pause the approval workflow (pauses between transactions)
+   */
+  const pauseApprovals = useCallback(async () => {
+    await workflowApi.manager.pause();
+  }, []);
+
+  /**
+   * Resume a paused approval workflow
+   */
+  const resumeApprovals = useCallback(async () => {
+    await workflowApi.manager.resume();
+  }, []);
 
   /* ==============================================
      Other Workflow Actions
@@ -496,9 +479,12 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       prepareSubmissions,
       openBrowser,
       processApprovals,
+      pauseApprovals,
+      resumeApprovals,
       submitPositionData,
       submitJobData,
       resetManagerWorkflow,
+      isWorkflowPaused,
       createPositionRecords,
       processOtherApprovals,
       resetOtherWorkflow,
@@ -515,9 +501,12 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       prepareSubmissions,
       openBrowser,
       processApprovals,
+      pauseApprovals,
+      resumeApprovals,
       submitPositionData,
       submitJobData,
       resetManagerWorkflow,
+      isWorkflowPaused,
       createPositionRecords,
       processOtherApprovals,
       resetOtherWorkflow,

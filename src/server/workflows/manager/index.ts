@@ -10,4 +10,6 @@ export {
   handleApprove,
   handleStop,
   handleReset,
+  handlePause,
+  handleResume,
 } from './handlers.js';

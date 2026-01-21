@@ -41,3 +41,13 @@
   border-radius: 50%;
   animation: wf-spin 0.8s linear infinite;
 }
+
+/* Paused state - slower spin to indicate pause */
+.wf-action-spinner--paused {
+  animation-duration: 3s;
+  border-top-color: var(--wf-warning, #f59e0b);
+}
+
+.wf-action-button--paused {
+  border-color: var(--wf-warning, #f59e0b);
+}

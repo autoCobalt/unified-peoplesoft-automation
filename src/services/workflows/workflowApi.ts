@@ -17,7 +17,7 @@ export interface WorkflowProgress {
 }
 
 /** Workflow status values */
-export type WorkflowStatus = 'idle' | 'running' | 'completed' | 'error' | 'cancelled';
+export type WorkflowStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error' | 'cancelled';
 
 /** Manager workflow state from API */
 export interface ManagerWorkflowState {
@@ -118,6 +118,20 @@ export async function resetManagerWorkflow(): Promise<ApiResponse<{ message: str
   return apiRequest('/manager/reset', { method: 'POST' });
 }
 
+/**
+ * Pause the Manager workflow (pauses between transactions)
+ */
+export async function pauseManagerWorkflow(): Promise<ApiResponse<{ message: string }>> {
+  return apiRequest('/manager/pause', { method: 'POST' });
+}
+
+/**
+ * Resume a paused Manager workflow
+ */
+export async function resumeManagerWorkflow(): Promise<ApiResponse<{ message: string }>> {
+  return apiRequest('/manager/resume', { method: 'POST' });
+}
+
 /* ==============================================
    Polling Helper
    ============================================== */
@@ -128,7 +142,7 @@ export async function resetManagerWorkflow(): Promise<ApiResponse<{ message: str
  */
 export function pollManagerStatus(
   callback: (state: ManagerWorkflowState | null, error: string | null) => void,
-  intervalMs = 1000
+  intervalMs = 250
 ): () => void {
   const controller = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -175,6 +189,8 @@ export const workflowApi = {
     startApprovals: startManagerApprovals,
     stop: stopManagerWorkflow,
     reset: resetManagerWorkflow,
+    pause: pauseManagerWorkflow,
+    resume: resumeManagerWorkflow,
     pollStatus: pollManagerStatus,
   },
   // other: { ... } will be added later

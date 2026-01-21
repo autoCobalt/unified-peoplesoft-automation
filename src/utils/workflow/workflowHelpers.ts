@@ -36,11 +36,17 @@ export function getProgress(
   }
 
   const { current, total } = step;
+  // Check if step has currentItem (for approving steps with transaction IDs)
+  const currentItem = 'currentItem' in step && typeof step.currentItem === 'string'
+    ? step.currentItem
+    : undefined;
+
   return {
     current,
     total,
     isComplete: current === total,
     percentage: total > 0 ? Math.round((current / total) * 100) : 0,
+    currentItem,
   };
 }
 
@@ -63,9 +69,30 @@ export function isActivelyProcessing(
     return false;
   }
 
-  // For steps with progress, check if loop is complete
+  // 'approving' is server-controlled - keep showing processing until step changes
+  // (server sets status to 'completed' which triggers step change to 'approved')
+  if (step.step === 'approving') {
+    return true;
+  }
+
+  // Steps that transition to another step when done - current === total means
+  // "processing last item", not "done". The step change indicates completion.
+  const transitionalSteps = ['submitting-position'];
+  if (transitionalSteps.includes(step.step)) {
+    // For transitional steps: processing if current > 0 (including current === total)
+    // The step will change to the next step when truly done
+    if (hasProgress(step)) {
+      return step.current > 0;
+    }
+    return true;
+  }
+
+  // For other client-controlled steps with progress:
+  // - current === 0: not started yet (waiting for user to click)
+  // - current > 0 && current < total: actively processing
+  // - current === total: done processing
   if (hasProgress(step)) {
-    return step.current < step.total;
+    return step.current > 0 && step.current < step.total;
   }
 
   // Non-progress steps are processing if they match

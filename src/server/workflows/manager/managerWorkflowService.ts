@@ -13,6 +13,34 @@ import type {
 import { INITIAL_MANAGER_STATE } from '../types.js';
 
 /* ==============================================
+   Error Detection Helpers
+   ============================================== */
+
+/**
+ * Check if an error message indicates the browser was disconnected.
+ * These are fatal errors that should stop the entire workflow.
+ */
+function isBrowserDisconnectedError(message: string): boolean {
+  const lowerMessage = message.toLowerCase();
+
+  // Playwright throws these when browser/page is closed
+  const fatalPatterns = [
+    'target closed',           // Page or browser was closed
+    'browser was closed',      // Our explicit check
+    'browser has been closed', // Playwright browser.close()
+    'context was destroyed',   // Browser context closed
+    'page was closed',         // Page explicitly closed
+    'protocol error',          // CDP connection lost
+    'session closed',          // CDP session ended
+    'connection closed',       // WebSocket connection lost
+    'target crashed',          // Browser crashed
+    'browser disconnected',    // Browser process died
+  ];
+
+  return fatalPatterns.some(pattern => lowerMessage.includes(pattern));
+}
+
+/* ==============================================
    Workflow State
    ============================================== */
 
@@ -21,6 +49,9 @@ let workflowState: ManagerWorkflowState = { ...INITIAL_MANAGER_STATE };
 
 /** Abort controller for cancelling running workflows */
 let abortController: AbortController | null = null;
+
+/** Flag to track pause state (checked between transactions) */
+let isPaused = false;
 
 /* ==============================================
    State Accessors
@@ -41,6 +72,7 @@ export function reset(): void {
     abortController.abort();
     abortController = null;
   }
+  isPaused = false;
   workflowState = { ...INITIAL_MANAGER_STATE };
 }
 
@@ -83,13 +115,13 @@ export async function runApprovals(
     return { success: false, approvedCount: 0, error: 'Workflow already running' };
   }
 
-  // Initialize state
+  // Initialize state (use 1-indexed for user-facing progress display)
   abortController = new AbortController();
   updateState({
     status: 'running',
     currentStep: 'approving',
     error: null,
-    progress: { current: 0, total: transactionIds.length },
+    progress: { current: 1, total: transactionIds.length, currentItem: transactionIds[0] },
   });
 
   try {
@@ -105,20 +137,41 @@ export async function runApprovals(
     let approvedCount = 0;
 
     for (let i = 0; i < transactionIds.length; i++) {
-      // Check for cancellation
-      if (abortController.signal.aborted) {
-        updateState({ status: 'cancelled', currentStep: 'idle' });
+      // Check for cancellation (use variable to satisfy TS control flow analysis)
+      let isAborted = abortController.signal.aborted;
+      if (isAborted) {
+        updateState({ status: 'cancelled', currentStep: 'idle', isPaused: false });
+        return { success: false, approvedCount, error: 'Workflow cancelled' };
+      }
+
+      // Check for pause - wait until resumed (or aborted)
+      // Re-read signal each iteration since it can change asynchronously
+      while (isPaused) {
+        await new Promise(resolve => setTimeout(resolve, 100)); // Poll every 100ms
+        isAborted = abortController.signal.aborted;
+        if (isAborted) break;
+      }
+
+      // Re-check cancellation after potential pause wait
+      if (isAborted) {
+        updateState({ status: 'cancelled', currentStep: 'idle', isPaused: false });
         return { success: false, approvedCount, error: 'Workflow cancelled' };
       }
 
       const transactionId = transactionIds[i];
+      // Use 1-indexed display for user-facing progress (transaction 1 of N, not 0 of N)
       updateProgress({
-        current: i,
+        current: i + 1,
         total: transactionIds.length,
         currentItem: transactionId,
       });
 
       try {
+        // Check if page is still available before each operation
+        if (page.isClosed()) {
+          throw new Error('Browser was closed');
+        }
+
         // Navigate to transaction page
         const url = testSiteUrl
           ? `${testSiteUrl}?TRANSACTION_NBR=${transactionId}`
@@ -140,15 +193,29 @@ export async function runApprovals(
 
         approvedCount++;
       } catch (pageError) {
-        console.error(`[Manager Workflow] Error approving ${transactionId}:`, pageError);
-        // Continue with next transaction instead of failing entire workflow
+        const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
+        console.error(`[Manager Workflow] Error approving ${transactionId}:`, errorMessage);
+
+        // Check if this is a fatal browser disconnection error
+        // These errors mean the browser is gone and we can't continue
+        const isFatalError = isBrowserDisconnectedError(errorMessage);
+
+        if (isFatalError) {
+          // Re-throw to fail the entire workflow
+          throw new Error(`Browser disconnected: ${errorMessage}`);
+        }
+
+        // Non-fatal error - log and continue with next transaction
+        console.log(`[Manager Workflow] Continuing to next transaction after non-fatal error`);
       }
 
-      updateProgress({
-        current: i + 1,
-        total: transactionIds.length,
-        currentItem: transactionId,
-      });
+      // Add configurable delay between transactions (skip after last item)
+      if (i < transactionIds.length - 1) {
+        const delayMs = parseInt(process.env['VITE_APPROVAL_DELAY_MS'] ?? '200', 10);
+        if (delayMs > 0) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
     }
 
     // Workflow completed
@@ -178,13 +245,38 @@ export async function stop(): Promise<void> {
     abortController.abort();
   }
 
+  isPaused = false;
+
   // Close browser if it was opened by this workflow
   await playwrightService.close();
 
   updateState({
     status: 'cancelled',
     currentStep: 'idle',
+    isPaused: false,
   });
+}
+
+/**
+ * Pause a running workflow (pauses between transactions)
+ * Does nothing if workflow is not running
+ */
+export function pause(): void {
+  if (workflowState.status === 'running') {
+    isPaused = true;
+    updateState({ status: 'paused', isPaused: true });
+  }
+}
+
+/**
+ * Resume a paused workflow
+ * Does nothing if workflow is not paused
+ */
+export function resume(): void {
+  if (workflowState.status === 'paused') {
+    isPaused = false;
+    updateState({ status: 'running', isPaused: false });
+  }
 }
 
 /* ==============================================
@@ -196,4 +288,6 @@ export const managerWorkflowService = {
   reset,
   runApprovals,
   stop,
+  pause,
+  resume,
 };

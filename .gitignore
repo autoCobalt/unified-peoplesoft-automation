@@ -68,6 +68,7 @@ Desktop.ini
 claude*
 old_project_*
 deprecated/
+issues/
 
 # ===== MISC =====
 *.pem

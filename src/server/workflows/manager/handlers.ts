@@ -164,3 +164,39 @@ export function handleReset(
     },
   });
 }
+
+/**
+ * POST /api/workflows/manager/pause
+ * Pause the current workflow (pauses between transactions)
+ */
+export function handlePause(
+  _req: IncomingMessage,
+  res: ServerResponse
+): void {
+  managerWorkflowService.pause();
+
+  sendJson(res, {
+    success: true,
+    data: {
+      message: 'Workflow paused',
+    },
+  });
+}
+
+/**
+ * POST /api/workflows/manager/resume
+ * Resume a paused workflow
+ */
+export function handleResume(
+  _req: IncomingMessage,
+  res: ServerResponse
+): void {
+  managerWorkflowService.resume();
+
+  sendJson(res, {
+    success: true,
+    data: {
+      message: 'Workflow resumed',
+    },
+  });
+}
