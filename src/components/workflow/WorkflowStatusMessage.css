@@ -32,19 +32,12 @@
   flex-shrink: 0;
 }
 
-/* Error badge (exclamation in circle) */
-.wf-status-error-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--wf-icon-size);
-  height: var(--wf-icon-size);
-  font-weight: 700;
-  background: var(--wf-error);
-  color: var(--wf-text-inverse);
-  border-radius: 50%;
-  font-size: var(--wf-font-size-small);
-  flex-shrink: 0;
+.wf-status-icon--success {
+  color: var(--wf-success);
+}
+
+.wf-status-icon--error {
+  color: var(--wf-error);
 }
 
 /* Text */

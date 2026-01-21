@@ -18,27 +18,8 @@
 import { motion } from 'framer-motion';
 import { staggerContainer, staggerItem } from '../../utils/motion';
 import type { WorkflowChecklistProps, TaskStatus } from '../../types/workflow';
+import { CheckIcon } from '../icons';
 import './WorkflowChecklist.css';
-
-/** Check mark icon for completed tasks */
-function CheckIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className="wf-checklist-check-icon"
-      aria-hidden="true"
-    >
-      <path
-        d="M20 6L9 17L4 12"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 /** Get appropriate aria label for task status */
 function getStatusLabel(status: TaskStatus): string {
@@ -72,7 +53,7 @@ export function WorkflowChecklist({
         >
           <span className="wf-checklist-indicator" aria-hidden="true">
             {task.status === 'completed' ? (
-              <CheckIcon />
+              <CheckIcon className="wf-checklist-check-icon" />
             ) : (
               <span className="wf-checklist-number">{index + 1}</span>
             )}

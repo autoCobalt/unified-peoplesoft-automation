@@ -14,37 +14,8 @@
 
 import { motion } from 'framer-motion';
 import type { WorkflowStatusMessageProps, StatusMessageType } from '../../types/workflow';
+import { CircleCheckIcon, CircleXIcon } from '../icons';
 import './WorkflowStatusMessage.css';
-
-/** Success/complete icon with circle and checkmark */
-function SuccessIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className="wf-status-icon wf-status-icon--success"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M8 12L11 15L16 9"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-/** Error icon (exclamation in circle) */
-function ErrorIcon() {
-  return (
-    <span className="wf-status-error-badge" aria-hidden="true">
-      !
-    </span>
-  );
-}
 
 /** Get animation props based on status type */
 function getAnimationProps(type: StatusMessageType) {
@@ -75,7 +46,9 @@ export function WorkflowStatusMessage({
       role="status"
       aria-live="polite"
     >
-      {type === 'error' ? <ErrorIcon /> : <SuccessIcon />}
+      {type === 'error'
+        ? <CircleXIcon className="wf-status-icon wf-status-icon--error" />
+        : <CircleCheckIcon className="wf-status-icon wf-status-icon--success" />}
       <span className="wf-status-text">{message}</span>
     </motion.div>
   );

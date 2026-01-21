@@ -35,8 +35,10 @@ interface SlideTransitionProps {
   children: ReactNode;
   /** Optional className for the motion wrapper */
   className?: string;
-  /** Animation duration in seconds (default: 0.2) */
+  /** Animation duration in seconds (default: 0.15) */
   duration?: number;
+  /** AnimatePresence mode (default: 'popLayout' for simultaneous transitions) */
+  mode?: 'wait' | 'sync' | 'popLayout';
 }
 
 /* ==============================================
@@ -46,10 +48,12 @@ interface SlideTransitionProps {
 /**
  * Slide variants using `custom` for dynamic direction.
  * Custom value: 1 = slide from right, -1 = slide from left
+ *
+ * Uses smaller offset (24px) for snappy feel with popLayout mode.
  */
 const slideVariants = {
   enter: (direction: number) => ({
-    x: direction > 0 ? 50 : -50,
+    x: direction > 0 ? 24 : -24,
     opacity: 0,
   }),
   center: {
@@ -57,7 +61,7 @@ const slideVariants = {
     opacity: 1,
   },
   exit: (direction: number) => ({
-    x: direction > 0 ? -50 : 50,
+    x: direction > 0 ? -24 : 24,
     opacity: 0,
   }),
 };
@@ -71,13 +75,14 @@ export function SlideTransition({
   direction,
   children,
   className,
-  duration = 0.2,
+  duration = 0.15,
+  mode = 'popLayout',
 }: SlideTransitionProps) {
   // Convert direction to numeric value for variants
   const directionValue = direction === 'right' ? 1 : -1;
 
   return (
-    <AnimatePresence mode="wait" custom={directionValue}>
+    <AnimatePresence mode={mode} custom={directionValue}>
       <motion.div
         key={transitionKey}
         custom={directionValue}
@@ -87,7 +92,7 @@ export function SlideTransition({
         exit="exit"
         transition={{
           duration,
-          ease: [0.25, 0.46, 0.45, 0.94],
+          ease: [0.16, 1, 0.3, 1],
         }}
         className={className}
       >
