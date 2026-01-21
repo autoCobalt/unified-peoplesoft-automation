@@ -11,6 +11,7 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { SmartFormContext, type SmartFormContextType } from './smartFormContextDef';
+import { isDevelopment } from '../config';
 import { workflowApi } from '../services';
 import type {
   SmartFormState,
@@ -258,7 +259,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     const transactionIds = managerRecords.map(r => r.transaction);
 
     // Get test site URL for development
-    const testSiteUrl = import.meta.env.VITE_APP_MODE === 'development'
+    const testSiteUrl = isDevelopment
       ? `${window.location.origin}/test-site`
       : undefined;
 

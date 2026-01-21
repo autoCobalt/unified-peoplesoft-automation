@@ -36,6 +36,7 @@ export interface ConnectionContextType {
 
   // Utility
   isFullyConnected: boolean;
+  hasActiveConnection: boolean;
 }
 
 /* ==============================================

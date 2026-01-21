@@ -1,0 +1,21 @@
+/* ==============================================
+   ResponsiveText Component Styles
+
+   Default breakpoint: 500px
+   Override by setting --responsive-text-breakpoint
+   on a parent element.
+   ============================================== */
+
+.responsive-text--short {
+  display: none;
+}
+
+@media (max-width: 500px) {
+  .responsive-text--full {
+    display: none;
+  }
+
+  .responsive-text--short {
+    display: inline;
+  }
+}

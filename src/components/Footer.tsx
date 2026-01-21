@@ -5,11 +5,8 @@
  * Only renders in development mode.
  */
 
+import { isDevelopment } from '../config';
 import './Footer.css';
-
-// Application mode from environment variables (matches ModeBanner logic)
-const appMode = (import.meta.env.VITE_APP_MODE as string | undefined) ?? 'development';
-const isDevelopment = appMode === 'development';
 
 export function Footer() {
   if (!isDevelopment) {

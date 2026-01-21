@@ -8,23 +8,15 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { oracleConfig } from '../../config';
 import { useConnection } from '../../context';
+import { slideLeftFadeStagger, fadeInOut } from '../../utils/motion';
 import {
-  slideLeftFadeStagger,
-  fadeInOut,
-  expandCollapseQuick,
-  buttonInteraction,
-  slideDownSmallFade,
-} from '../../utils/motion';
-
-/**
- * Oracle configuration from environment variables
- */
-const oracleConfig = {
-  hostname: (import.meta.env.VITE_ORACLE_HOSTNAME as string | undefined) ?? 'Not configured',
-  port: (import.meta.env.VITE_ORACLE_PORT as string | undefined) ?? '1521',
-  serviceName: (import.meta.env.VITE_ORACLE_SERVICE_NAME as string | undefined) ?? 'N/A',
-};
+  InfoRow,
+  CredentialsForm,
+  ConnectionInfoPanel,
+  ConnectedHeader,
+} from './shared';
 
 export function OracleConnection() {
   const {
@@ -33,21 +25,15 @@ export function OracleConnection() {
     connectOracle,
   } = useConnection();
 
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [showInfo, setShowInfo] = useState(false);
 
-  // Display username from credentials when connected, form input when not
-  const displayUsername = oracleCredentials?.username ?? username;
+  const displayUsername = oracleCredentials?.username ?? '';
 
-  const handleConnect = () => {
-    void connectOracle({ username, password });
+  const handleConnect = (credentials: { username: string; password: string }) => {
+    void connectOracle(credentials);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleConnect();
-  };
+  const toggleInfo = () => { setShowInfo(!showInfo); };
 
   return (
     <motion.div
@@ -56,197 +42,49 @@ export function OracleConnection() {
     >
       <AnimatePresence mode="wait">
         {oracleState.isConnected ? (
-          /* Connected State - Single Line */
-          <motion.div
-            key="connected"
-            className="connected-single-line"
-            {...fadeInOut}
+          <ConnectedHeader
+            title="Oracle"
+            subtitle={<span className="connected-service-name">{oracleConfig.serviceName}</span>}
+            username={displayUsername}
+            showInfo={showInfo}
+            onToggleInfo={toggleInfo}
           >
-            <div className="connected-line">
-              <h2 className="connected-title">
-                <span className="title-full">Oracle SQL</span>
-              </h2>
-              <span className="connected-service-name">{oracleConfig.serviceName}</span>
-              <div className="connected-user-badge">
-                <svg viewBox="0 0 24 24" fill="none" className="check-icon">
-                  <path
-                    d="M5 13l4 4L19 7"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <span>{displayUsername}</span>
-              </div>
-              <button
-                type="button"
-                className="info-toggle-compact"
-                onClick={() => { setShowInfo(!showInfo); }}
-                title="Connection Info"
-              >
-                <svg
-                  className={`chevron ${showInfo ? 'open' : ''}`}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <path
-                    d="M6 9L12 15L18 9"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <AnimatePresence>
-              {showInfo && (
-                <motion.div
-                  className="info-content"
-                  {...expandCollapseQuick}
-                >
-                  <div className="info-row">
-                    <span className="info-label">Hostname:</span>
-                    <span className="info-value">{oracleConfig.hostname}</span>
-                  </div>
-                  <div className="info-row">
-                    <span className="info-label">Port:</span>
-                    <span className="info-value">{oracleConfig.port}</span>
-                  </div>
-                  <div className="info-row">
-                    <span className="info-label">Service Name:</span>
-                    <span className="info-value service-name">{oracleConfig.serviceName}</span>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+            <InfoRow label="Hostname" value={oracleConfig.hostname} />
+            <InfoRow label="Port" value={oracleConfig.port} />
+            <InfoRow label="Service Name" value={oracleConfig.serviceName} valueClassName="service-name" />
+          </ConnectedHeader>
         ) : (
-          /* Disconnected State - Full Form */
-          <motion.div
-            key="disconnected"
-            {...fadeInOut}
-          >
+          <motion.div key="disconnected" {...fadeInOut}>
             <div className="panel-header">
               <h2>Oracle SQL Connection</h2>
             </div>
-            <form onSubmit={handleSubmit} className="connection-form">
-              <div className="form-group">
-                <label htmlFor="oracle-username-input">Username</label>
-                <input
-                  id="oracle-username-input"
-                  type="text"
-                  value={username}
-                  onChange={(e) => { setUsername(e.target.value); }}
-                  placeholder="Enter Oracle username"
-                  autoComplete="username"
-                />
-              </div>
 
-              <div className="form-group">
-                <label htmlFor="oracle-password-input">Password</label>
-                <input
-                  id="oracle-password-input"
-                  type="password"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); }}
-                  placeholder="Enter Oracle password"
-                  autoComplete="current-password"
-                />
-              </div>
+            <CredentialsForm
+              idPrefix="oracle"
+              placeholders={{
+                username: 'Enter Oracle username',
+                password: 'Enter Oracle password',
+              }}
+              submitLabel="Test Connection"
+              loadingLabel="Testing..."
+              isSubmitting={oracleState.isConnecting}
+              error={oracleState.error}
+              onSubmit={handleConnect}
+            />
 
-              <motion.button
-                type="submit"
-                className="submit-button"
-                disabled={oracleState.isConnecting || !username || !password}
-                {...buttonInteraction}
-              >
-                {oracleState.isConnecting ? (
-                  <>
-                    <span className="spinner" />
-                    Testing...
-                  </>
-                ) : (
-                  'Test Connection'
-                )}
-              </motion.button>
-
-              <AnimatePresence>
-                {oracleState.error && (
-                  <motion.div
-                    className="error-message"
-                    {...slideDownSmallFade}
-                  >
-                    {oracleState.error}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Connection Info Section */}
-              <div className="connection-info">
-                <button
-                  type="button"
-                  className="info-toggle"
-                  onClick={() => { setShowInfo(!showInfo); }}
-                >
-                  <svg
-                    className={`chevron ${showInfo ? 'open' : ''}`}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <path
-                      d="M6 9L12 15L18 9"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  Connection Info
-                  <span className="info-badge">Service Name: {oracleConfig.serviceName}</span>
-                </button>
-
-                <AnimatePresence>
-                  {showInfo && (
-                    <motion.div
-                      className="info-content"
-                      {...expandCollapseQuick}
-                    >
-                      <div className="info-row">
-                        <span className="info-label">Database Type:</span>
-                        <span className="info-value">Oracle</span>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">Role:</span>
-                        <span className="info-value">default</span>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">Auth Type:</span>
-                        <span className="info-value">Default</span>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">Connection:</span>
-                        <span className="info-value">Basic</span>
-                      </div>
-                      <div className="info-row highlight">
-                        <span className="info-label">Hostname:</span>
-                        <span className="info-value">{oracleConfig.hostname}</span>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">Port:</span>
-                        <span className="info-value">{oracleConfig.port}</span>
-                      </div>
-                      <div className="info-row">
-                        <span className="info-label">Service Name:</span>
-                        <span className="info-value service-name">{oracleConfig.serviceName}</span>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </form>
+            <ConnectionInfoPanel
+              isOpen={showInfo}
+              onToggle={toggleInfo}
+              badge={<>Service Name: {oracleConfig.serviceName}</>}
+            >
+              <InfoRow label="Database Type" value="Oracle" />
+              <InfoRow label="Role" value="default" />
+              <InfoRow label="Auth Type" value="Default" />
+              <InfoRow label="Connection" value="Basic" />
+              <InfoRow label="Hostname" value={oracleConfig.hostname} highlight />
+              <InfoRow label="Port" value={oracleConfig.port} />
+              <InfoRow label="Service Name" value={oracleConfig.serviceName} valueClassName="service-name" />
+            </ConnectionInfoPanel>
           </motion.div>
         )}
       </AnimatePresence>

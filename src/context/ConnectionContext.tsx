@@ -21,6 +21,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
+import { isDevelopment } from '../config';
 import type {
   OracleCredentials,
   OracleConnectionState,
@@ -234,8 +235,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
 
   useEffect(() => {
     // Only create dev helpers when app mode is development
-    const appMode = (import.meta.env.VITE_APP_MODE as string | undefined) ?? 'development';
-    if (appMode !== 'development') {
+    if (!isDevelopment) {
       return;
     }
 
@@ -285,6 +285,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
      ============================================ */
 
   const isFullyConnected = oracleState.isConnected && soapState.isConnected;
+  const hasActiveConnection = oracleState.isConnected || soapState.isConnected;
 
   /* ============================================
      Context Value
@@ -310,6 +311,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
 
     // Utility
     isFullyConnected,
+    hasActiveConnection,
   };
 
   return (

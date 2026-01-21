@@ -1,0 +1,30 @@
+/* ===== TOTAL DISPLAY ===== */
+
+.sf-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-tertiary);
+  border-radius: 0.5rem;
+}
+
+.sf-total-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.sf-total-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Responsive */
+@media (max-width: 830px) {
+  .sf-total {
+    justify-content: center;
+  }
+}

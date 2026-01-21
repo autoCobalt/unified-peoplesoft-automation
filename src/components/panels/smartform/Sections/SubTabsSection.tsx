@@ -12,14 +12,19 @@ import { SMARTFORM_SUBTABS } from '../../../../types';
 import { transitionSpring } from '../../../../utils/motion';
 import './SubTabsSection.css';
 
-export function SubTabsSection() {
+interface SubTabsSectionProps {
+  /** Optional className for layout positioning */
+  className?: string;
+}
+
+export function SubTabsSection({ className = '' }: SubTabsSectionProps) {
   const { state, setActiveSubTab } = useSmartForm();
   const { queryResults, activeSubTab } = state;
 
   if (!queryResults) return null;
 
   return (
-    <nav className="sf-subtabs-container" role="tablist" aria-label="SmartForm sub-tabs">
+    <nav className={`sf-subtabs-container ${className}`} role="tablist" aria-label="SmartForm sub-tabs">
       {SMARTFORM_SUBTABS.map(({ id, label, countKey }) => {
         const count = queryResults[countKey];
         const isActive = activeSubTab === id;

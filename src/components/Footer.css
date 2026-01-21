@@ -1,7 +1,7 @@
 /* ===== FOOTER ===== */
 
 .app-footer {
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-xs) var(--space-xs);
   margin-top: auto;
   display: flex;
   align-items: center;

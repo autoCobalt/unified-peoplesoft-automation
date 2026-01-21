@@ -12,13 +12,18 @@ import { buttonInteraction } from '../../../../utils/motion';
 import { PlayIcon, RefreshIcon } from '../../../icons';
 import './QueryOverviewSection.css';
 
-export function QueryOverviewSection() {
+interface QueryOverviewSectionProps {
+  /** Optional className for layout positioning */
+  className?: string;
+}
+
+export function QueryOverviewSection({ className = '' }: QueryOverviewSectionProps) {
   const { state, runQuery } = useSmartForm();
   const { hasQueried, isLoading } = state;
 
   return (
     <motion.button
-      className={`sf-overview-button ${isLoading ? 'sf-overview-button--loading' : ''}`}
+      className={`sf-overview-button ${isLoading ? 'sf-overview-button--loading' : ''} ${className}`}
       onClick={() => { void runQuery(); }}
       disabled={isLoading}
       {...buttonInteraction}

@@ -9,6 +9,8 @@ export { ConnectionPanel } from './connection';
 export { Footer } from './Footer';
 export { Header } from './Header';
 export { ModeBanner } from './ModeBanner';
+export { ResponsiveText } from './ResponsiveText';
+export { SlideTransition } from './SlideTransition';
 export { TabNavigation } from './TabNavigation';
 
 // Tab content (manages panels internally)

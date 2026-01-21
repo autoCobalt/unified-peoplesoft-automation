@@ -1,7 +1,17 @@
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useConnection } from '../context';
 import { slideDownFade, buttonScaleFade } from '../utils';
 import { AppLogoIcon, LogoutIcon } from './icons';
+import { ResponsiveText } from './ResponsiveText';
+import './Header.css';
+
+const HEADER_CONFIG = {
+  title: {
+    full: 'Unified PeopleSoft Automation',
+    short: 'PeopleSoft Automation',
+  },
+  disconnectLabel: 'Disconnect',
+} as const;
 
 /**
  * Header Component
@@ -13,9 +23,7 @@ import { AppLogoIcon, LogoutIcon } from './icons';
  * Shows a disconnect button when either connection is active.
  */
 export function Header() {
-  const { oracleState, soapState, disconnectAll } = useConnection();
-
-  const hasActiveConnection = oracleState.isConnected || soapState.isConnected;
+  const { hasActiveConnection, disconnectAll } = useConnection();
 
   return (
     <motion.header
@@ -26,22 +34,27 @@ export function Header() {
         <div className="header-title">
           <AppLogoIcon className="header-icon" />
           <h1>
-            <span className="title-full">Unified PeopleSoft Automation</span>
-            <span className="title-short">PeopleSoft Automation</span>
-            <span className="title-tiny">PS Automation</span>
+            <ResponsiveText
+              full={HEADER_CONFIG.title.full}
+              short={HEADER_CONFIG.title.short}
+            />
           </h1>
         </div>
 
-        {hasActiveConnection && (
-          <motion.button
-            className="disconnect-button"
-            onClick={disconnectAll}
-            {...buttonScaleFade}
-          >
-            <LogoutIcon />
-            Disconnect
-          </motion.button>
-        )}
+        <AnimatePresence>
+          {hasActiveConnection && (
+            <motion.button
+              key="disconnect-button"
+              className="disconnect-button"
+              onClick={disconnectAll}
+              {...buttonScaleFade}
+              exit={{ opacity: 0, scale: 0.95 }}
+            >
+              <LogoutIcon />
+              {HEADER_CONFIG.disconnectLabel}
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
     </motion.header>
   );
