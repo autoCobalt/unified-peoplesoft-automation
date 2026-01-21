@@ -16,6 +16,13 @@
   padding: var(--space-xs) var(--space-xs);
 }
 
+/* Pre-query: Center the button both vertically and horizontally */
+.smartform-panel--pre-query {
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+}
+
 /* ==============================================
    Header Row - CSS Grid Layout
    ============================================== */

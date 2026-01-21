@@ -59,7 +59,7 @@ export function SmartFormPanel() {
   const slideDirection = activeSubTab === 'manager' ? 'left' : 'right';
 
   return (
-    <motion.section className="feature-panel smartform-panel" {...scaleFade}>
+    <motion.section className={`feature-panel smartform-panel ${!hasQueried ? 'smartform-panel--pre-query' : ''}`} {...scaleFade}>
       {/* Header Row: Query (left) | SubTabs (center) | Total (right) */}
       <div className={`sf-header-row ${hasQueried ? 'sf-header-row--queried' : ''}`}>
         <QueryOverviewSection className="sf-grid-left" />

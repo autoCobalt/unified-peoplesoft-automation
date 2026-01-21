@@ -9,10 +9,9 @@
 import type {
   WorkflowStepBase,
   WorkflowProgress,
-  TaskStatus,
-  WorkflowTask,
 } from '../../types/workflow';
 import { hasProgress } from '../../types/workflow';
+import type { StepConfig, StepProcessingBehavior } from '../../workflows/types';
 
 /* ==============================================
    Progress Utilities
@@ -51,163 +50,69 @@ export function getProgress(
 }
 
 /**
- * Check if workflow is actively processing.
- * Considers both the step name and loop completion status.
+ * Evaluate processing state based on step processing behavior.
+ * This is the new config-driven approach.
  *
  * @param step - Current workflow step
- * @param processingSteps - Step names that indicate processing
+ * @param behavior - Processing behavior from step config
+ * @returns true if workflow is in an active processing state
+ */
+function evaluateProcessingBehavior(
+  step: WorkflowStepBase,
+  behavior: StepProcessingBehavior
+): boolean {
+  switch (behavior) {
+    case 'never':
+      // Never processing (waiting states, terminal states)
+      return false;
+
+    case 'always':
+      // Always processing when in this step (simple steps without progress)
+      return true;
+
+    case 'server-controlled':
+      // Processing until server transitions away
+      // The server determines completion, not the client
+      return true;
+
+    case 'transitional':
+      // Processing until step changes, even if current === total
+      // Used for steps that represent "processing the last item"
+      if (hasProgress(step)) {
+        return step.current > 0;
+      }
+      return true;
+
+    case 'progress-until-done':
+      // Processing until current === total (client-controlled loops)
+      if (hasProgress(step)) {
+        return step.current > 0 && step.current < step.total;
+      }
+      // If no progress but marked as progress-until-done, treat as processing
+      return true;
+  }
+}
+
+/**
+ * Check if workflow is actively processing using step config.
+ * Uses the definition-driven approach for determining processing state.
+ *
+ * @param step - Current workflow step
+ * @param stepConfig - Step configuration from workflow definition
  * @returns true if workflow is in an active processing state
  *
  * @example
- * const isProcessing = isActivelyProcessing(step, ['preparing', 'approving']);
+ * const stepConfig = MANAGER_STEPS.find(s => s.name === step.step);
+ * const isProcessing = isActivelyProcessing(step, stepConfig);
  */
-export function isActivelyProcessing(
+export function isActivelyProcessing<TStepName extends string>(
   step: WorkflowStepBase,
-  processingSteps: string[]
+  stepConfig: StepConfig<TStepName> | undefined
 ): boolean {
-  if (!processingSteps.includes(step.step)) {
+  if (!stepConfig) {
+    // If no config found, default to not processing
     return false;
   }
 
-  // 'approving' is server-controlled - keep showing processing until step changes
-  // (server sets status to 'completed' which triggers step change to 'approved')
-  if (step.step === 'approving') {
-    return true;
-  }
-
-  // Steps that transition to another step when done - current === total means
-  // "processing last item", not "done". The step change indicates completion.
-  const transitionalSteps = ['submitting-position'];
-  if (transitionalSteps.includes(step.step)) {
-    // For transitional steps: processing if current > 0 (including current === total)
-    // The step will change to the next step when truly done
-    if (hasProgress(step)) {
-      return step.current > 0;
-    }
-    return true;
-  }
-
-  // For other client-controlled steps with progress:
-  // - current === 0: not started yet (waiting for user to click)
-  // - current > 0 && current < total: actively processing
-  // - current === total: done processing
-  if (hasProgress(step)) {
-    return step.current > 0 && step.current < step.total;
-  }
-
-  // Non-progress steps are processing if they match
-  return true;
-}
-
-/* ==============================================
-   Step Navigation Utilities
-   ============================================== */
-
-/**
- * Get the index of a step in the step order array.
- * Returns -1 if step is not found.
- */
-function getStepIndex<TStepName extends string>(
-  stepName: TStepName,
-  stepOrder: readonly TStepName[]
-): number {
-  return stepOrder.indexOf(stepName);
-}
-
-/* ==============================================
-   Task Status Utilities
-   ============================================== */
-
-/**
- * Determine the status of a task based on workflow progress.
- *
- * @param currentStepName - Current step name
- * @param stepOrder - Array of all steps in order
- * @param completionStepName - Step that marks this task complete
- * @param triggerStepName - Step that activates this task
- * @returns TaskStatus: 'pending', 'active', or 'completed'
- */
-export function getTaskStatus<TStepName extends string>(
-  currentStepName: TStepName,
-  stepOrder: readonly TStepName[],
-  completionStepName: TStepName,
-  triggerStepName: TStepName
-): TaskStatus {
-  const currentIndex = getStepIndex(currentStepName, stepOrder);
-  const completionIndex = getStepIndex(completionStepName, stepOrder);
-  const triggerIndex = getStepIndex(triggerStepName, stepOrder);
-
-  // If current step is not in the order (e.g., 'error'), return pending
-  // This prevents incorrect status when workflow is in an unexpected state
-  if (currentIndex === -1) {
-    return 'pending';
-  }
-
-  // If completion step is not found, task can never be completed
-  // If trigger step is not found, task is always pending
-  if (completionIndex === -1 || triggerIndex === -1) {
-    return 'pending';
-  }
-
-  // Task is complete when we've reached or passed its completion step
-  if (currentIndex >= completionIndex) {
-    return 'completed';
-  }
-
-  // Task is active when we're at or past its trigger step (but not complete)
-  if (currentIndex >= triggerIndex) {
-    return 'active';
-  }
-
-  return 'pending';
-}
-
-/**
- * Find the currently active task from a list of tasks.
- * Returns the first task that is 'active', or null if none.
- *
- * @example
- * const activeTask = getActiveTask(currentStep, tasks, stepOrder);
- * if (activeTask) {
- *   handleAction(activeTask.action);
- * }
- */
-export function getActiveTask<TStepName extends string>(
-  currentStepName: TStepName,
-  tasks: readonly WorkflowTask<TStepName>[],
-  stepOrder: readonly TStepName[]
-): WorkflowTask<TStepName> | null {
-  for (const task of tasks) {
-    const status = getTaskStatus(
-      currentStepName,
-      stepOrder,
-      task.completionStep,
-      task.triggerStep
-    );
-    if (status === 'active') {
-      return task;
-    }
-  }
-  return null;
-}
-
-/**
- * Compute status for all tasks in a list.
- * Returns tasks with their status and index added.
- */
-export function computeTaskStatuses<TStepName extends string>(
-  currentStepName: TStepName,
-  tasks: readonly WorkflowTask<TStepName>[],
-  stepOrder: readonly TStepName[]
-): Array<WorkflowTask<TStepName> & { status: TaskStatus; index: number }> {
-  return tasks.map((task, index) => ({
-    ...task,
-    status: getTaskStatus(
-      currentStepName,
-      stepOrder,
-      task.completionStep,
-      task.triggerStep
-    ),
-    index,
-  }));
+  return evaluateProcessingBehavior(step, stepConfig.processingBehavior);
 }

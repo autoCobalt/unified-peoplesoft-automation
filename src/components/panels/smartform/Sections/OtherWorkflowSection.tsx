@@ -11,23 +11,19 @@
  * - Transitions to approval workflow when needed
  *
  * Uses shared workflow components for the button and status messages.
+ * Uses the new definition-driven workflow system from src/workflows/.
  */
 
 import { motion } from 'framer-motion';
 import { useSmartForm } from '../../../../context';
-import type { OtherWorkflowStepName } from '../../../../types';
-import { useWorkflowState } from '../../../../hooks';
+import { useWorkflowDefinition } from '../../../../hooks';
+import { otherWorkflowDefinition } from '../../../../workflows';
 import { fadeIn } from '../../../../utils/motion';
 import {
   WorkflowActionButton,
   WorkflowStatusMessage,
 } from '../../../workflow';
 import './OtherWorkflowSection.css';
-
-/** Steps that indicate active processing */
-const PROCESSING_STEPS: OtherWorkflowStepName[] = [
-  'creating-positions', 'approving',
-];
 
 export function OtherWorkflowSection() {
   const {
@@ -40,7 +36,7 @@ export function OtherWorkflowSection() {
   const { otherWorkflow, queryResults } = state;
   const otherCount = queryResults?.otherCount ?? 0;
 
-  // Use workflow state hook
+  // Use definition-driven workflow hook
   const {
     stepName,
     isProcessing,
@@ -48,9 +44,9 @@ export function OtherWorkflowSection() {
     isError,
     errorMessage,
     progress,
-  } = useWorkflowState({
+  } = useWorkflowDefinition({
+    definition: otherWorkflowDefinition,
     workflowStep: otherWorkflow,
-    processingSteps: PROCESSING_STEPS,
   });
 
   // Determine what action to show

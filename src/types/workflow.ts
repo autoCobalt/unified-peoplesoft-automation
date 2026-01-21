@@ -134,45 +134,13 @@ export interface WorkflowProgress {
 }
 
 /* ==============================================
-   Task Configuration Types
+   Task Status Type
    ============================================== */
 
 /**
  * Task status in a workflow checklist.
  */
 export type TaskStatus = 'pending' | 'active' | 'completed';
-
-/**
- * Configuration for a workflow task in a checklist.
- * Generic over the step name type for type safety.
- *
- * @template TStepName - Union type of valid step names
- */
-export interface WorkflowTask<TStepName extends string> {
-  /** Unique identifier for the task */
-  id: string;
-  /** Step that triggers this task's action */
-  triggerStep: TStepName;
-  /** Step that marks this task as complete */
-  completionStep: TStepName;
-  /** Display label in checklist */
-  label: string;
-  /** Button label when this task is active */
-  buttonLabel: string;
-  /** Action to execute when button is clicked */
-  action: () => Promise<void>;
-}
-
-/**
- * Task with computed status for UI rendering.
- */
-export interface TaskWithStatus<TStepName extends string>
-  extends WorkflowTask<TStepName> {
-  /** Computed status based on current workflow step */
-  status: TaskStatus;
-  /** Task index in the list */
-  index: number;
-}
 
 /* ==============================================
    Component Props Types

@@ -256,6 +256,8 @@
   margin-top: var(--space-sm);
   padding-top: var(--space-sm);
   border-top: 1px solid var(--border-muted);
+  /* Consistent height across panels (Oracle has badge, PeopleSoft doesn't) */
+  min-height: 30px;
 }
 
 .info-toggle {

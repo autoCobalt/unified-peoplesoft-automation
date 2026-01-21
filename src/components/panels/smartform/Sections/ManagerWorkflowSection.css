@@ -88,10 +88,19 @@
   width: 100%;
 }
 
+/* Requirements Warning */
+.sf-workflow-requirements-warning {
+  font-size: 0.8125rem;
+  color: var(--status-warning);
+  margin: 0;
+  text-align: center;
+}
+
 /* Pause/Resume Controls */
 .sf-workflow-pause-controls {
   display: flex;
   justify-content: center;
+  margin-top: var(--space-sm);
 }
 
 .sf-workflow-pause-btn,

@@ -10,19 +10,21 @@
  * Features a progressive action button and prepared submission tables.
  * Uses shared workflow components for the checklist, button, and status messages.
  * Uses the DataTable component for displaying prepared CI submissions.
+ *
+ * Uses the new definition-driven workflow system from src/workflows/.
  */
 
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useSmartForm } from '../../../../context';
+import { useSmartForm, useConnection } from '../../../../context';
 import type {
-  ManagerWorkflowStepName,
   PreparedSubmission,
-  WorkflowTask,
   ChecklistTask,
   ColumnDef,
 } from '../../../../types';
-import { useWorkflowState, useWorkflowTasks } from '../../../../hooks';
+import { useWorkflowDefinition } from '../../../../hooks';
+import type { ActionMap, RequirementStatus } from '../../../../workflows';
+import { managerWorkflowDefinition } from '../../../../workflows';
 import { slideUpFadeInstantExit } from '../../../../utils';
 import {
   WorkflowActionButton,
@@ -31,18 +33,6 @@ import {
 } from '../../../workflow';
 import { DataTable } from '../../../table';
 import './ManagerWorkflowSection.css';
-
-/** Step order for status calculation */
-const STEP_ORDER: readonly ManagerWorkflowStepName[] = [
-  'idle', 'preparing', 'prepared',
-  'approving', 'approved',
-  'submitting-position', 'submitting-job', 'complete',
-];
-
-/** Steps that indicate active processing */
-const PROCESSING_STEPS = [
-  'preparing', 'approving', 'submitting-position', 'submitting-job',
-];
 
 /**
  * Column definitions for prepared submission tables.
@@ -90,46 +80,28 @@ export function ManagerWorkflowSection() {
     isWorkflowPaused,
   } = useSmartForm();
 
+  const { soapState } = useConnection();
+
   const { managerWorkflow } = state;
 
-  // Define workflow tasks
-  // Note: The "Process approvals" step opens a browser window automatically
-  const tasks: WorkflowTask<ManagerWorkflowStepName>[] = useMemo(() => [
-    {
-      id: 'prepare',
-      triggerStep: 'idle',
-      completionStep: 'prepared',
-      label: 'Prepare CI submissions',
-      buttonLabel: 'Prepare Submissions',
-      action: prepareSubmissions,
-    },
-    {
-      id: 'approvals',
-      triggerStep: 'prepared',
-      completionStep: 'approved',
-      label: 'Process approvals (opens browser)',
-      buttonLabel: 'Process Approvals',
-      action: openBrowser,
-    },
-    {
-      id: 'position',
-      triggerStep: 'approved',
-      completionStep: 'submitting-job',
-      label: 'Submit position data',
-      buttonLabel: 'Submit CI_POSITION_DATA',
-      action: submitPositionData,
-    },
-    {
-      id: 'job',
-      triggerStep: 'submitting-job',
-      completionStep: 'complete',
-      label: 'Submit job data',
-      buttonLabel: 'Submit CI_JOB_DATA',
-      action: submitJobData,
-    },
-  ], [prepareSubmissions, openBrowser, submitPositionData, submitJobData]);
+  // Action map connects task IDs to context-provided actions
+  // This keeps action logic in the context provider while definitions stay pure
+  const actionMap: ActionMap = useMemo(() => ({
+    prepare: prepareSubmissions,
+    approvals: openBrowser,
+    position: submitPositionData,
+    job: submitJobData,
+  }), [prepareSubmissions, openBrowser, submitPositionData, submitJobData]);
 
-  // Use workflow state hook
+  // Build requirement status from connection states
+  const requirementStatus: RequirementStatus = useMemo(() => ({
+    soap: soapState.isConnected,
+    // Add other requirements as needed:
+    // oracle: oracleState.isConnected,
+    // browser: browserState.isConnected,
+  }), [soapState.isConnected]);
+
+  // Use definition-driven workflow hook
   const {
     stepName,
     isProcessing,
@@ -137,16 +109,14 @@ export function ManagerWorkflowSection() {
     isError,
     errorMessage,
     progress,
-  } = useWorkflowState({
+    tasksWithStatus,
+    activeTask,
+    canProceed,
+    missingRequirements,
+  } = useWorkflowDefinition({
+    definition: managerWorkflowDefinition,
     workflowStep: managerWorkflow,
-    processingSteps: PROCESSING_STEPS,
-  });
-
-  // Use workflow tasks hook
-  const { tasksWithStatus, activeTask } = useWorkflowTasks({
-    currentStepName: stepName as ManagerWorkflowStepName,
-    tasks,
-    stepOrder: STEP_ORDER,
+    requirementStatus,
   });
 
   // Convert tasks to checklist format
@@ -155,6 +125,19 @@ export function ManagerWorkflowSection() {
     label: t.label,
     status: t.status,
   }));
+
+  // Get action for the active task
+  const activeAction = activeTask ? actionMap[activeTask.id] : undefined;
+
+  // Format missing requirements for display
+  const requirementLabels: Record<string, string> = {
+    soap: 'PeopleSoft SOAP',
+    oracle: 'Oracle Database',
+    browser: 'Browser',
+  };
+  const missingRequirementsText = missingRequirements
+    .map(req => requirementLabels[req] ?? req)
+    .join(', ');
 
   // Column definitions for submission tables
   const submissionColumns = useSubmissionColumns();
@@ -165,15 +148,22 @@ export function ManagerWorkflowSection() {
   return (
     <section className="sf-workflow-container">
       {/* Action Button */}
-      {activeTask && !isComplete && !isError && (
+      {activeTask && activeAction && !isComplete && !isError && (
         <div className="sf-workflow-action-container">
           <WorkflowActionButton
             label={activeTask.buttonLabel}
             isProcessing={isProcessing}
             isPaused={isWorkflowPaused}
             progress={progress}
-            onAction={() => { void activeTask.action(); }}
+            onAction={() => { void activeAction(); }}
+            disabled={!canProceed}
           />
+          {/* Missing requirements message */}
+          {!canProceed && missingRequirementsText && (
+            <p className="sf-workflow-requirements-warning">
+              Requires {missingRequirementsText} connection
+            </p>
+          )}
           {/* Pause/Resume controls - visible at prepared step (disabled) and approving step (enabled) */}
           {(stepName === 'prepared' || stepName === 'approving') && (
             <div className="sf-workflow-pause-controls">

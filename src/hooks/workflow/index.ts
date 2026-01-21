@@ -1,15 +1,16 @@
 /**
  * Workflow hooks barrel export
+ *
+ * Hooks:
+ * - useWorkflowDefinition: Unified hook using workflow definitions
+ * - useWorkflowActions: Action wrapper with error handling
  */
 
-export { useWorkflowState } from './useWorkflowState';
+export { useWorkflowDefinition } from './useWorkflowDefinition';
 export type {
-  UseWorkflowStateOptions,
-  UseWorkflowStateReturn,
-} from './useWorkflowState';
+  TaskConfigWithStatus,
+  UseWorkflowDefinitionReturn,
+} from './useWorkflowDefinition';
 
-export { useWorkflowTasks } from './useWorkflowTasks';
-export type {
-  UseWorkflowTasksOptions,
-  UseWorkflowTasksReturn,
-} from './useWorkflowTasks';
+export { useWorkflowActions, createCancellableAction } from './useWorkflowActions';
+export type { UseWorkflowActionsReturn } from './useWorkflowActions';

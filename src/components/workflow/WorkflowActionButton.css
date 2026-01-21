@@ -22,8 +22,15 @@
 }
 
 .wf-action-button:disabled {
-  opacity: 0.7;
   cursor: not-allowed;
+}
+
+/* Disabled but not processing - use muted styling */
+.wf-action-button:disabled:not(.wf-action-button--processing):not(.wf-action-button--paused) {
+  background: var(--wf-bg-tertiary);
+  color: var(--wf-text-secondary);
+  border: 1px solid var(--wf-border-primary);
+  opacity: 0.6;
 }
 
 .wf-action-button--processing {
