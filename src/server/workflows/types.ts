@@ -12,8 +12,8 @@
 /** Status of a workflow execution */
 export type WorkflowStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error' | 'cancelled';
 
-/** Progress information for workflows with multiple items */
-export interface WorkflowProgress {
+/** Raw progress information from server (unprocessed) */
+export interface RawWorkflowProgress {
   current: number;
   total: number;
   /** Current item being processed (for display) */
@@ -30,7 +30,7 @@ export interface ManagerWorkflowState {
   /** Current step being executed */
   currentStep: 'idle' | 'preparing' | 'approving' | 'submitting' | 'completed';
   /** Progress within current step (if applicable) */
-  progress: WorkflowProgress | null;
+  progress: RawWorkflowProgress | null;
   /** Error message if status is 'error' */
   error: string | null;
   /** Whether the workflow is currently paused (pauses between transactions) */
@@ -61,7 +61,7 @@ export const INITIAL_MANAGER_STATE: ManagerWorkflowState = {
 export interface OtherWorkflowState {
   status: WorkflowStatus;
   currentStep: 'idle' | 'creating-positions' | 'approving' | 'completed';
-  progress: WorkflowProgress | null;
+  progress: RawWorkflowProgress | null;
   error: string | null;
   results: {
     positionsCreated?: number;
@@ -86,7 +86,7 @@ export const INITIAL_OTHER_STATE: OtherWorkflowState = {
 export interface WorkflowStatusResponse {
   status: WorkflowStatus;
   step: string;
-  progress: WorkflowProgress | null;
+  progress: RawWorkflowProgress | null;
   error: string | null;
 }
 

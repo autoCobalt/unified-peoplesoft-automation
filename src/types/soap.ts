@@ -130,7 +130,8 @@ export type SOAPErrorCode =
   | 'PARSE_ERROR'
   | 'NETWORK_ERROR'
   | 'TIMEOUT'
-  | 'INTERNAL_ERROR';
+  | 'INTERNAL_ERROR'
+  | 'INSECURE_PROTOCOL'; // Added: Blocks HTTP connections in production
 
 /**
  * SOAP operation error

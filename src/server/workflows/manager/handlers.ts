@@ -7,31 +7,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'http';
 import { managerWorkflowService } from './managerWorkflowService.js';
-
-/* ==============================================
-   Response Helpers
-   ============================================== */
-
-function sendJson(res: ServerResponse, data: unknown, statusCode = 200): void {
-  res.statusCode = statusCode;
-  res.setHeader('Content-Type', 'application/json');
-  res.end(JSON.stringify(data));
-}
-
-function readRequestBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let body = '';
-    req.on('data', (chunk: Buffer) => {
-      body += chunk.toString();
-    });
-    req.on('end', () => {
-      resolve(body);
-    });
-    req.on('error', (err) => {
-      reject(err);
-    });
-  });
-}
+import { getRawBody, sendJson } from '../../utils/index.js';
 
 /* ==============================================
    Route Handlers
@@ -47,7 +23,7 @@ export function handleGetStatus(
 ): void {
   const state = managerWorkflowService.getState();
 
-  sendJson(res, {
+  sendJson(res, 200, {
     success: true,
     data: {
       status: state.status,
@@ -74,31 +50,31 @@ export async function handleApprove(
   res: ServerResponse
 ): Promise<void> {
   try {
-    const body = await readRequestBody(req);
+    const body = await getRawBody(req);
     const data = JSON.parse(body) as {
       transactionIds?: string[];
       testSiteUrl?: string;
     };
 
     if (!data.transactionIds || !Array.isArray(data.transactionIds)) {
-      sendJson(res, {
+      sendJson(res, 400, {
         success: false,
         error: {
           code: 'INVALID_REQUEST',
           message: 'transactionIds array is required',
         },
-      }, 400);
+      });
       return;
     }
 
     if (data.transactionIds.length === 0) {
-      sendJson(res, {
+      sendJson(res, 400, {
         success: false,
         error: {
           code: 'INVALID_REQUEST',
           message: 'transactionIds cannot be empty',
         },
-      }, 400);
+      });
       return;
     }
 
@@ -109,7 +85,7 @@ export async function handleApprove(
       data.testSiteUrl
     );
 
-    sendJson(res, {
+    sendJson(res, 200, {
       success: true,
       data: {
         message: 'Approval workflow started',
@@ -118,14 +94,14 @@ export async function handleApprove(
     });
 
   } catch (error) {
-    sendJson(res, {
+    sendJson(res, 400, {
       success: false,
       error: {
         code: 'INVALID_REQUEST',
         message: 'Invalid JSON body',
         details: error instanceof Error ? error.message : 'Unknown error',
       },
-    }, 400);
+    });
   }
 }
 
@@ -139,7 +115,7 @@ export async function handleStop(
 ): Promise<void> {
   await managerWorkflowService.stop();
 
-  sendJson(res, {
+  sendJson(res, 200, {
     success: true,
     data: {
       message: 'Workflow stopped',
@@ -157,7 +133,7 @@ export function handleReset(
 ): void {
   managerWorkflowService.reset();
 
-  sendJson(res, {
+  sendJson(res, 200, {
     success: true,
     data: {
       message: 'Workflow reset',
@@ -175,7 +151,7 @@ export function handlePause(
 ): void {
   managerWorkflowService.pause();
 
-  sendJson(res, {
+  sendJson(res, 200, {
     success: true,
     data: {
       message: 'Workflow paused',
@@ -193,7 +169,7 @@ export function handleResume(
 ): void {
   managerWorkflowService.resume();
 
-  sendJson(res, {
+  sendJson(res, 200, {
     success: true,
     data: {
       message: 'Workflow resumed',

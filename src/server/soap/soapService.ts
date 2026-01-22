@@ -16,7 +16,16 @@ import type {
   ActionType,
 } from '../../types/soap.js';
 import type { SoapCredentials } from '../../types/connection.js';
-import { buildEndpointURL, SOAP_RETRY, SOAP_TIMEOUTS } from './config.js';
+import { buildEndpointURL, SOAP_RETRY, SOAP_TIMEOUTS, validateProtocolSecurity } from './config.js';
+import {
+  logInfo,
+  logWarn,
+  logError,
+  logCredentialsSet,
+  logConnectionAttempt,
+  logConnectionSuccess,
+  redactConnectionString,
+} from '../utils/index.js';
 import {
   buildGetCIShapeRequest,
   buildSubmitRequest,
@@ -39,6 +48,7 @@ import {
 class SOAPService {
   private config: PeopleSoftConfig | null = null;
   private credentials: SoapCredentials | null = null;
+  private isDevelopment = true; // Default to dev for safety (allows warnings before blocking)
   private state: SOAPServiceState = {
     hasCredentials: false,
     lastConnectionTime: null,
@@ -53,16 +63,29 @@ class SOAPService {
    * Initialize the SOAP service with configuration
    *
    * @param config - PeopleSoft configuration from environment
+   * @param isDevelopment - Whether running in development mode (affects HTTPS enforcement)
    */
-  initialize(config: PeopleSoftConfig | null): void {
+  initialize(config: PeopleSoftConfig | null, isDevelopment = true): void {
     this.config = config;
+    this.isDevelopment = isDevelopment;
 
     if (config) {
-      console.log('[SOAP] Service initialized');
-      console.log(`[SOAP] Server: ${config.protocol}://${config.server}:${String(config.port)}`);
-      console.log(`[SOAP] Site: ${config.siteName}/${config.portal}/${config.node}`);
+      logInfo('SOAP', 'Service initialized');
+      // Connection string is redacted in production to protect server topology
+      const serverInfo = `${config.protocol}://${config.server}:${String(config.port)}`;
+      logInfo('SOAP', `Server: ${redactConnectionString(serverInfo)}`);
+      logInfo('SOAP', `Site: ${redactConnectionString(`${config.siteName}/${config.portal}/${config.node}`)}`);
+
+      // Validate protocol security on initialization
+      const validation = validateProtocolSecurity(config, isDevelopment);
+      if (validation.warning) {
+        logWarn('SOAP', validation.warning);
+      }
+      if (validation.error) {
+        logError('SOAP', validation.error);
+      }
     } else {
-      console.warn('[SOAP] Service not configured - missing environment variables');
+      logWarn('SOAP', 'Service not configured - missing environment variables');
     }
   }
 
@@ -94,7 +117,7 @@ class SOAPService {
     this.credentials = credentials;
     this.state.hasCredentials = true;
     this.state.error = null;
-    console.log(`[SOAP] Credentials set for user: ${credentials.username}`);
+    logCredentialsSet('SOAP', credentials.username);
   }
 
   /**
@@ -107,7 +130,7 @@ class SOAPService {
       lastConnectionTime: null,
       error: null,
     };
-    console.log('[SOAP] Credentials cleared');
+    logInfo('SOAP', 'Credentials cleared');
   }
 
   /**
@@ -178,10 +201,7 @@ class SOAPService {
 
       } catch (error) {
         lastError = error as Error;
-        console.warn(
-          `[SOAP] Attempt ${String(attempt)}/${String(SOAP_RETRY.MAX_ATTEMPTS)} failed:`,
-          lastError.message
-        );
+        logWarn('SOAP', `Attempt ${String(attempt)}/${String(SOAP_RETRY.MAX_ATTEMPTS)} failed: ${lastError.message}`);
 
         // Wait before retry (exponential backoff)
         if (attempt < SOAP_RETRY.MAX_ATTEMPTS) {
@@ -204,6 +224,9 @@ class SOAPService {
    * Makes a lightweight GetCIShape request to validate credentials.
    * Uses CI_JOB_DATA as the test CI (common, read-only).
    *
+   * SECURITY: Validates HTTPS is used before sending credentials.
+   * In production, HTTP connections are blocked to prevent credential exposure.
+   *
    * @param credentials - User credentials to test
    * @returns Success/failure with message
    */
@@ -220,11 +243,35 @@ class SOAPService {
       };
     }
 
+    // ==========================================
+    // SECURITY CHECK: Enforce HTTPS
+    // ==========================================
+    // PeopleSoft sends credentials in plain HTTP headers.
+    // Block insecure connections in production to prevent credential theft.
+    const protocolValidation = validateProtocolSecurity(this.config, this.isDevelopment);
+
+    if (protocolValidation.error) {
+      // Production + HTTP = blocked
+      logError('SOAP', protocolValidation.error);
+      return {
+        success: false,
+        error: {
+          code: 'INSECURE_PROTOCOL',
+          message: protocolValidation.error,
+        },
+      };
+    }
+
+    if (protocolValidation.warning) {
+      // Development + HTTP = allowed with warning
+      logWarn('SOAP', protocolValidation.warning);
+    }
+
     const url = buildEndpointURL(this.config);
     const headers = this.buildHeaders(credentials);
     const body = buildGetCIShapeRequest('CI_JOB_DATA', this.config.debug);
 
-    console.log(`[SOAP] Testing connection to: ${url}`);
+    logConnectionAttempt('SOAP', credentials.username, redactConnectionString(url));
 
     try {
       const response = await fetch(url, {
@@ -283,7 +330,7 @@ class SOAPService {
       this.setCredentials(credentials);
       this.state.lastConnectionTime = new Date();
 
-      console.log('[SOAP] Connection test successful');
+      logConnectionSuccess('SOAP', credentials.username);
 
       return {
         success: true,
@@ -295,7 +342,7 @@ class SOAPService {
 
     } catch (error) {
       const err = error as Error;
-      console.error('[SOAP] Connection test failed:', err.message);
+      logError('SOAP', `Connection test failed: ${err.message}`);
 
       // Map common network errors to friendly messages
       let message = err.message;
@@ -354,7 +401,7 @@ class SOAPService {
     const headers = this.buildHeaders(creds);
     const body = buildGetCIShapeRequest(ciName, this.config.debug);
 
-    console.log(`[SOAP] GetCIShape request for: ${ciName}`);
+    logInfo('SOAP', `GetCIShape request for: ${ciName}`);
 
     try {
       const result = await this.sendRequestWithRetry(url, headers, body);
@@ -404,7 +451,7 @@ class SOAPService {
     const headers = this.buildHeaders(creds);
     const body = buildSubmitRequest(ciName, action, data, this.config);
 
-    console.log(`[SOAP] SubmitToDB: ${action} on ${ciName}`);
+    logInfo('SOAP', `SubmitToDB: ${action} on ${ciName}`);
 
     try {
       const result = await this.sendRequestWithRetry(url, headers, body);
@@ -454,7 +501,7 @@ class SOAPService {
     const headers = this.buildHeaders(creds);
     const body = buildMultiRecordSubmitRequest(ciName, action, records, this.config);
 
-    console.log(`[SOAP] Batch submit: ${String(records.length)} records, ${action} on ${ciName}`);
+    logInfo('SOAP', `Batch submit: ${String(records.length)} records, ${action} on ${ciName}`);
 
     try {
       const result = await this.sendRequestWithRetry(url, headers, body);

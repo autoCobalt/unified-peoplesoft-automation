@@ -8,7 +8,7 @@
 
 import type {
   WorkflowStepBase,
-  WorkflowProgress,
+  NormalizedWorkflowProgress,
 } from '../../types/workflow';
 import { hasProgress } from '../../types/workflow';
 import type { StepConfig, StepProcessingBehavior } from '../../workflows/types';
@@ -29,7 +29,7 @@ import type { StepConfig, StepProcessingBehavior } from '../../workflows/types';
  */
 export function getProgress(
   step: WorkflowStepBase
-): WorkflowProgress | null {
+): NormalizedWorkflowProgress | null {
   if (!hasProgress(step)) {
     return null;
   }

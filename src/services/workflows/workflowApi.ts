@@ -3,27 +3,27 @@
  *
  * Fetch-based client for communicating with the workflow middleware.
  * These are business-level endpoints - browser control is handled server-side.
+ *
+ * Authentication:
+ * - All workflow endpoints require a valid session token
+ * - Token is automatically included from session storage
  */
 
+import type { RawWorkflowProgress, WorkflowStatus } from '../../server/workflows/types';
+import { getSessionHeaders } from '../session/index.js';
+
 /* ==============================================
-   Types
+   Types (re-export server types for convenience)
    ============================================== */
 
-/** Workflow progress information */
-export interface WorkflowProgress {
-  current: number;
-  total: number;
-  currentItem?: string;
-}
-
-/** Workflow status values */
-export type WorkflowStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error' | 'cancelled';
+/** Re-export types from server */
+export type { RawWorkflowProgress, WorkflowStatus } from '../../server/workflows/types';
 
 /** Manager workflow state from API */
 export interface ManagerWorkflowState {
   status: WorkflowStatus;
   step: string;
-  progress: WorkflowProgress | null;
+  progress: RawWorkflowProgress | null;
   error: string | null;
   results: {
     preparedCount?: number;
@@ -55,6 +55,12 @@ async function apiRequest<T>(
     const headers = new Headers(options.headers);
     if (!headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
+    }
+
+    // Add session token - all workflow endpoints require authentication
+    const sessionHeaders = getSessionHeaders();
+    for (const [key, value] of Object.entries(sessionHeaders)) {
+      headers.set(key, value);
     }
 
     const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -147,13 +153,21 @@ export function pollManagerStatus(
   const controller = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
+  // Helper to check abort status - function call prevents TypeScript from
+  // incorrectly caching the boolean value across await boundaries
+  const isAborted = (): boolean => controller.signal.aborted;
+
   const doPoll = async () => {
-    if (controller.signal.aborted) return;
+    if (isAborted()) {
+      return;
+    }
 
     const response = await getManagerStatus();
 
-    const aborted = controller.signal.aborted as boolean;
-    if (aborted) return;
+    // Re-check after async operation - signal may have been aborted during the await
+    if (isAborted()) {
+      return;
+    }
 
     if (response.success) {
       callback(response.data, null);
@@ -161,8 +175,8 @@ export function pollManagerStatus(
       callback(null, response.error.message);
     }
 
-    const stillAborted = controller.signal.aborted as boolean;
-    if (!stillAborted) {
+    // Schedule next poll if not aborted
+    if (!isAborted()) {
       timeoutId = setTimeout(() => {
         void doPoll();
       }, intervalMs);

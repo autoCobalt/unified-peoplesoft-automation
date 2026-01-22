@@ -22,6 +22,7 @@ import {
   type ReactNode,
 } from 'react';
 import { isDevelopment, oracleConfig } from '../config';
+import { setSessionToken } from '../services/session';
 import type {
   OracleCredentials,
   OracleConnectionState,
@@ -37,8 +38,8 @@ import { ConnectionContext, type ConnectionContextType } from './connectionConte
 declare global {
   interface Window {
     devSimulate?: {
-      oracleConnect: (username: string) => void;
-      soapConnect: (username: string) => void;
+      oracleConnect: (username: string) => void | Promise<void>;
+      soapConnect: (username: string) => void | Promise<void>;
       disconnectAll: () => void;
     };
   }
@@ -279,24 +280,67 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
 
     // Define simulation functions only in DEV mode
-    const simulateOracleConnect = (username: string) => {
-      setOracleCredentialsState({ username, password: '********' });
-      setOracleState({
-        isConnected: true,
-        isConnecting: false,
-        error: null,
-      });
-      console.log(`🔌 [Dev] Oracle connected as: ${username}`);
+    // These now call the dev session endpoint to create a real session token
+    const simulateOracleConnect = async (username: string) => {
+      try {
+        // Call the dev-only session endpoint
+        const response = await fetch('/api/dev/create-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, authSource: 'oracle' }),
+        });
+        const result = await response.json() as {
+          success: boolean;
+          data?: { sessionToken: string };
+        };
+
+        if (result.success && result.data?.sessionToken) {
+          // Store the session token for authenticated requests
+          setSessionToken(result.data.sessionToken);
+        }
+
+        // Update UI state
+        setOracleCredentialsState({ username, password: '********' });
+        setOracleState({
+          isConnected: true,
+          isConnecting: false,
+          error: null,
+        });
+        console.log(`🔌 [Dev] Oracle connected as: ${username} (session created)`);
+      } catch (error) {
+        console.error('[Dev] Failed to create dev session:', error);
+      }
     };
 
-    const simulateSoapConnect = (username: string) => {
-      setSoapCredentialsState({ username, password: '********' });
-      setSoapState({
-        isConnected: true,
-        isConnecting: false,
-        error: null,
-      });
-      console.log(`🔌 [Dev] SOAP connected as: ${username}`);
+    const simulateSoapConnect = async (username: string) => {
+      try {
+        // Call the dev-only session endpoint
+        const response = await fetch('/api/dev/create-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, authSource: 'soap' }),
+        });
+        const result = await response.json() as {
+          success: boolean;
+          data?: { sessionToken: string };
+        };
+
+        if (result.success && result.data?.sessionToken) {
+          // Store the session token for authenticated requests
+          setSessionToken(result.data.sessionToken);
+        }
+
+        // Update UI state
+        setSoapCredentialsState({ username, password: '********' });
+        setSoapState({
+          isConnected: true,
+          isConnecting: false,
+          error: null,
+        });
+        console.log(`🔌 [Dev] SOAP connected as: ${username} (session created)`);
+      } catch (error) {
+        console.error('[Dev] Failed to create dev session:', error);
+      }
     };
 
     // Expose on window (wrap async functions to match void return type)

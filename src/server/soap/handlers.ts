@@ -9,39 +9,8 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import type { ActionType } from '../../types/soap.js';
 import type { SoapCredentials } from '../../types/connection.js';
 import { soapService } from './soapService.js';
-
-/* ==============================================
-   Helper Functions
-   ============================================== */
-
-/**
- * Send JSON response
- */
-function sendJson(res: ServerResponse, statusCode: number, data: unknown): void {
-  res.statusCode = statusCode;
-  res.setHeader('Content-Type', 'application/json');
-  res.end(JSON.stringify(data));
-}
-
-/**
- * Parse JSON request body
- */
-async function parseBody<T>(req: IncomingMessage): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
-    req.on('error', reject);
-    req.on('end', () => {
-      try {
-        const body = Buffer.concat(chunks).toString('utf-8');
-        resolve(body ? JSON.parse(body) as T : {} as T);
-      } catch {
-        reject(new Error('Invalid JSON body'));
-      }
-    });
-  });
-}
+import { sessionService } from '../auth/index.js';
+import { parseBody, sendJson } from '../utils/index.js';
 
 /* ==============================================
    Route Handlers
@@ -70,13 +39,15 @@ export function handleGetStatus(
 
 /**
  * POST /api/soap/connect
- * Test SOAP connection with provided credentials
+ * Test SOAP connection with provided credentials and create session
  *
  * Request body:
  * {
  *   username: string,
  *   password: string
  * }
+ *
+ * Response on success includes sessionToken for subsequent authenticated requests.
  */
 export async function handleConnect(
   req: IncomingMessage,
@@ -107,7 +78,20 @@ export async function handleConnect(
 
     const result = await soapService.testConnection(credentials);
 
-    sendJson(res, result.success ? 200 : 401, result);
+    // On successful connection, create a session and return the token
+    if (result.success) {
+      const sessionToken = sessionService.createSession(body.username, 'soap');
+
+      sendJson(res, 200, {
+        ...result,
+        data: {
+          ...result.data,
+          sessionToken,
+        },
+      });
+    } else {
+      sendJson(res, 401, result);
+    }
   } catch (error) {
     sendJson(res, 500, {
       success: false,
@@ -121,12 +105,18 @@ export async function handleConnect(
 
 /**
  * POST /api/soap/disconnect
- * Clear stored SOAP credentials
+ * Clear stored SOAP credentials and invalidate all SOAP sessions
+ *
+ * Security: Invalidates all sessions authenticated via SOAP.
+ * This ensures disconnected users can't continue making API calls.
  */
 export function handleDisconnect(
   _req: IncomingMessage,
   res: ServerResponse
 ): void {
+  // Invalidate all SOAP sessions before clearing credentials
+  sessionService.invalidateByAuthSource('soap');
+
   soapService.clearCredentials();
 
   sendJson(res, 200, {

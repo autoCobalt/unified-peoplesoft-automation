@@ -58,6 +58,7 @@ The `.env.local` file (created during installation) controls application behavio
 | `VITE_APP_MODE` | `development` (mock data) or `production` (real systems) |
 | `VITE_ORACLE_*` | Oracle database connection settings |
 | `VITE_PS_*` | PeopleSoft SOAP endpoint configuration |
+| `VITE_ALLOWED_ORIGINS` | Production CORS origins (comma-separated, e.g., `https://app.example.com`) |
 
 See `.env.example` for all available options with descriptions.
 
@@ -119,7 +120,9 @@ async function fetchEmployeeData(employeeId: string) {
 | SmartForm Panel | 🟢 Complete | Primary workflow panel with data tables, sub-tabs, and workflow sections |
 | Manager Workflow | 🟢 Complete | Automated PeopleSoft approval processing via Playwright browser control |
 | Oracle SQL Interface | 🟢 Complete | Full API: connect, disconnect, and query endpoints (`/api/oracle/*`) |
+| PeopleSoft SOAP Interface | 🟢 Complete | Full API with HTTPS enforcement in production (`/api/soap/*`) |
 | Mock Test Site | 🟢 Complete | Development-only PeopleSoft simulator for testing automation |
+| Security Layer | 🟢 Complete | Session auth, security headers, CORS, secure logging |
 | EDW Transfers | 🟡 In Progress | Panel structure ready, implementation pending |
 | Bulk PAF | 🟡 In Progress | Panel structure ready, implementation pending |
 | Parking Deductions | 🟡 In Progress | Panel structure ready, implementation pending |
@@ -127,6 +130,17 @@ async function fetchEmployeeData(employeeId: string) {
 | Mass Email Notices | 🟡 In Progress | Panel structure ready, implementation pending |
 | Data Validation Engine | ⬜ Planned | Automated failsafes and validation |
 | Export/Reporting | ⬜ Planned | Results export and audit logging |
+
+## Security
+
+The application implements multiple security layers:
+
+- **Session Authentication** — All API endpoints require authentication via `X-Session-Token` header
+- **HTTPS Enforcement** — SOAP connections require HTTPS in production mode
+- **Security Headers** — All responses include `X-Content-Type-Options`, `X-Frame-Options`, `Content-Security-Policy`, and other protective headers
+- **CORS Protection** — Explicit origin allowlist (configurable via `VITE_ALLOWED_ORIGINS`)
+- **Request Size Limits** — 2MB body limit prevents memory exhaustion attacks
+- **Secure Logging** — Sensitive data (passwords, tokens) automatically redacted in production logs
 
 ## Architecture
 
@@ -136,8 +150,9 @@ The application uses **Vite Server Middleware** to provide API routes without a 
 Vite Dev Server (npm run dev)
 ├── React Frontend (HMR, static assets)
 └── Server Middleware
-    ├── /api/workflows/* → Workflow automation endpoints
-    ├── /api/oracle/*    → Oracle database queries
+    ├── /api/workflows/* → Workflow automation endpoints (authenticated)
+    ├── /api/oracle/*    → Oracle database queries (authenticated)
+    ├── /api/soap/*      → PeopleSoft SOAP integration (authenticated)
     └── /test-site/*     → Mock PeopleSoft (development only)
 ```
 

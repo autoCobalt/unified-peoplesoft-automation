@@ -81,8 +81,8 @@ export function buildSoapConfig(env: Record<string, string>): PeopleSoftConfig |
     return null;
   }
 
-  // Parse protocol (protocolRaw is typed as string per Record<string, string>)
-  const protocolRaw = env['VITE_PS_PROTOCOL'];
+  // Parse protocol with fallback (env var may be undefined at runtime despite Record<string, string> typing)
+  const protocolRaw = env['VITE_PS_PROTOCOL'] ?? '';
   const protocol: 'http' | 'https' =
     protocolRaw.toLowerCase() === 'http' ? 'http' : 'https';
 
@@ -100,6 +100,75 @@ export function buildSoapConfig(env: Record<string, string>): PeopleSoftConfig |
     node,
     languageCode: env['VITE_PS_LANGUAGE_CODE'] || DEFAULT_CONFIG.languageCode,
     blockingFactor,
+  };
+}
+
+/* ==============================================
+   HTTPS Validation
+   ============================================== */
+
+/**
+ * Security validation result
+ */
+export interface ProtocolValidationResult {
+  isSecure: boolean;
+  protocol: 'http' | 'https';
+  warning?: string;
+  error?: string;
+}
+
+/**
+ * Validate that the SOAP configuration uses a secure protocol
+ *
+ * SECURITY CRITICAL: PeopleSoft SOAP authentication sends credentials
+ * in custom HTTP headers (userid, pwd). These are transmitted in plain
+ * text and visible to anyone who can observe network traffic.
+ *
+ * Over HTTP:
+ * - Credentials are visible to network sniffers (Wireshark, etc.)
+ * - Man-in-the-middle attacks can steal credentials
+ * - Proxy servers and load balancers often log headers
+ *
+ * Over HTTPS:
+ * - TLS encryption protects credentials in transit
+ * - Certificate validation prevents MITM attacks
+ * - Headers are encrypted along with body content
+ *
+ * @param config - PeopleSoft configuration
+ * @param isDevelopment - Whether running in development mode
+ * @returns Validation result with security assessment
+ */
+export function validateProtocolSecurity(
+  config: PeopleSoftConfig,
+  isDevelopment: boolean
+): ProtocolValidationResult {
+  if (config.protocol === 'https') {
+    return {
+      isSecure: true,
+      protocol: 'https',
+    };
+  }
+
+  // HTTP protocol detected
+  if (isDevelopment) {
+    // Allow HTTP in development with strong warning
+    return {
+      isSecure: false,
+      protocol: 'http',
+      warning:
+        'WARNING: Using HTTP for SOAP connection. Credentials will be sent in plain text! ' +
+        'This is only allowed in development mode. Use HTTPS in production.',
+    };
+  }
+
+  // Block HTTP in production
+  return {
+    isSecure: false,
+    protocol: 'http',
+    error:
+      'SECURITY ERROR: Cannot use HTTP for SOAP connections in production. ' +
+      'PeopleSoft credentials are sent in HTTP headers and would be exposed in plain text. ' +
+      'Configure VITE_PS_PROTOCOL=https to use a secure connection.',
   };
 }
 

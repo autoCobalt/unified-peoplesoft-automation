@@ -9,44 +9,13 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import type { QueryParameters } from '../../types/oracle.js';
 import { oracleService } from './oracleService.js';
 import { isValidQueryId, getAvailableQueryIds } from '../sql/index.js';
+import { sessionService } from '../auth/index.js';
+import { parseBody, sendJson } from '../utils/index.js';
 
 /** Raw request body before validation */
 interface RawQueryRequest {
   queryId?: string;
   parameters?: QueryParameters;
-}
-
-/* ==============================================
-   Helper Functions
-   ============================================== */
-
-/**
- * Send JSON response
- */
-function sendJson(res: ServerResponse, statusCode: number, data: unknown): void {
-  res.statusCode = statusCode;
-  res.setHeader('Content-Type', 'application/json');
-  res.end(JSON.stringify(data));
-}
-
-/**
- * Parse JSON request body
- */
-async function parseBody<T>(req: IncomingMessage): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
-    req.on('error', reject);
-    req.on('end', () => {
-      try {
-        const body = Buffer.concat(chunks).toString('utf-8');
-        resolve(body ? JSON.parse(body) as T : {} as T);
-      } catch {
-        reject(new Error('Invalid JSON body'));
-      }
-    });
-  });
 }
 
 /* ==============================================
@@ -92,7 +61,7 @@ export function handleGetQueries(
 
 /**
  * POST /api/oracle/connect
- * Connect to Oracle database
+ * Connect to Oracle database and create session
  *
  * Request body:
  * {
@@ -100,6 +69,8 @@ export function handleGetQueries(
  *   username: string,
  *   password: string
  * }
+ *
+ * Response on success includes sessionToken for subsequent authenticated requests.
  */
 export async function handleConnect(
   req: IncomingMessage,
@@ -130,7 +101,20 @@ export async function handleConnect(
       body.password
     );
 
-    sendJson(res, result.success ? 200 : 500, result);
+    // On successful connection, create a session and return the token
+    if (result.success) {
+      const sessionToken = sessionService.createSession(body.username, 'oracle');
+
+      sendJson(res, 200, {
+        ...result,
+        data: {
+          ...result.data,
+          sessionToken,
+        },
+      });
+    } else {
+      sendJson(res, 500, result);
+    }
   } catch (error) {
     sendJson(res, 500, {
       success: false,
@@ -144,12 +128,18 @@ export async function handleConnect(
 
 /**
  * POST /api/oracle/disconnect
- * Disconnect from Oracle database
+ * Disconnect from Oracle database and invalidate all Oracle sessions
+ *
+ * Security: Invalidates all sessions authenticated via Oracle.
+ * This ensures disconnected users can't continue making API calls.
  */
 export async function handleDisconnect(
   _req: IncomingMessage,
   res: ServerResponse
 ): Promise<void> {
+  // Invalidate all Oracle sessions before disconnecting
+  sessionService.invalidateByAuthSource('oracle');
+
   const result = await oracleService.disconnect();
   sendJson(res, 200, result);
 }

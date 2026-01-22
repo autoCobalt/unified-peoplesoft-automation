@@ -34,16 +34,16 @@ export interface DevSimulationActions {
  */
 export function useDevSimulation(): DevSimulationActions {
   const simulateOracle = useCallback((username: string) => {
-    window.devSimulate?.oracleConnect(username);
+    void window.devSimulate?.oracleConnect(username);
   }, []);
 
   const simulateSoap = useCallback((username: string) => {
-    window.devSimulate?.soapConnect(username);
+    void window.devSimulate?.soapConnect(username);
   }, []);
 
   const simulateBoth = useCallback((username: string) => {
-    window.devSimulate?.oracleConnect(username);
-    window.devSimulate?.soapConnect(username);
+    void window.devSimulate?.oracleConnect(username);
+    void window.devSimulate?.soapConnect(username);
   }, []);
 
   return { simulateOracle, simulateSoap, simulateBoth };

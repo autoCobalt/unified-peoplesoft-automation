@@ -25,7 +25,7 @@
  * });
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type {
   UseWorkflowActionsOptions,
   WorkflowActionConfig,
@@ -82,6 +82,22 @@ export function useWorkflowActions<TStep>(
 
   const [isExecuting, setIsExecuting] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  /**
+   * Cleanup on unmount: abort any running action.
+   *
+   * This prevents:
+   * 1. Memory leaks from async operations holding references
+   * 2. React warnings about state updates on unmounted components
+   * 3. Wasted work from operations that will be discarded
+   */
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   /**
    * Execute an action with automatic error handling.

@@ -28,7 +28,7 @@
 import { useMemo } from 'react';
 import type {
   WorkflowStepBase,
-  WorkflowProgress,
+  NormalizedWorkflowProgress,
   TaskStatus,
 } from '../../types/workflow';
 import { isErrorStep, isCompleteStep, isIdleStep } from '../../types/workflow';
@@ -73,7 +73,7 @@ export interface UseWorkflowDefinitionReturn<
 
   /* ----- Progress ----- */
   /** Progress info if available */
-  progress: WorkflowProgress | null;
+  progress: NormalizedWorkflowProgress | null;
 
   /* ----- Status Flags ----- */
   /** Whether workflow is actively processing */

@@ -27,6 +27,15 @@ import type {
 } from '../../types/oracle.js';
 import { getQueryConfig } from '../sql/index.js';
 import { getSqlDirectory } from './config.js';
+import {
+  logConnectionAttempt,
+  logConnectionSuccess,
+  logDebug,
+  logInfo,
+  logWarn,
+  logError,
+  redactConnectionString,
+} from '../utils/index.js';
 
 /* ==============================================
    Types
@@ -79,8 +88,8 @@ class OracleService {
     username: string,
     password: string
   ): Promise<OracleApiResponse<{ message: string }>> {
-    console.log(`[Oracle] Connecting to database as ${username}...`);
-    console.log(`[Oracle] Connection string: ${connectionString}`);
+    // Use secure logging - redacts sensitive values in production
+    logConnectionAttempt('Oracle', username, redactConnectionString(connectionString));
 
     try {
       // Close any existing connection first
@@ -88,7 +97,7 @@ class OracleService {
         try {
           await this.connection.close();
         } catch (e) {
-          console.warn('[Oracle] Error closing existing connection:', e);
+          logWarn('Oracle', `Error closing existing connection: ${String(e)}`);
         }
         this.connection = null;
       }
@@ -110,7 +119,7 @@ class OracleService {
         error: null,
       };
 
-      console.log('[Oracle] Connected successfully');
+      logConnectionSuccess('Oracle', username);
 
       return {
         success: true,
@@ -119,7 +128,7 @@ class OracleService {
 
     } catch (error) {
       const message = this.formatOracleError(error);
-      console.error('[Oracle] Connection failed:', message);
+      logError('Oracle', `Connection failed: ${message}`);
 
       this.state = {
         isConnected: false,
@@ -158,14 +167,14 @@ class OracleService {
    * Disconnect from Oracle database
    */
   async disconnect(): Promise<OracleApiResponse<{ message: string }>> {
-    console.log('[Oracle] Disconnecting from database...');
+    logInfo('Oracle', 'Disconnecting from database...');
 
     if (this.connection) {
       try {
         await this.connection.close();
-        console.log('[Oracle] Connection closed');
+        logInfo('Oracle', 'Connection closed');
       } catch (e) {
-        console.warn('[Oracle] Error closing connection:', e);
+        logWarn('Oracle', `Error closing connection: ${String(e)}`);
       }
       this.connection = null;
     }
@@ -230,9 +239,10 @@ class OracleService {
       // Load SQL file
       const sql = await this.loadSqlFile(config.filename);
 
-      console.log(`[Oracle] Executing query: ${queryId}`);
+      logInfo('Oracle', `Executing query: ${queryId}`);
       if (parameters && Object.keys(parameters).length > 0) {
-        console.log(`[Oracle] Parameters:`, parameters);
+        // Log parameters only in debug mode (development only)
+        logDebug('Oracle', `Parameters: ${JSON.stringify(parameters)}`);
       }
 
       // Execute query using real oracledb connection
@@ -241,7 +251,7 @@ class OracleService {
       const executionTime = performance.now() - startTime;
       this.state.lastQueryTime = new Date();
 
-      console.log(`[Oracle] Query completed in ${executionTime.toFixed(2)}ms`);
+      logInfo('Oracle', `Query completed in ${executionTime.toFixed(2)}ms`);
 
       return {
         success: true,
@@ -252,7 +262,7 @@ class OracleService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[Oracle] Query error: ${message}`);
+      logError('Oracle', `Query error: ${message}`);
 
       return this.createError('QUERY_EXECUTION_ERROR', `Query execution failed: ${message}`);
     }

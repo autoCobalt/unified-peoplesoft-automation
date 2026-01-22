@@ -22,7 +22,8 @@ export {
 } from './handlers.js';
 
 // Configuration
-export { buildSoapConfig, buildEndpointURL } from './config.js';
+export { buildSoapConfig, buildEndpointURL, validateProtocolSecurity } from './config.js';
+export type { ProtocolValidationResult } from './config.js';
 
 // XML utilities (for advanced use cases)
 export {

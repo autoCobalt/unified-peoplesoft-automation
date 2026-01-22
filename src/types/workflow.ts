@@ -119,8 +119,9 @@ export function isIdleStep<T extends WorkflowStepBase>(
 /**
  * Normalized progress object for UI display.
  * Provides computed values from raw current/total.
+ * (Distinct from RawWorkflowProgress which comes directly from server)
  */
-export interface WorkflowProgress {
+export interface NormalizedWorkflowProgress {
   /** Current item being processed (1-indexed for display) */
   current: number;
   /** Total items to process */
@@ -157,7 +158,7 @@ export interface WorkflowActionButtonProps {
   /** Whether workflow is paused (shows processing styling with pause text) */
   isPaused?: boolean;
   /** Progress info for loop operations */
-  progress?: WorkflowProgress | null;
+  progress?: NormalizedWorkflowProgress | null;
   /** Click handler */
   onAction: () => void;
   /** Optional CSS class name for theming */

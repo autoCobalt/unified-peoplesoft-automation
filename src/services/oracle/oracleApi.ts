@@ -3,6 +3,11 @@
  *
  * Fetch-based client for communicating with the Oracle query middleware.
  * Follows the same patterns as workflowApi for consistency.
+ *
+ * Authentication:
+ * - On successful connect(), stores the session token
+ * - All authenticated requests include the token in X-Session-Token header
+ * - On disconnect(), clears the stored token
  */
 
 import type {
@@ -12,6 +17,11 @@ import type {
   QueryParameters,
   QueryResultRow,
 } from '../../types/oracle.js';
+import {
+  setSessionToken,
+  clearSessionToken,
+  getSessionHeaders,
+} from '../session/index.js';
 
 /* ==============================================
    Types
@@ -52,6 +62,13 @@ async function apiRequest<T>(
       headers.set('Content-Type', 'application/json');
     }
 
+    // Add session token to authenticated requests
+    // (public endpoints like /status and /connect don't need it, but it's harmless)
+    const sessionHeaders = getSessionHeaders();
+    for (const [key, value] of Object.entries(sessionHeaders)) {
+      headers.set(key, value);
+    }
+
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers,
@@ -90,25 +107,48 @@ export async function getAvailableQueries(): Promise<OracleApiResponse<{ queries
   return apiRequest<{ queries: OracleQueryId[] }>('/queries', { method: 'GET' });
 }
 
+/** Response type for connect including session token */
+interface OracleConnectResponse {
+  message: string;
+  sessionToken?: string;
+}
+
 /**
  * Connect to Oracle database
+ *
+ * On success, stores the session token for subsequent authenticated requests.
  *
  * @param params - Connection parameters
  */
 export async function connect(
   params: OracleConnectParams
-): Promise<OracleApiResponse<{ message: string }>> {
-  return apiRequest('/connect', {
+): Promise<OracleApiResponse<OracleConnectResponse>> {
+  const result = await apiRequest<OracleConnectResponse>('/connect', {
     method: 'POST',
     body: JSON.stringify(params),
   });
+
+  // Store the session token on successful connection
+  if (result.success && result.data.sessionToken) {
+    setSessionToken(result.data.sessionToken);
+  }
+
+  return result;
 }
 
 /**
  * Disconnect from Oracle database
+ *
+ * Clears the stored session token regardless of API result.
  */
 export async function disconnect(): Promise<OracleApiResponse<{ message: string }>> {
-  return apiRequest('/disconnect', { method: 'POST' });
+  const result = await apiRequest<{ message: string }>('/disconnect', { method: 'POST' });
+
+  // Always clear the session token on disconnect attempt
+  // Even if the API call fails, we should not keep the token
+  clearSessionToken();
+
+  return result;
 }
 
 /* ==============================================

@@ -65,6 +65,12 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   // Polling cleanup ref
   const stopPollingRef = useRef<(() => void) | null>(null);
 
+  // Track mount status to prevent race conditions in async operations
+  const isMountedRef = useRef(true);
+
+  // Prevent rapid-fire pause/resume calls that could cause race conditions
+  const isPauseActionInFlightRef = useRef(false);
+
   // Prepared submission storage (separate from workflow state for cleaner updates)
   const [preparedPositionData, setPreparedPositionData] = useState<PreparedSubmission[]>([]);
   const [preparedJobData, setPreparedJobData] = useState<PreparedSubmission[]>([]);
@@ -204,19 +210,21 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
 
     const response = await workflowApi.manager.startApprovals(transactionIds, testSiteUrl);
 
+    // Check if component unmounted during the await - prevent race condition
+    if (!isMountedRef.current) {
+      return;
+    }
+
     if (!response.success) {
-      const errorMessage = response.error.message;
       setManagerWorkflow({
         step: 'error',
-        message: errorMessage,
+        message: response.error.message,
       });
       return;
     }
 
     // Workflow started - begin polling for status
-    // Server will send back updated currentItem as it processes each transaction
-
-    // Stop any existing polling
+    // Stop any existing polling first
     if (stopPollingRef.current) {
       stopPollingRef.current();
     }
@@ -363,16 +371,30 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
 
   /**
    * Pause the approval workflow (pauses between transactions)
+   * Guarded against rapid-fire calls to prevent race conditions
    */
   const pauseApprovals = useCallback(async () => {
-    await workflowApi.manager.pause();
+    if (isPauseActionInFlightRef.current) return;
+    isPauseActionInFlightRef.current = true;
+    try {
+      await workflowApi.manager.pause();
+    } finally {
+      isPauseActionInFlightRef.current = false;
+    }
   }, []);
 
   /**
    * Resume a paused approval workflow
+   * Guarded against rapid-fire calls to prevent race conditions
    */
   const resumeApprovals = useCallback(async () => {
-    await workflowApi.manager.resume();
+    if (isPauseActionInFlightRef.current) return;
+    isPauseActionInFlightRef.current = true;
+    try {
+      await workflowApi.manager.resume();
+    } finally {
+      isPauseActionInFlightRef.current = false;
+    }
   }, []);
 
   /* ==============================================
@@ -430,9 +452,13 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     setOtherWorkflow({ step: 'complete' });
   }, [state.queryResults, setOtherWorkflow]);
 
-  // Cleanup polling on unmount
+  // Track mount state and cleanup polling on unmount
+  // Note: Explicitly setting isMountedRef in useEffect (not just useRef initializer)
+  // ensures correct behavior with React StrictMode's mount/unmount cycles
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       if (stopPollingRef.current) {
         stopPollingRef.current();
       }

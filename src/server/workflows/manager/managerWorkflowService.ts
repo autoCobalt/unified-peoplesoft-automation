@@ -8,7 +8,7 @@
 import { playwrightService } from '../../playwright/index.js';
 import type {
   ManagerWorkflowState,
-  WorkflowProgress,
+  RawWorkflowProgress,
 } from '../types.js';
 import { INITIAL_MANAGER_STATE } from '../types.js';
 
@@ -84,7 +84,7 @@ function updateState(updates: Partial<ManagerWorkflowState>): void {
   workflowState = { ...workflowState, ...updates };
 }
 
-function updateProgress(progress: WorkflowProgress | null): void {
+function updateProgress(progress: RawWorkflowProgress | null): void {
   workflowState = { ...workflowState, progress };
 }
 
@@ -172,10 +172,11 @@ export async function runApprovals(
           throw new Error('Browser was closed');
         }
 
-        // Navigate to transaction page
+        // Navigate to transaction page (encode ID to handle special characters)
+        const encodedId = encodeURIComponent(transactionId);
         const url = testSiteUrl
-          ? `${testSiteUrl}?TRANSACTION_NBR=${transactionId}`
-          : `https://peoplesoft.example.com/transaction/${transactionId}`;
+          ? `${testSiteUrl}?TRANSACTION_NBR=${encodedId}`
+          : `https://peoplesoft.example.com/transaction/${encodedId}`;
 
         await page.goto(url, { waitUntil: 'networkidle' });
 

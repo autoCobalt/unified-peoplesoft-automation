@@ -3,6 +3,11 @@
  *
  * Fetch-based client for communicating with the SOAP PeopleSoft middleware.
  * Follows the same patterns as oracleApi for consistency.
+ *
+ * Authentication:
+ * - On successful connect(), stores the session token
+ * - All authenticated requests include the token in X-Session-Token header
+ * - On disconnect(), clears the stored token
  */
 
 import type {
@@ -10,6 +15,11 @@ import type {
   SOAPApiResponse,
   ActionType,
 } from '../../types/soap.js';
+import {
+  setSessionToken,
+  clearSessionToken,
+  getSessionHeaders,
+} from '../session/index.js';
 
 /* ==============================================
    Types
@@ -49,6 +59,13 @@ async function apiRequest<T>(
       headers.set('Content-Type', 'application/json');
     }
 
+    // Add session token to authenticated requests
+    // (public endpoints like /status and /connect don't need it, but it's harmless)
+    const sessionHeaders = getSessionHeaders();
+    for (const [key, value] of Object.entries(sessionHeaders)) {
+      headers.set(key, value);
+    }
+
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers,
@@ -80,25 +97,49 @@ export async function getStatus(): Promise<SOAPApiResponse<SOAPConnectionStatus>
   return apiRequest<SOAPConnectionStatus>('/status', { method: 'GET' });
 }
 
+/** Response type for connect including session token */
+interface SOAPConnectResponse {
+  message: string;
+  server?: string;
+  sessionToken?: string;
+}
+
 /**
  * Test SOAP connection with credentials
+ *
+ * On success, stores the session token for subsequent authenticated requests.
  *
  * @param params - Connection credentials
  */
 export async function connect(
   params: SOAPConnectParams
-): Promise<SOAPApiResponse<{ message: string; server?: string }>> {
-  return apiRequest('/connect', {
+): Promise<SOAPApiResponse<SOAPConnectResponse>> {
+  const result = await apiRequest<SOAPConnectResponse>('/connect', {
     method: 'POST',
     body: JSON.stringify(params),
   });
+
+  // Store the session token on successful connection
+  if (result.success && result.data.sessionToken) {
+    setSessionToken(result.data.sessionToken);
+  }
+
+  return result;
 }
 
 /**
  * Clear stored SOAP credentials
+ *
+ * Clears the stored session token regardless of API result.
  */
 export async function disconnect(): Promise<SOAPApiResponse<{ message: string }>> {
-  return apiRequest('/disconnect', { method: 'POST' });
+  const result = await apiRequest<{ message: string }>('/disconnect', { method: 'POST' });
+
+  // Always clear the session token on disconnect attempt
+  // Even if the API call fails, we should not keep the token
+  clearSessionToken();
+
+  return result;
 }
 
 /* ==============================================

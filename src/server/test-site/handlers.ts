@@ -10,6 +10,7 @@ import { load } from 'cheerio';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { sendJson } from '../utils/index.js';
 
 /* ==============================================
    Template Loading
@@ -77,11 +78,6 @@ function sendHtml(res: ServerResponse, html: string): void {
 function sendCss(res: ServerResponse, css: string): void {
   res.setHeader('Content-Type', 'text/css; charset=utf-8');
   res.end(css);
-}
-
-function sendJson(res: ServerResponse, data: unknown): void {
-  res.setHeader('Content-Type', 'application/json');
-  res.end(JSON.stringify(data));
 }
 
 function send404(res: ServerResponse, message: string): void {
@@ -155,7 +151,7 @@ export function handleHealth(
   _req: IncomingMessage,
   res: ServerResponse
 ): void {
-  sendJson(res, { status: 'ok', service: 'test-site' });
+  sendJson(res, 200, { status: 'ok', service: 'test-site' });
 }
 
 /* ==============================================

@@ -14,7 +14,7 @@ export {
 } from './workflowApi.js';
 
 export type {
-  WorkflowProgress,
+  RawWorkflowProgress,
   WorkflowStatus,
   ManagerWorkflowState,
   ApiResponse,
