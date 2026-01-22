@@ -108,4 +108,4 @@ export function configureWorkflowMiddleware(
 }
 
 // Re-export workflow services for direct access if needed
-export { managerWorkflowService } from './workflows/index.js';
+export { managerWorkflowService, oracleService } from './workflows/index.js';

@@ -14,8 +14,11 @@ Unified PeopleSoft Automation addresses critical gaps in PeopleSoft HR workflows
 ## Tech Stack
 
 - **Frontend:** React 19 + TypeScript
-- **Build Tool:** Vite
+- **Build Tool:** Vite with server middleware (API routes without separate backend)
 - **Compiler:** React Compiler (for optimized rendering)
+- **Animations:** Framer Motion
+- **Browser Automation:** Playwright (Microsoft Edge) for PeopleSoft workflow automation
+- **HTML Parsing:** Cheerio (server-side template rendering)
 
 ## Getting Started
 
@@ -36,19 +39,27 @@ cd unified-peoplesoft-automation
 # Install dependencies
 npm install
 
+# Install Microsoft Edge for Playwright automation
+npm run install-browser
+
+# Create local environment file
+cp .env.example .env.local
+
 # Start development server
 npm run dev
 ```
 
 ### Environment Configuration
 
-Copy the example environment file and configure your local settings:
+The `.env.local` file (created during installation) controls application behavior:
 
-```bash
-cp .env.example .env.local
-```
+| Variable | Purpose |
+|----------|---------|
+| `VITE_APP_MODE` | `development` (mock data) or `production` (real systems) |
+| `VITE_ORACLE_*` | Oracle database connection settings |
+| `VITE_PS_*` | PeopleSoft SOAP endpoint configuration |
 
-See `.env.example` for available configuration options.
+See `.env.example` for all available options with descriptions.
 
 ## Application Modes
 
@@ -58,7 +69,8 @@ The application operates in two distinct modes controlled by the `VITE_APP_MODE`
 
 - **Default mode** for local development and demonstrations
 - Uses placeholder functions with mock data
-- Connects to localhost-enabled placeholder servers
+- **Mock Test Site** available at `/test-site` — simulates PeopleSoft transaction pages for Playwright testing
+- **Dev Simulation Helpers** available on `window.devSimulate` for testing connection states
 - Safe for testing and showcasing functionality without affecting production systems
 - No actual PeopleSoft or Oracle SQL connections are made
 
@@ -101,15 +113,42 @@ async function fetchEmployeeData(employeeId: string) {
 
 ## Features
 
-> 🚧 **Under Development** — Features will be documented as they are implemented.
-
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Core UI Framework | 🟡 In Progress | Base application structure and navigation |
-| Record Update Automation | ⬜ Planned | Batch processing for PeopleSoft updates |
-| SQL Query Interface | ⬜ Planned | Oracle SQL query automation |
+| Core UI Framework | 🟢 Complete | Tab-based navigation with 6 feature panels, type-safe routing |
+| SmartForm Panel | 🟢 Complete | Primary workflow panel with data tables, sub-tabs, and workflow sections |
+| Manager Workflow | 🟢 Complete | Automated PeopleSoft approval processing via Playwright browser control |
+| Oracle SQL Interface | 🟢 Complete | Full API: connect, disconnect, and query endpoints (`/api/oracle/*`) |
+| Mock Test Site | 🟢 Complete | Development-only PeopleSoft simulator for testing automation |
+| EDW Transfers | 🟡 In Progress | Panel structure ready, implementation pending |
+| Bulk PAF | 🟡 In Progress | Panel structure ready, implementation pending |
+| Parking Deductions | 🟡 In Progress | Panel structure ready, implementation pending |
+| CI Record Entry | 🟡 In Progress | Panel structure ready, implementation pending |
+| Mass Email Notices | 🟡 In Progress | Panel structure ready, implementation pending |
 | Data Validation Engine | ⬜ Planned | Automated failsafes and validation |
 | Export/Reporting | ⬜ Planned | Results export and audit logging |
+
+## Architecture
+
+The application uses **Vite Server Middleware** to provide API routes without a separate backend:
+
+```
+Vite Dev Server (npm run dev)
+├── React Frontend (HMR, static assets)
+└── Server Middleware
+    ├── /api/workflows/* → Workflow automation endpoints
+    ├── /api/oracle/*    → Oracle database queries
+    └── /test-site/*     → Mock PeopleSoft (development only)
+```
+
+### Key Patterns
+
+- **Tab/Panel System** — Type-safe tab registration with automatic TypeScript enforcement
+- **Context Architecture** — Provider composition pattern for state persistence across tab navigation
+- **Workflow State Machines** — Discriminated unions for type-safe multi-step processes
+- **Playwright Integration** — Server-side browser automation (not exposed via HTTP, used internally by workflows)
+
+For detailed architecture documentation, see `CLAUDE.md` in the project root.
 
 ## Use Cases
 
@@ -144,4 +183,4 @@ See the [LICENSE](LICENSE) file for full terms.
 
 ---
 
-<sub>Built with React + TypeScript + Vite</sub>
+<sub>Built with React 19 + TypeScript + Vite + Playwright + Framer Motion</sub>

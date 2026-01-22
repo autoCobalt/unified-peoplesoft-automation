@@ -10,3 +10,4 @@ export * from './tabs';
 export * from './smartform';
 export * from './workflow';
 export * from './table';
+export * from './oracle';

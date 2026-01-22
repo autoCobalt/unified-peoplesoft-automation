@@ -14,6 +14,13 @@ import {
   handlePause as managerPause,
   handleResume as managerResume,
 } from './manager/index.js';
+import {
+  handleGetStatus as oracleGetStatus,
+  handleGetQueries as oracleGetQueries,
+  handleConnect as oracleConnect,
+  handleDisconnect as oracleDisconnect,
+  handleQuery as oracleQuery,
+} from '../oracle/index.js';
 
 /* ==============================================
    Route Definition Type
@@ -69,6 +76,28 @@ export const workflowRoutes: Record<string, RouteConfig> = {
   // Other Workflow routes will be added here
   // '/api/workflows/other/status': { ... },
   // '/api/workflows/other/approve': { ... },
+
+  // Oracle Query Routes
+  '/api/oracle/status': {
+    method: 'GET',
+    handler: oracleGetStatus,
+  },
+  '/api/oracle/queries': {
+    method: 'GET',
+    handler: oracleGetQueries,
+  },
+  '/api/oracle/connect': {
+    method: 'POST',
+    handler: oracleConnect,
+  },
+  '/api/oracle/disconnect': {
+    method: 'POST',
+    handler: oracleDisconnect,
+  },
+  '/api/oracle/query': {
+    method: 'POST',
+    handler: oracleQuery,
+  },
 };
 
 /* ==============================================
@@ -77,3 +106,4 @@ export const workflowRoutes: Record<string, RouteConfig> = {
 
 export type { ManagerWorkflowState, OtherWorkflowState } from './types.js';
 export { managerWorkflowService } from './manager/index.js';
+export { oracleService } from '../oracle/index.js';
