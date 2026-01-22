@@ -20,6 +20,11 @@ import type { OracleQueryId, QueryConfig, QueryRegistry } from '../../types/orac
  * 3. Add the entry to this registry
  */
 export const QUERY_REGISTRY: QueryRegistry = {
+  'connection-test': {
+    filename: 'connection-test.sql',
+    description: 'Simple DUAL query to verify Oracle connectivity',
+    parameters: [], // No parameters - uses constants only
+  },
   'smartform-pending-transactions': {
     filename: 'smartform-pending-transactions.sql',
     description: 'Retrieves pending CI transactions awaiting approval',

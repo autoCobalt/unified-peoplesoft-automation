@@ -16,6 +16,7 @@
  * Add new query IDs here when creating new SQL files.
  */
 export type OracleQueryId =
+  | 'connection-test'
   | 'smartform-pending-transactions';
 
 /* ==============================================

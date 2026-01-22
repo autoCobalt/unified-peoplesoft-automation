@@ -5,9 +5,16 @@
  * Manages connection state and query execution.
  *
  * Note: This service runs in Node.js (Vite middleware), not the browser.
- * The actual Oracle connection implementation will use oracledb package.
+ * Uses oracledb in Thin Mode (v6.0+) - no Oracle Client installation required!
+ *
+ * Thin Mode Limitations (acceptable for basic SQL queries):
+ * - Requires Oracle Database 12.1 or later
+ * - No Oracle Wallet/certificate authentication
+ * - No Advanced Queuing, Continuous Query Notification
+ * - No scrollable cursors or two-phase commit
  */
 
+import oracledb from 'oracledb';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import type {
@@ -39,8 +46,8 @@ interface ConnectionState {
 /**
  * Singleton service for Oracle database operations
  *
- * TODO: Replace placeholder implementation with oracledb package
- * when ready for production. The interface will remain the same.
+ * Uses oracledb Thin Mode for connections.
+ * Single connection pattern (not pooled) - suitable for single-user desktop app.
  */
 class OracleService {
   private state: ConnectionState = {
@@ -49,6 +56,9 @@ class OracleService {
     lastQueryTime: null,
     error: null,
   };
+
+  // Active Oracle connection (single connection, not pooled)
+  private connection: oracledb.Connection | null = null;
 
   // Cache for loaded SQL files
   private sqlCache: Map<string, string> = new Map();
@@ -60,7 +70,7 @@ class OracleService {
   /**
    * Connect to Oracle database
    *
-   * @param connectionString - Oracle connection string
+   * @param connectionString - Oracle connection string (e.g., "hostname:port/service_name")
    * @param username - Database username
    * @param password - Database password
    */
@@ -69,39 +79,96 @@ class OracleService {
     username: string,
     password: string
   ): Promise<OracleApiResponse<{ message: string }>> {
-    // TODO: Implement actual Oracle connection using oracledb
-    // Password will be used when real connection is implemented
-    void password; // Placeholder - will be used for actual Oracle connection
-
     console.log(`[Oracle] Connecting to database as ${username}...`);
     console.log(`[Oracle] Connection string: ${connectionString}`);
 
-    // Simulate connection delay
-    await this.delay(500);
+    try {
+      // Close any existing connection first
+      if (this.connection) {
+        try {
+          await this.connection.close();
+        } catch (e) {
+          console.warn('[Oracle] Error closing existing connection:', e);
+        }
+        this.connection = null;
+      }
 
-    // Placeholder: Always succeed in development
-    this.state = {
-      isConnected: true,
-      connectionTime: new Date(),
-      lastQueryTime: null,
-      error: null,
-    };
+      // Create new connection using Thin Mode (default in v6.0+)
+      this.connection = await oracledb.getConnection({
+        user: username,
+        password: password,
+        connectString: connectionString,
+      });
 
-    console.log('[Oracle] Connected successfully (placeholder)');
+      // Test the connection with a simple query
+      await this.connection.execute('SELECT 1 FROM DUAL');
 
-    return {
-      success: true,
-      data: { message: 'Connected to Oracle database' },
-    };
+      this.state = {
+        isConnected: true,
+        connectionTime: new Date(),
+        lastQueryTime: null,
+        error: null,
+      };
+
+      console.log('[Oracle] Connected successfully');
+
+      return {
+        success: true,
+        data: { message: 'Connected to Oracle database' },
+      };
+
+    } catch (error) {
+      const message = this.formatOracleError(error);
+      console.error('[Oracle] Connection failed:', message);
+
+      this.state = {
+        isConnected: false,
+        connectionTime: null,
+        lastQueryTime: null,
+        error: message,
+      };
+
+      return {
+        success: false,
+        error: { code: 'CONNECTION_LOST', message },
+      };
+    }
+  }
+
+  /**
+   * Format Oracle errors into user-friendly messages
+   */
+  private formatOracleError(error: unknown): string {
+    const msg = error instanceof Error ? error.message : String(error);
+
+    // Map common Oracle errors to friendly messages
+    if (msg.includes('ORA-01017')) return 'Invalid username/password';
+    if (msg.includes('ORA-12154')) return 'TNS: could not resolve connect identifier - check hostname and service name';
+    if (msg.includes('ORA-12541')) return 'TNS: no listener - check that Oracle server is running and port is correct';
+    if (msg.includes('ORA-12170')) return 'Connection timeout - check network connectivity and firewall';
+    if (msg.includes('ORA-12514')) return 'TNS: listener does not know of service - check service name';
+    if (msg.includes('ORA-28000')) return 'Account is locked - contact your DBA';
+    if (msg.includes('ORA-28001')) return 'Password has expired';
+    if (msg.includes('NJS-')) return msg; // Return node-oracledb errors as-is
+
+    return msg;
   }
 
   /**
    * Disconnect from Oracle database
    */
-  disconnect(): OracleApiResponse<{ message: string }> {
-    // TODO: Implement actual disconnection (may need async when using oracledb)
-
+  async disconnect(): Promise<OracleApiResponse<{ message: string }>> {
     console.log('[Oracle] Disconnecting from database...');
+
+    if (this.connection) {
+      try {
+        await this.connection.close();
+        console.log('[Oracle] Connection closed');
+      } catch (e) {
+        console.warn('[Oracle] Error closing connection:', e);
+      }
+      this.connection = null;
+    }
 
     this.state = {
       isConnected: false,
@@ -168,9 +235,8 @@ class OracleService {
         console.log(`[Oracle] Parameters:`, parameters);
       }
 
-      // TODO: Replace with actual query execution using oracledb
-      // For now, return placeholder results
-      const result = await this.executePlaceholder<TRow>(sql, parameters);
+      // Execute query using real oracledb connection
+      const result = await this.executeReal<TRow>(sql, parameters);
 
       const executionTime = performance.now() - startTime;
       this.state.lastQueryTime = new Date();
@@ -207,8 +273,8 @@ class OracleService {
     const startTime = performance.now();
 
     try {
-      // TODO: Replace with actual execution
-      const result = await this.executePlaceholder<TRow>(sql, parameters);
+      // Execute raw SQL using real oracledb connection
+      const result = await this.executeReal<TRow>(sql, parameters);
 
       return {
         success: true,
@@ -248,28 +314,44 @@ class OracleService {
   }
 
   /**
-   * Placeholder query execution
-   * Returns empty results until real implementation is added
+   * Execute SQL using the active oracledb connection
    *
-   * TODO: Replace with oracledb execution
+   * @param sql - SQL statement to execute
+   * @param parameters - Named bind parameters
    */
-  private async executePlaceholder<TRow>(
+  private async executeReal<TRow>(
     sql: string,
     parameters?: QueryParameters
   ): Promise<Omit<OracleQueryResult<TRow>, 'executionTimeMs'>> {
-    // These will be used when real Oracle connection is implemented
-    void sql;
-    void parameters;
+    if (!this.connection) {
+      throw new Error('No active Oracle connection');
+    }
 
-    // Simulate query delay
-    await this.delay(100);
+    // Convert QueryParameters to oracledb bind format
+    // Note: oracledb doesn't accept boolean directly, convert to number
+    const bindParams: oracledb.BindParameters = {};
+    if (parameters) {
+      for (const [key, value] of Object.entries(parameters)) {
+        if (typeof value === 'boolean') {
+          bindParams[key] = value ? 1 : 0;
+        } else {
+          bindParams[key] = value;
+        }
+      }
+    }
 
-    // Return empty results as placeholder
-    // Real implementation will execute the SQL and return actual data
+    const result = await this.connection.execute<TRow[]>(sql, bindParams, {
+      outFormat: oracledb.OUT_FORMAT_OBJECT,
+      fetchArraySize: 1000,
+    });
+
+    // Extract column names from metadata
+    const columns = result.metaData?.map((col: { name: string }) => col.name) ?? [];
+
     return {
-      rows: [] as TRow[],
-      rowCount: 0,
-      columns: [],
+      rows: (result.rows ?? []) as TRow[],
+      rowCount: result.rows?.length ?? 0,
+      columns,
     };
   }
 
@@ -285,13 +367,6 @@ class OracleService {
       success: false,
       error: { code, message, details },
     };
-  }
-
-  /**
-   * Promise-based delay
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 

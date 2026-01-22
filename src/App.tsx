@@ -6,7 +6,7 @@
  */
 
 import { AppProviders } from './context';
-import { ConnectionPanel, Footer, Header, ModeBanner, TabContent } from './components';
+import { ConnectionPanel, ErrorBoundary, Footer, Header, ModeBanner, TabContent } from './components';
 
 /**
  * Main App Content
@@ -34,9 +34,11 @@ function AppContent() {
  */
 function App() {
   return (
-    <AppProviders>
-      <AppContent />
-    </AppProviders>
+    <ErrorBoundary>
+      <AppProviders>
+        <AppContent />
+      </AppProviders>
+    </ErrorBoundary>
   );
 }
 

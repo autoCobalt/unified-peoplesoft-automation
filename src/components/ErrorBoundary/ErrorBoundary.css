@@ -1,0 +1,136 @@
+/**
+ * Error Boundary Styles
+ *
+ * Fallback UI shown when an error is caught.
+ * Designed to be visible and helpful without being alarming.
+ */
+
+.error-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.error-boundary-content {
+  max-width: 500px;
+  padding: 2.5rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+}
+
+.error-boundary-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  filter: grayscale(20%);
+}
+
+.error-boundary-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #f8f8f8;
+}
+
+.error-boundary-message {
+  margin: 0 0 1.5rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.error-boundary-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.error-boundary-button {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.error-boundary-button:hover {
+  transform: translateY(-2px);
+}
+
+.error-boundary-button:active {
+  transform: translateY(0);
+}
+
+.error-boundary-button--primary {
+  background: #646cff;
+  color: white;
+}
+
+.error-boundary-button--primary:hover {
+  background: #535bf2;
+  box-shadow: 0 4px 12px rgba(100, 108, 255, 0.4);
+}
+
+.error-boundary-button--secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.error-boundary-button--secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Error details (development only) */
+.error-boundary-details {
+  margin-top: 2rem;
+  padding: 1rem;
+  text-align: left;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.error-boundary-details summary {
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.error-boundary-details summary:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.error-boundary-error {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 100, 100, 0.1);
+  border-left: 3px solid #ff6464;
+  border-radius: 4px;
+  color: #ff8a8a;
+  word-break: break-word;
+}
+
+.error-boundary-stack {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

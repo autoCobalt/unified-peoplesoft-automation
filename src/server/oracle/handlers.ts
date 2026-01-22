@@ -146,11 +146,11 @@ export async function handleConnect(
  * POST /api/oracle/disconnect
  * Disconnect from Oracle database
  */
-export function handleDisconnect(
+export async function handleDisconnect(
   _req: IncomingMessage,
   res: ServerResponse
-): void {
-  const result = oracleService.disconnect();
+): Promise<void> {
+  const result = await oracleService.disconnect();
   sendJson(res, 200, result);
 }
 

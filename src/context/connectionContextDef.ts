@@ -22,17 +22,17 @@ export interface ConnectionContextType {
   oracleCredentials: OracleCredentials | null;
   setOracleCredentials: (creds: OracleCredentials) => void;
   connectOracle: (creds?: OracleCredentials) => Promise<boolean>;
-  disconnectOracle: () => void;
+  disconnectOracle: () => Promise<void>;
 
   // SOAP
   soapState: SoapConnectionState;
   soapCredentials: SoapCredentials | null;
   setSoapCredentials: (creds: SoapCredentials) => void;
   connectSoap: (creds?: SoapCredentials) => Promise<boolean>;
-  disconnectSoap: () => void;
+  disconnectSoap: () => Promise<void>;
 
   // Combined
-  disconnectAll: () => void;
+  disconnectAll: () => Promise<void>;
 
   // Utility
   isFullyConnected: boolean;

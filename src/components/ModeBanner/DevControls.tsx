@@ -122,7 +122,7 @@ export function DevControls() {
         <button
           type="button"
           className="dev-button dev-button-disconnect"
-          onClick={disconnectAll}
+          onClick={() => void disconnectAll()}
           title="Disconnect all"
         >
           Reset

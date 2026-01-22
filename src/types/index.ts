@@ -11,3 +11,4 @@ export * from './smartform';
 export * from './workflow';
 export * from './table';
 export * from './oracle';
+export * from './soap';

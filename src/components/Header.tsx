@@ -47,7 +47,7 @@ export function Header() {
             <InteractiveElement
               key="disconnect-button"
               className="disconnect-button"
-              onClick={disconnectAll}
+              onClick={() => void disconnectAll()}
               withEntrance
               entranceType="scaleFade"
             >

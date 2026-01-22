@@ -21,6 +21,13 @@ import {
   handleDisconnect as oracleDisconnect,
   handleQuery as oracleQuery,
 } from '../oracle/index.js';
+import {
+  soapGetStatus,
+  soapConnect,
+  soapDisconnect,
+  soapGetCIShape,
+  soapSubmit,
+} from '../soap/index.js';
 
 /* ==============================================
    Route Definition Type
@@ -98,6 +105,28 @@ export const workflowRoutes: Record<string, RouteConfig> = {
     method: 'POST',
     handler: oracleQuery,
   },
+
+  // SOAP Routes
+  '/api/soap/status': {
+    method: 'GET',
+    handler: soapGetStatus,
+  },
+  '/api/soap/connect': {
+    method: 'POST',
+    handler: soapConnect,
+  },
+  '/api/soap/disconnect': {
+    method: 'POST',
+    handler: soapDisconnect,
+  },
+  '/api/soap/get-ci-shape': {
+    method: 'POST',
+    handler: soapGetCIShape,
+  },
+  '/api/soap/submit': {
+    method: 'POST',
+    handler: soapSubmit,
+  },
 };
 
 /* ==============================================
@@ -107,3 +136,4 @@ export const workflowRoutes: Record<string, RouteConfig> = {
 export type { ManagerWorkflowState, OtherWorkflowState } from './types.js';
 export { managerWorkflowService } from './manager/index.js';
 export { oracleService } from '../oracle/index.js';
+export { soapService } from '../soap/index.js';

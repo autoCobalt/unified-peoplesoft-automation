@@ -6,6 +6,7 @@
  */
 
 export { ConnectionPanel } from './connection';
+export { ErrorBoundary } from './ErrorBoundary';
 export { Footer } from './Footer';
 export { Header } from './Header';
 export { ModeBanner } from './ModeBanner';

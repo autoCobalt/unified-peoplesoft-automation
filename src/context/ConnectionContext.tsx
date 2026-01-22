@@ -21,7 +21,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
-import { isDevelopment } from '../config';
+import { isDevelopment, oracleConfig } from '../config';
 import type {
   OracleCredentials,
   OracleConnectionState,
@@ -117,18 +117,34 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       }));
 
       try {
-        // TODO: Replace with actual API call to test Oracle connection
-        // const result = await api.testOracleConnection(credentials);
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulated delay
+        // Dynamically import to avoid bundling server code in frontend
+        const { oracleApi } = await import('../services/oracle/oracleApi');
 
-        // Simulated success for now
-        setOracleState({
-          isConnected: true,
-          isConnecting: false,
-          error: null,
+        // Build connection string from config
+        const connectionString = `${oracleConfig.hostname}:${oracleConfig.port}/${oracleConfig.serviceName}`;
+
+        const result = await oracleApi.connection.connect({
+          connectionString,
+          username: credentials.username,
+          password: credentials.password,
         });
-        setOracleCredentialsState(credentials);
-        return true;
+
+        if (result.success) {
+          setOracleState({
+            isConnected: true,
+            isConnecting: false,
+            error: null,
+          });
+          setOracleCredentialsState(credentials);
+          return true;
+        } else {
+          setOracleState({
+            isConnected: false,
+            isConnecting: false,
+            error: result.error.message,
+          });
+          return false;
+        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Oracle connection failed';
@@ -145,7 +161,13 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     [oracleCredentials]
   );
 
-  const disconnectOracle = useCallback(() => {
+  const disconnectOracle = useCallback(async () => {
+    try {
+      const { oracleApi } = await import('../services/oracle/oracleApi');
+      await oracleApi.connection.disconnect();
+    } catch (e) {
+      console.warn('[Oracle] Disconnect API call failed:', e);
+    }
     setOracleState(initialOracleState);
     setOracleCredentialsState(null);
   }, []);
@@ -183,18 +205,30 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       }));
 
       try {
-        // TODO: Replace with actual API call to test SOAP connection
-        // const result = await api.testSoapConnection(credentials);
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulated delay
+        // Dynamically import to avoid bundling server code in frontend
+        const { soapApi } = await import('../services/soap/soapApi');
 
-        // Simulated success for now
-        setSoapState({
-          isConnected: true,
-          isConnecting: false,
-          error: null,
+        const result = await soapApi.connection.connect({
+          username: credentials.username,
+          password: credentials.password,
         });
-        setSoapCredentialsState(credentials);
-        return true;
+
+        if (result.success) {
+          setSoapState({
+            isConnected: true,
+            isConnecting: false,
+            error: null,
+          });
+          setSoapCredentialsState(credentials);
+          return true;
+        } else {
+          setSoapState({
+            isConnected: false,
+            isConnecting: false,
+            error: result.error.message,
+          });
+          return false;
+        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'SOAP connection failed';
@@ -211,7 +245,13 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     [soapCredentials]
   );
 
-  const disconnectSoap = useCallback(() => {
+  const disconnectSoap = useCallback(async () => {
+    try {
+      const { soapApi } = await import('../services/soap/soapApi');
+      await soapApi.connection.disconnect();
+    } catch (e) {
+      console.warn('[SOAP] Disconnect API call failed:', e);
+    }
     setSoapState(initialSoapState);
     setSoapCredentialsState(null);
   }, []);
@@ -220,9 +260,8 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
      Combined Actions
      ============================================ */
 
-  const disconnectAll = useCallback(() => {
-    disconnectOracle();
-    disconnectSoap();
+  const disconnectAll = useCallback(async () => {
+    await Promise.all([disconnectOracle(), disconnectSoap()]);
   }, [disconnectOracle, disconnectSoap]);
 
   /* ============================================
@@ -260,11 +299,11 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       console.log(`🔌 [Dev] SOAP connected as: ${username}`);
     };
 
-    // Expose on window
+    // Expose on window (wrap async functions to match void return type)
     window.devSimulate = {
       oracleConnect: simulateOracleConnect,
       soapConnect: simulateSoapConnect,
-      disconnectAll,
+      disconnectAll: () => void disconnectAll(),
     };
 
     console.log(

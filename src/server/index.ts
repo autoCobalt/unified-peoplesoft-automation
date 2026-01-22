@@ -13,6 +13,7 @@
 import type { ViteDevServer } from 'vite';
 import { workflowRoutes } from './workflows/index.js';
 import { handleTestSiteRequest } from './test-site/index.js';
+import { soapService, buildSoapConfig } from './soap/index.js';
 
 /**
  * Configure Vite dev server with workflow API middleware
@@ -32,6 +33,10 @@ export function configureWorkflowMiddleware(
   env: Record<string, string> = {}
 ): void {
   const isDevelopment = env['VITE_APP_MODE'] === 'development';
+
+  // Initialize SOAP service with configuration from environment
+  const soapConfig = buildSoapConfig(env);
+  soapService.initialize(soapConfig);
 
   server.middlewares.use((req, res, next) => {
     const url = req.url ?? '';
@@ -108,4 +113,4 @@ export function configureWorkflowMiddleware(
 }
 
 // Re-export workflow services for direct access if needed
-export { managerWorkflowService, oracleService } from './workflows/index.js';
+export { managerWorkflowService, oracleService, soapService } from './workflows/index.js';
