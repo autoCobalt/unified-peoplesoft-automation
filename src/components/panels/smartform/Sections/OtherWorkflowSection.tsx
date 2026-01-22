@@ -14,11 +14,10 @@
  * Uses the new definition-driven workflow system from src/workflows/.
  */
 
-import { motion } from 'framer-motion';
 import { useSmartForm } from '../../../../context';
 import { useWorkflowDefinition } from '../../../../hooks';
 import { otherWorkflowDefinition } from '../../../../workflows';
-import { fadeIn } from '../../../../utils/motion';
+import { FadeIn } from '../../../motion';
 import {
   WorkflowActionButton,
   WorkflowStatusMessage,
@@ -110,15 +109,15 @@ export function OtherWorkflowSection() {
 
         {/* Positions Created Message */}
         {stepName === 'positions-created' && (
-          <motion.span
+          <FadeIn
+            as="span"
             className="sf-other-status sf-other-status--success"
-            {...fadeIn}
           >
             <svg viewBox="0 0 24 24" fill="none" className="sf-other-status-icon" aria-hidden="true">
               <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             {otherWorkflow.step === 'positions-created' ? otherWorkflow.count : 0} position{(otherWorkflow.step === 'positions-created' ? otherWorkflow.count : 0) !== 1 ? 's' : ''} created
-          </motion.span>
+          </FadeIn>
         )}
 
         {/* Completion Message */}

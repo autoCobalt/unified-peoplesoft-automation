@@ -5,8 +5,7 @@
  * Shows title, optional subtitle, username badge, and expandable info.
  */
 
-import { motion, AnimatePresence } from 'framer-motion';
-import { fadeInOut, expandCollapseQuick } from '../../../utils/motion';
+import { FadeIn, ExpandCollapse } from '../../motion';
 import { ChevronIcon } from '../../icons';
 
 interface ConnectedHeaderProps {
@@ -33,10 +32,11 @@ export function ConnectedHeader({
   children,
 }: ConnectedHeaderProps) {
   return (
-    <motion.div
+    <FadeIn
       key="connected"
       className="connected-single-line"
-      {...fadeInOut}
+      withExit
+      duration={0.2}
     >
       <div className="connected-line">
         <h2 className="connected-title">
@@ -56,16 +56,9 @@ export function ConnectedHeader({
         </button>
       </div>
 
-      <AnimatePresence>
-        {showInfo && (
-          <motion.div
-            className="info-content"
-            {...expandCollapseQuick}
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+      <ExpandCollapse isOpen={showInfo} speed="quick" className="info-content">
+        {children}
+      </ExpandCollapse>
+    </FadeIn>
   );
 }

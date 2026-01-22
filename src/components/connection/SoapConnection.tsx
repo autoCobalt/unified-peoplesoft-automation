@@ -7,10 +7,10 @@
  */
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { soapConfig } from '../../config';
 import { useConnection } from '../../context';
-import { slideRightFadeStagger, fadeInOut } from '../../utils/motion';
+import { SlideIn, FadeIn } from '../motion';
 import {
   InfoRow,
   CredentialsForm,
@@ -36,9 +36,10 @@ export function SoapConnection() {
   const toggleInfo = () => { setShowInfo(!showInfo); };
 
   return (
-    <motion.div
+    <SlideIn
+      direction="right"
+      delay={0.2}
       className={`connection-panel soap-panel ${soapState.isConnected ? 'connected' : ''}`}
-      {...slideRightFadeStagger}
     >
       <AnimatePresence mode="wait">
         {soapState.isConnected ? (
@@ -53,7 +54,7 @@ export function SoapConnection() {
             <InfoRow label="Node" value={soapConfig.node} />
           </ConnectedHeader>
         ) : (
-          <motion.div key="disconnected" {...fadeInOut}>
+          <FadeIn key="disconnected" withExit duration={0.2}>
             <div className="panel-header">
               <h2>PeopleSoft CI Connection</h2>
             </div>
@@ -80,9 +81,9 @@ export function SoapConnection() {
               <InfoRow label="Portal" value={soapConfig.portal} />
               <InfoRow label="Node" value={soapConfig.node} />
             </ConnectionInfoPanel>
-          </motion.div>
+          </FadeIn>
         )}
       </AnimatePresence>
-    </motion.div>
+    </SlideIn>
   );
 }

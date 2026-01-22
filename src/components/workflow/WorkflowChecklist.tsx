@@ -15,8 +15,7 @@
  * />
  */
 
-import { motion } from 'framer-motion';
-import { staggerContainer, staggerItem } from '../../utils/motion';
+import { StaggerList, StaggerItem } from '../motion';
 import type { WorkflowChecklistProps, TaskStatus } from '../../types/workflow';
 import { CheckIcon } from '../icons';
 import './WorkflowChecklist.css';
@@ -36,19 +35,16 @@ export function WorkflowChecklist({
   className = '',
 }: WorkflowChecklistProps) {
   return (
-    <motion.ol
+    <StaggerList
+      as="ol"
       className={`wf-checklist ${className}`.trim()}
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
       role="list"
       aria-label="Workflow tasks"
     >
       {tasks.map((task, index) => (
-        <motion.li
+        <StaggerItem
           key={task.id}
           className={`wf-checklist-task wf-checklist-task--${task.status}`}
-          variants={staggerItem}
           aria-label={`${task.label}: ${getStatusLabel(task.status)}`}
         >
           <span className="wf-checklist-indicator" aria-hidden="true">
@@ -59,8 +55,8 @@ export function WorkflowChecklist({
             )}
           </span>
           <span className="wf-checklist-label">{task.label}</span>
-        </motion.li>
+        </StaggerItem>
       ))}
-    </motion.ol>
+    </StaggerList>
   );
 }

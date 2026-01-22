@@ -16,8 +16,7 @@
  * />
  */
 
-import { motion } from 'framer-motion';
-import { buttonInteraction } from '../../utils/motion';
+import { InteractiveElement } from '../motion';
 import type { WorkflowActionButtonProps } from '../../types/workflow';
 import './WorkflowActionButton.css';
 
@@ -73,13 +72,12 @@ export function WorkflowActionButton({
   const pausedClass = isPaused ? `${baseClass}--paused` : '';
 
   return (
-    <motion.button
+    <InteractiveElement
       className={`${baseClass} ${processingClass} ${pausedClass} ${className}`.trim()}
       onClick={onAction}
       disabled={isProcessing || isPaused || disabled}
-      {...buttonInteraction}
     >
       {renderButtonContent(isProcessing, isPaused, progress, label)}
-    </motion.button>
+    </InteractiveElement>
   );
 }

@@ -6,8 +6,8 @@
  */
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { buttonInteraction, slideDownSmallFade } from '../../../utils/motion';
+import { AnimatePresence } from 'framer-motion';
+import { InteractiveElement, SlideIn } from '../../motion';
 
 interface CredentialsFormProps {
   /** Prefix for input IDs to ensure uniqueness (e.g., 'oracle', 'soap') */
@@ -74,11 +74,11 @@ export function CredentialsForm({
         />
       </div>
 
-      <motion.button
+      <InteractiveElement
+        as="button"
         type="submit"
         className="submit-button"
         disabled={isDisabled}
-        {...buttonInteraction}
       >
         {isSubmitting ? (
           <>
@@ -88,16 +88,19 @@ export function CredentialsForm({
         ) : (
           submitLabel
         )}
-      </motion.button>
+      </InteractiveElement>
 
       <AnimatePresence>
         {error && (
-          <motion.div
+          <SlideIn
+            direction="down"
+            offset={10}
+            duration={0.2}
+            withExit
             className="error-message"
-            {...slideDownSmallFade}
           >
             {error}
-          </motion.div>
+          </SlideIn>
         )}
       </AnimatePresence>
     </form>

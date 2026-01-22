@@ -12,24 +12,10 @@
  * />
  */
 
-import { motion } from 'framer-motion';
-import type { WorkflowStatusMessageProps, StatusMessageType } from '../../types/workflow';
+import type { WorkflowStatusMessageProps } from '../../types/workflow';
 import { CircleCheckIcon, CircleXIcon } from '../icons';
+import { ScaleIn, FadeIn } from '../motion';
 import './WorkflowStatusMessage.css';
-
-/** Get animation props based on status type */
-function getAnimationProps(type: StatusMessageType) {
-  if (type === 'complete') {
-    return {
-      initial: { opacity: 0, scale: 0.95 },
-      animate: { opacity: 1, scale: 1 },
-    };
-  }
-  return {
-    initial: { opacity: 0 },
-    animate: { opacity: 1 },
-  };
-}
 
 export function WorkflowStatusMessage({
   type,
@@ -38,18 +24,37 @@ export function WorkflowStatusMessage({
 }: WorkflowStatusMessageProps) {
   const baseClass = 'wf-status';
   const typeClass = `${baseClass}--${type}`;
+  const combinedClassName = `${baseClass} ${typeClass} ${className}`.trim();
 
-  return (
-    <motion.div
-      className={`${baseClass} ${typeClass} ${className}`.trim()}
-      {...getAnimationProps(type)}
-      role="status"
-      aria-live="polite"
-    >
+  const content = (
+    <>
       {type === 'error'
         ? <CircleXIcon className="wf-status-icon wf-status-icon--error" />
         : <CircleCheckIcon className="wf-status-icon wf-status-icon--success" />}
       <span className="wf-status-text">{message}</span>
-    </motion.div>
+    </>
+  );
+
+  // Complete status uses scale + fade, others use simple fade
+  if (type === 'complete') {
+    return (
+      <ScaleIn
+        className={combinedClassName}
+        role="status"
+        aria-live="polite"
+      >
+        {content}
+      </ScaleIn>
+    );
+  }
+
+  return (
+    <FadeIn
+      className={combinedClassName}
+      role="status"
+      aria-live="polite"
+    >
+      {content}
+    </FadeIn>
   );
 }

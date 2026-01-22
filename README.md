@@ -16,7 +16,7 @@ Unified PeopleSoft Automation addresses critical gaps in PeopleSoft HR workflows
 - **Frontend:** React 19 + TypeScript
 - **Build Tool:** Vite with server middleware (API routes without separate backend)
 - **Compiler:** React Compiler (for optimized rendering)
-- **Animations:** Framer Motion
+- **Animations:** Framer Motion (modular component system with accessibility support)
 - **Browser Automation:** Playwright (Microsoft Edge) for PeopleSoft workflow automation
 - **HTML Parsing:** Cheerio (server-side template rendering)
 
@@ -146,6 +146,7 @@ Vite Dev Server (npm run dev)
 - **Tab/Panel System** — Type-safe tab registration with automatic TypeScript enforcement
 - **Context Architecture** — Provider composition pattern for state persistence across tab navigation
 - **Workflow State Machines** — Discriminated unions for type-safe multi-step processes
+- **Motion Components** — Reusable animation wrappers with polymorphic `as` prop and `prefers-reduced-motion` support
 - **Playwright Integration** — Server-side browser automation (not exposed via HTTP, used internally by workflows)
 
 For detailed architecture documentation, see `CLAUDE.md` in the project root.

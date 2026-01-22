@@ -7,10 +7,10 @@
  */
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { oracleConfig } from '../../config';
 import { useConnection } from '../../context';
-import { slideLeftFadeStagger, fadeInOut } from '../../utils/motion';
+import { SlideIn, FadeIn } from '../motion';
 import {
   InfoRow,
   CredentialsForm,
@@ -36,9 +36,10 @@ export function OracleConnection() {
   const toggleInfo = () => { setShowInfo(!showInfo); };
 
   return (
-    <motion.div
+    <SlideIn
+      direction="left"
+      delay={0.1}
       className={`connection-panel oracle-panel ${oracleState.isConnected ? 'connected' : ''}`}
-      {...slideLeftFadeStagger}
     >
       <AnimatePresence mode="wait">
         {oracleState.isConnected ? (
@@ -54,7 +55,7 @@ export function OracleConnection() {
             <InfoRow label="Service Name" value={oracleConfig.serviceName} valueClassName="service-name" />
           </ConnectedHeader>
         ) : (
-          <motion.div key="disconnected" {...fadeInOut}>
+          <FadeIn key="disconnected" withExit duration={0.2}>
             <div className="panel-header">
               <h2>Oracle SQL Connection</h2>
             </div>
@@ -85,9 +86,9 @@ export function OracleConnection() {
               <InfoRow label="Port" value={oracleConfig.port} />
               <InfoRow label="Service Name" value={oracleConfig.serviceName} valueClassName="service-name" />
             </ConnectionInfoPanel>
-          </motion.div>
+          </FadeIn>
         )}
       </AnimatePresence>
-    </motion.div>
+    </SlideIn>
   );
 }

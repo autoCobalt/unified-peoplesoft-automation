@@ -235,4 +235,22 @@ export interface DataTableProps<TData> {
 
   /** Whether to show row numbers as first column */
   showRowNumbers?: boolean;
+
+  /**
+   * Enable stagger animation for table rows.
+   * Rows animate in with a cascading delay effect.
+   *
+   * - `true` uses default timing (0.03s delay between rows)
+   * - Object allows customizing delay and offset
+   *
+   * @example
+   * staggerRows={true}
+   * staggerRows={{ delay: 0.05, offset: 15 }}
+   */
+  staggerRows?: boolean | {
+    /** Delay between each row animation (seconds). Default: 0.03 */
+    delay?: number;
+    /** Y offset to animate from (pixels). Default: 12 */
+    offset?: number;
+  };
 }

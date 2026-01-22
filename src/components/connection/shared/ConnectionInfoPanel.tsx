@@ -5,8 +5,7 @@
  * Has two modes: full (with label) for forms, compact (icon only) for connected state.
  */
 
-import { motion, AnimatePresence } from 'framer-motion';
-import { expandCollapseQuick } from '../../../utils/motion';
+import { ExpandCollapse } from '../../motion';
 import { ChevronIcon } from '../../icons';
 
 interface ConnectionInfoPanelProps {
@@ -42,16 +41,9 @@ export function ConnectionInfoPanel({
           <ChevronIcon className={`chevron ${isOpen ? 'open' : ''}`} />
         </button>
 
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              className="info-content"
-              {...expandCollapseQuick}
-            >
-              {children}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <ExpandCollapse isOpen={isOpen} speed="quick" className="info-content">
+          {children}
+        </ExpandCollapse>
       </>
     );
   }
@@ -69,16 +61,9 @@ export function ConnectionInfoPanel({
         {badge && <span className="info-badge">{badge}</span>}
       </button>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            className="info-content"
-            {...expandCollapseQuick}
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ExpandCollapse isOpen={isOpen} speed="quick" className="info-content">
+        {children}
+      </ExpandCollapse>
     </div>
   );
 }

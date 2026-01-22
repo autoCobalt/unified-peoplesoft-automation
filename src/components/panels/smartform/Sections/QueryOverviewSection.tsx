@@ -6,9 +6,8 @@
  * - Post-query: Shows "Refresh SmartForm" button + stats
  */
 
-import { motion } from 'framer-motion';
 import { useSmartForm, useConnection } from '../../../../context';
-import { buttonInteraction } from '../../../../utils/motion';
+import { InteractiveElement } from '../../../motion';
 import { PlayIcon, RefreshIcon } from '../../../icons';
 import './QueryOverviewSection.css';
 
@@ -28,11 +27,10 @@ export function QueryOverviewSection({ className = '' }: QueryOverviewSectionPro
 
   return (
     <div className={`sf-overview-container ${className}`}>
-      <motion.button
+      <InteractiveElement
         className={`sf-overview-button ${isLoading ? 'sf-overview-button--loading' : ''} ${!canRun ? 'sf-overview-button--disabled' : ''}`}
         onClick={() => { void runQuery(); }}
         disabled={isDisabled}
-        {...buttonInteraction}
       >
         {isLoading ? (
           <>
@@ -49,7 +47,7 @@ export function QueryOverviewSection({ className = '' }: QueryOverviewSectionPro
             {hasQueried ? 'Refresh SmartForm' : 'Run SmartForm Query'}
           </>
         )}
-      </motion.button>
+      </InteractiveElement>
       {!canRun && (
         <p className="sf-overview-requirements-warning">
           Requires Oracle connection

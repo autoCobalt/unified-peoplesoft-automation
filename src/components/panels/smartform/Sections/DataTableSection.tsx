@@ -83,6 +83,7 @@ export function DataTableSection() {
       data={filteredRecords}
       keyAccessor="id"
       showRowNumbers={true}
+      staggerRows={true}
       emptyMessage="No transactions in this queue"
       toolbar={{
         left: (

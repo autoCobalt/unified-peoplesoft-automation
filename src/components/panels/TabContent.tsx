@@ -8,15 +8,14 @@
  */
 
 import { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { TabNavigation } from '../TabNavigation';
-import { cardStackVariants, cardStackTransition } from '../../utils';
+import { CardStack, type AnimationDirection } from '../motion';
 import { DEFAULT_TAB, TABS, type TabId } from '../../types';
 import { PANEL_REGISTRY } from './panelRegistry';
 
 export function TabContent() {
   const [activeTab, setActiveTab] = useState<TabId>(DEFAULT_TAB);
-  const [direction, setDirection] = useState(0);
+  const [direction, setDirection] = useState<AnimationDirection>(1);
   const [transitionId, setTransitionId] = useState(0);
   const prevIndexRef = useRef(0);
 
@@ -44,25 +43,16 @@ export function TabContent() {
   return (
     <>
       <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
-      <div style={{ perspective: '1000px', overflow: 'hidden' }}>
-        <AnimatePresence mode="popLayout" custom={direction}>
-          <motion.div
-            key={`${activeTab}-${String(transitionId)}`}
-            custom={direction}
-            variants={cardStackVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={cardStackTransition}
-            style={{
-              transformOrigin: 'center center',
-              transformStyle: 'preserve-3d',
-            }}
-          >
-            <ActivePanel />
-          </motion.div>
-        </AnimatePresence>
-      </div>
+      <CardStack
+        transitionKey={`${activeTab}-${String(transitionId)}`}
+        direction={direction}
+        style={{
+          transformOrigin: 'center center',
+          transformStyle: 'preserve-3d',
+        }}
+      >
+        <ActivePanel />
+      </CardStack>
     </>
   );
 }

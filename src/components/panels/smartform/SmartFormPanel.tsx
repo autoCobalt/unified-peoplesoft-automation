@@ -14,12 +14,15 @@
  *
  * Layout:
  * - Header uses CSS Grid (3 columns: left | center | right)
- * - Workflow sections animate with SlideTransition
+ * - Workflow sections animate with PresenceWrapper
  */
 
-import { motion, AnimatePresence } from 'framer-motion';
 import { useSmartForm } from '../../../context';
-import { SlideTransition } from '../../SlideTransition';
+import {
+  ScaleIn,
+  ExpandCollapse,
+  PresenceWrapper,
+} from '../../motion';
 import {
   QueryOverviewSection,
   SubTabsSection,
@@ -28,7 +31,6 @@ import {
   OtherWorkflowSection,
   DataTableSection,
 } from './Sections';
-import { scaleFade, expandCollapse } from '../../../utils/motion';
 import './SmartFormPanel.css';
 
 /* ==============================================
@@ -55,11 +57,14 @@ export function SmartFormPanel() {
   // Get the active workflow component
   const WorkflowSection = WORKFLOW_SECTIONS[activeSubTab];
 
-  // Determine slide direction based on tab position
-  const slideDirection = activeSubTab === 'manager' ? 'left' : 'right';
+  // Determine slide direction based on tab position (1 = right, -1 = left)
+  const slideDirection = activeSubTab === 'manager' ? -1 : 1;
 
   return (
-    <motion.section className={`feature-panel smartform-panel ${!hasQueried ? 'smartform-panel--pre-query' : ''}`} {...scaleFade}>
+    <ScaleIn
+      as="section"
+      className={`feature-panel smartform-panel ${!hasQueried ? 'smartform-panel--pre-query' : ''}`}
+    >
       {/* Header Row: Query (left) | SubTabs (center) | Total (right) */}
       <div className={`sf-header-row ${hasQueried ? 'sf-header-row--queried' : ''}`}>
         <QueryOverviewSection className="sf-grid-left" />
@@ -76,22 +81,21 @@ export function SmartFormPanel() {
       </div>
 
       {/* Content: Workflow + Table (visible after query) */}
-      <AnimatePresence>
-        {hasQueried && (
-          <motion.div className="sf-content" {...expandCollapse}>
-            {/* Workflow Section with slide transition */}
-            <SlideTransition
-              transitionKey={activeSubTab}
-              direction={slideDirection}
-            >
-              <WorkflowSection />
-            </SlideTransition>
+      <ExpandCollapse isOpen={hasQueried} className="sf-content">
+        {/* Workflow Section with slide transition */}
+        <PresenceWrapper
+          transitionKey={activeSubTab}
+          variant="slideHorizontal"
+          direction={slideDirection}
+          duration={0.15}
+          mode="popLayout"
+        >
+          <WorkflowSection />
+        </PresenceWrapper>
 
-            {/* Data Table */}
-            <DataTableSection />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.section>
+        {/* Data Table */}
+        <DataTableSection />
+      </ExpandCollapse>
+    </ScaleIn>
   );
 }

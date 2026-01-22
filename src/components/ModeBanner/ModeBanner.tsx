@@ -12,7 +12,6 @@
 
 import { motion } from 'framer-motion';
 import { isDevelopment } from '../../config';
-import { slideDownBanner } from '../../utils/motion';
 import { DevControls } from './DevControls';
 import './ModeBanner.css';
 
@@ -49,7 +48,9 @@ export function ModeBanner() {
   return (
     <motion.div
       className={`mode-banner ${config.className}`}
-      {...slideDownBanner}
+      initial={{ y: '-100%' }}
+      animate={{ y: 0 }}
+      transition={{ duration: 1, delay: 0.5 }}
     >
       <div className="mode-info">
         <span className="mode-indicator" />

@@ -10,7 +10,7 @@
 
 import { motion } from 'framer-motion';
 import { TABS, type TabId } from '../types';
-import { slideUpFadeDelay, transitionSpring } from '../utils';
+import { SlideIn } from './motion';
 import './TabNavigation.css';
 
 interface TabNavigationProps {
@@ -22,11 +22,13 @@ interface TabNavigationProps {
 
 export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
   return (
-    <motion.nav
+    <SlideIn
+      as="nav"
+      direction="up"
+      delay={0.1}
       className="tab-navigation"
       role="tablist"
       aria-label="Feature tabs"
-      {...slideUpFadeDelay}
     >
       <div className="tab-list">
         {TABS.map((tab) => {
@@ -48,13 +50,13 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
                 <motion.div
                   className="tab-indicator"
                   layoutId="tab-indicator"
-                  {...transitionSpring}
+                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                 />
               )}
             </button>
           );
         })}
       </div>
-    </motion.nav>
+    </SlideIn>
   );
 }

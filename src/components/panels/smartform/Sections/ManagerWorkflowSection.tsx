@@ -15,7 +15,6 @@
  */
 
 import { useMemo } from 'react';
-import { motion } from 'framer-motion';
 import { useSmartForm, useConnection } from '../../../../context';
 import type {
   PreparedSubmission,
@@ -25,7 +24,7 @@ import type {
 import { useWorkflowDefinition } from '../../../../hooks';
 import type { ActionMap, RequirementStatus } from '../../../../workflows';
 import { managerWorkflowDefinition } from '../../../../workflows';
-import { slideUpFadeInstantExit } from '../../../../utils';
+import { SlideIn } from '../../../motion';
 import {
   WorkflowActionButton,
   WorkflowChecklist,
@@ -191,12 +190,15 @@ export function ManagerWorkflowSection() {
         </div>
       )}
 
-      <motion.h3
+      <SlideIn
+        as="h3"
+        direction="up"
+        withExit
+        instantExit
         className="sf-workflow-title"
-        {...slideUpFadeInstantExit}
       >
         Manager Approval Workflow
-      </motion.h3>
+      </SlideIn>
 
       {/* Task Checklist */}
       <WorkflowChecklist tasks={checklistTasks} />

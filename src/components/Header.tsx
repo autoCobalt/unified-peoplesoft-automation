@@ -1,6 +1,6 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { useConnection } from '../context';
-import { slideDownFade, buttonScaleFade } from '../utils';
+import { SlideIn, InteractiveElement } from './motion';
 import { AppLogoIcon, LogoutIcon } from './icons';
 import { ResponsiveText } from './ResponsiveText';
 import './Header.css';
@@ -26,9 +26,10 @@ export function Header() {
   const { hasActiveConnection, disconnectAll } = useConnection();
 
   return (
-    <motion.header
+    <SlideIn
+      as="header"
+      direction="down"
       className="header"
-      {...slideDownFade}
     >
       <div className="header-content">
         <div className="header-title">
@@ -43,19 +44,19 @@ export function Header() {
 
         <AnimatePresence>
           {hasActiveConnection && (
-            <motion.button
+            <InteractiveElement
               key="disconnect-button"
               className="disconnect-button"
               onClick={disconnectAll}
-              {...buttonScaleFade}
-              exit={{ opacity: 0, scale: 0.95 }}
+              withEntrance
+              entranceType="scaleFade"
             >
               <LogoutIcon />
               {HEADER_CONFIG.disconnectLabel}
-            </motion.button>
+            </InteractiveElement>
           )}
         </AnimatePresence>
       </div>
-    </motion.header>
+    </SlideIn>
   );
 }

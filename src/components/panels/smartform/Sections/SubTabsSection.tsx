@@ -9,7 +9,6 @@
 import { motion } from 'framer-motion';
 import { useSmartForm } from '../../../../context';
 import { SMARTFORM_SUBTABS } from '../../../../types';
-import { transitionSpring } from '../../../../utils/motion';
 import './SubTabsSection.css';
 
 interface SubTabsSectionProps {
@@ -53,7 +52,7 @@ export function SubTabsSection({ className = '' }: SubTabsSectionProps) {
               <motion.div
                 className="sf-subtab-indicator"
                 layoutId="smartform-subtab-indicator"
-                {...transitionSpring}
+                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
               />
             )}
           </button>
