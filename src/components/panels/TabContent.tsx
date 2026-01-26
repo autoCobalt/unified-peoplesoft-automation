@@ -7,9 +7,10 @@
  * This is the main content area for the application's feature tabs.
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { TabNavigation } from '../TabNavigation';
 import { CardStack, type AnimationDirection } from '../motion';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { DEFAULT_TAB, TABS, type TabId } from '../../types';
 import { PANEL_REGISTRY } from './panelRegistry';
 
@@ -40,6 +41,25 @@ export function TabContent() {
   // Get the panel component for the active tab
   const ActivePanel = PANEL_REGISTRY[activeTab];
 
+  // Get the display label for the current tab
+  const activeTabLabel = TABS.find(t => t.id === activeTab)?.label ?? activeTab;
+
+  // Error callback for logging panel errors
+  const handlePanelError = useCallback((error: Error) => {
+    console.error(`[TabContent] Error in ${activeTabLabel} panel:`, error.message);
+  }, [activeTabLabel]);
+
+  // Panel-specific fallback UI
+  const panelFallback = (
+    <div className="panel-error-fallback">
+      <div className="panel-error-content">
+        <span className="panel-error-icon">⚠️</span>
+        <h3>This panel encountered an error</h3>
+        <p>The {activeTabLabel} panel failed to load. Try switching to another tab or reload the page.</p>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
@@ -51,7 +71,14 @@ export function TabContent() {
           transformStyle: 'preserve-3d',
         }}
       >
-        <ActivePanel />
+        {/* Panel-level error boundary - resets when switching tabs via key prop */}
+        <ErrorBoundary
+          key={activeTab}
+          fallback={panelFallback}
+          onError={handlePanelError}
+        >
+          <ActivePanel />
+        </ErrorBoundary>
       </CardStack>
     </>
   );

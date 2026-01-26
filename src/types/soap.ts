@@ -131,7 +131,8 @@ export type SOAPErrorCode =
   | 'NETWORK_ERROR'
   | 'TIMEOUT'
   | 'INTERNAL_ERROR'
-  | 'INSECURE_PROTOCOL'; // Added: Blocks HTTP connections in production
+  | 'INSECURE_PROTOCOL' // Blocks HTTP connections in production
+  | 'UNAUTHORIZED'; // Session expired or invalid (from server middleware)
 
 /**
  * SOAP operation error

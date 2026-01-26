@@ -21,7 +21,7 @@ import { workflowRoutes, createSqlRoutes } from './workflows/index.js';
 import { handleTestSiteRequest } from './test-site/index.js';
 import { soapService, buildSoapConfig } from './soap/index.js';
 import { sessionService } from './auth/index.js';
-import { initializeSecureLogger, logInfo, logDebug, logWarn, logError, parseBody } from './utils/index.js';
+import { initializeSecureLogger, logInfo, logDebug, logWarn, logError, parseBody, sendInternalError } from './utils/index.js';
 import { runSqlMetadataTest } from './sql/devTest.js';
 
 /**
@@ -179,15 +179,7 @@ async function handleDevCreateSession(
       },
     }));
   } catch (error) {
-    res.statusCode = 500;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-    }));
+    sendInternalError(res, error);
   }
 }
 

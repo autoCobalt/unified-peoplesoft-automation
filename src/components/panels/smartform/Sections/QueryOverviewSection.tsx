@@ -18,12 +18,23 @@ interface QueryOverviewSectionProps {
 
 export function QueryOverviewSection({ className = '' }: QueryOverviewSectionProps) {
   const { state, runQuery } = useSmartForm();
-  const { oracleState } = useConnection();
+  const { oracleState, setOracleHintActive } = useConnection();
   const { hasQueried, isLoading } = state;
 
   // Query requires Oracle connection
   const canRun = oracleState.isConnected;
   const isDisabled = isLoading || !canRun;
+
+  // Hint handlers - only active when button is disabled due to missing Oracle connection
+  const handlePointerEnter = () => {
+    if (!canRun && !isLoading) {
+      setOracleHintActive(true);
+    }
+  };
+
+  const handlePointerLeave = () => {
+    setOracleHintActive(false);
+  };
 
   return (
     <div className={`sf-overview-container ${className}`}>
@@ -31,6 +42,8 @@ export function QueryOverviewSection({ className = '' }: QueryOverviewSectionPro
         className={`sf-overview-button ${isLoading ? 'sf-overview-button--loading' : ''} ${!canRun ? 'sf-overview-button--disabled' : ''}`}
         onClick={() => { void runQuery(); }}
         disabled={isDisabled}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
       >
         {isLoading ? (
           <>

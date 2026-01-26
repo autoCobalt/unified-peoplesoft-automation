@@ -48,4 +48,10 @@
   --dt-button-color: var(--text-inverse, #fff);
   --dt-button-padding-y: 0.25rem;
   --dt-button-padding-x: 0.5rem;
+
+  /* Sticky column highlight (when scrolled) */
+  --dt-sticky-highlight-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
+
+  /* Scrollbar dimensions (for sticky column border positioning) */
+  --dt-scrollbar-height: 6px;
 }

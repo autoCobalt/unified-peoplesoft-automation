@@ -79,7 +79,11 @@ export function ManagerWorkflowSection() {
     isWorkflowPaused,
   } = useSmartForm();
 
-  const { soapState } = useConnection();
+  const {
+    soapState,
+    setOracleHintActive,
+    setSoapHintActive,
+  } = useConnection();
 
   const { managerWorkflow } = state;
 
@@ -138,6 +142,23 @@ export function ManagerWorkflowSection() {
     .map(req => requirementLabels[req] ?? req)
     .join(', ');
 
+  // Hint handlers - activate hints for missing connection requirements when hovering disabled button
+  const handlePointerEnter = () => {
+    if (!canProceed && missingRequirements.length > 0) {
+      if (missingRequirements.includes('oracle')) {
+        setOracleHintActive(true);
+      }
+      if (missingRequirements.includes('soap')) {
+        setSoapHintActive(true);
+      }
+    }
+  };
+
+  const handlePointerLeave = () => {
+    setOracleHintActive(false);
+    setSoapHintActive(false);
+  };
+
   // Column definitions for submission tables
   const submissionColumns = useSubmissionColumns();
 
@@ -156,6 +177,8 @@ export function ManagerWorkflowSection() {
             progress={progress}
             onAction={() => { void activeAction(); }}
             disabled={!canProceed}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
           />
           {/* Missing requirements message */}
           {!canProceed && missingRequirementsText && (

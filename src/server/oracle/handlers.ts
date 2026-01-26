@@ -10,7 +10,7 @@ import type { QueryParameters } from '../../types/oracle.js';
 import { oracleService } from './oracleService.js';
 import { isValidQueryId, getAvailableQueryIds } from '../sql/index.js';
 import { sessionService } from '../auth/index.js';
-import { parseBody, sendJson } from '../utils/index.js';
+import { parseBody, sendJson, sendInternalError } from '../utils/index.js';
 
 /** Raw request body before validation */
 interface RawQueryRequest {
@@ -116,13 +116,7 @@ export async function handleConnect(
       sendJson(res, 500, result);
     }
   } catch (error) {
-    sendJson(res, 500, {
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-    });
+    sendInternalError(res, error);
   }
 }
 
@@ -192,12 +186,6 @@ export async function handleQuery(
 
     sendJson(res, result.success ? 200 : 500, result);
   } catch (error) {
-    sendJson(res, 500, {
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-    });
+    sendInternalError(res, error);
   }
 }

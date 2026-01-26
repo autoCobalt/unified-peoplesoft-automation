@@ -22,7 +22,7 @@ import {
   type ReactNode,
 } from 'react';
 import { isDevelopment, oracleConfig } from '../config';
-import { setSessionToken } from '../services/session';
+import { setSessionToken, clearSessionToken } from '../services/session';
 import type {
   OracleCredentials,
   OracleConnectionState,
@@ -84,6 +84,10 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     useState<SoapCredentials | null>(null);
   const soapConnectingRef = useRef(false);
 
+  // UI hint state (for cross-component visual feedback)
+  const [oracleHintActive, setOracleHintActive] = useState(false);
+  const [soapHintActive, setSoapHintActive] = useState(false);
+
   /* ============================================
      Oracle Actions
      ============================================ */
@@ -118,6 +122,10 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       }));
 
       try {
+        // Clear any stale session token before attempting new connection
+        // Prevents invalid token from persisting if reconnection fails
+        clearSessionToken();
+
         // Dynamically import to avoid bundling server code in frontend
         const { oracleApi } = await import('../services/oracle/oracleApi');
 
@@ -206,6 +214,10 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       }));
 
       try {
+        // Clear any stale session token before attempting new connection
+        // Prevents invalid token from persisting if reconnection fails
+        clearSessionToken();
+
         // Dynamically import to avoid bundling server code in frontend
         const { soapApi } = await import('../services/soap/soapApi');
 
@@ -309,6 +321,11 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         console.log(`🔌 [Dev] Oracle connected as: ${username} (session created)`);
       } catch (error) {
         console.error('[Dev] Failed to create dev session:', error);
+        setOracleState({
+          isConnected: false,
+          isConnecting: false,
+          error: error instanceof Error ? error.message : 'Dev session creation failed',
+        });
       }
     };
 
@@ -340,6 +357,11 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         console.log(`🔌 [Dev] SOAP connected as: ${username} (session created)`);
       } catch (error) {
         console.error('[Dev] Failed to create dev session:', error);
+        setSoapState({
+          isConnected: false,
+          isConnecting: false,
+          error: error instanceof Error ? error.message : 'Dev session creation failed',
+        });
       }
     };
 
@@ -395,6 +417,12 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     // Utility
     isFullyConnected,
     hasActiveConnection,
+
+    // UI Hints
+    oracleHintActive,
+    setOracleHintActive,
+    soapHintActive,
+    setSoapHintActive,
   };
 
   return (

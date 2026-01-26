@@ -134,3 +134,36 @@ export function sendJson(res: ServerResponse, statusCode: number, data: unknown)
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify(data));
 }
+
+/**
+ * Send standardized internal error response
+ *
+ * Consolidates the common error handling pattern used across all handlers.
+ * Extracts error message safely and returns a consistent error format.
+ *
+ * @param res - Server response object
+ * @param error - The caught error (unknown type from catch block)
+ * @param code - Error code (default: 'INTERNAL_ERROR')
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await someOperation();
+ * } catch (error) {
+ *   sendInternalError(res, error);
+ * }
+ * ```
+ */
+export function sendInternalError(
+  res: ServerResponse,
+  error: unknown,
+  code = 'INTERNAL_ERROR'
+): void {
+  sendJson(res, 500, {
+    success: false,
+    error: {
+      code,
+      message: error instanceof Error ? error.message : 'Unknown error',
+    },
+  });
+}

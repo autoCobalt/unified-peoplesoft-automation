@@ -59,6 +59,7 @@ export function CredentialsForm({
           onChange={(e) => { setUsername(e.target.value); }}
           placeholder={placeholders.username}
           autoComplete="username"
+          disabled={isSubmitting}
         />
       </div>
 
@@ -71,6 +72,7 @@ export function CredentialsForm({
           onChange={(e) => { setPassword(e.target.value); }}
           placeholder={placeholders.password}
           autoComplete="current-password"
+          disabled={isSubmitting}
         />
       </div>
 

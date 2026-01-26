@@ -32,35 +32,18 @@
   border-radius: var(--dt-border-radius);
 }
 
-/* Shadow indicators - appear when content is scrollable */
-.dt-scroll-wrapper::before,
+/* Right shadow indicator - appears when content is scrollable to the right */
 .dt-scroll-wrapper::after {
   content: '';
   position: absolute;
   top: 0;
+  right: 0;
   bottom: 0;
   width: 48px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s ease;
   z-index: 3;
-}
-
-/* Left shadow (indicates scrollable content to the left) */
-.dt-scroll-wrapper::before {
-  left: 0;
-  background: linear-gradient(
-    to right,
-    var(--bg-primary),
-    color-mix(in srgb, var(--bg-primary) 60%, transparent) 40%,
-    transparent
-  );
-  border-radius: var(--dt-border-radius) 0 0 var(--dt-border-radius);
-}
-
-/* Right shadow (indicates scrollable content to the right) */
-.dt-scroll-wrapper::after {
-  right: 0;
   background: linear-gradient(
     to left,
     var(--bg-primary),
@@ -70,12 +53,30 @@
   border-radius: 0 var(--dt-border-radius) var(--dt-border-radius) 0;
 }
 
-/* Show shadows based on scroll position (controlled via data attributes) */
-.dt-scroll-wrapper[data-can-scroll-left="true"]::before {
-  opacity: 1;
+/* Border highlight around sticky columns when scrolled */
+.dt-scroll-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: var(--dt-scrollbar-height, 6px); /* Account for scrollbar */
+  width: var(--dt-sticky-width, 0px);
+  pointer-events: none;
+  border: 1.5px solid var(--dt-sticky-highlight-color);
+  border-left: none; /* Table's outer border handles left edge */
+  border-radius: var(--dt-border-radius) 0 0 var(--dt-border-radius);
+  opacity: 0;
+  z-index: 4; /* Above sticky columns (z:2) and shadows (z:3) */
+  transition: opacity 0.2s ease;
 }
 
-.dt-scroll-wrapper[data-can-scroll-right="true"]::after {
+/* Show border highlight when scrolled right (only when scrolling is possible) */
+.dt-scroll-wrapper[data-can-scroll="true"][data-can-scroll-left="true"]::before {
+  opacity: 0.7;
+}
+
+/* Show right shadow when scrolling is possible and content exists to the right */
+.dt-scroll-wrapper[data-can-scroll="true"][data-can-scroll-right="true"]::after {
   opacity: 1;
 }
 
@@ -205,10 +206,10 @@
 }
 
 /* === Empty State === */
-.dt-empty {
+.dt-table td.dt-empty {
   text-align: center;
   color: var(--dt-text-muted);
-  padding: 2rem var(--dt-cell-padding-x) !important;
+  padding: 2rem var(--dt-cell-padding-x);
   font-style: italic;
 }
 
@@ -331,20 +332,20 @@
   content: '';
   position: absolute;
   top: 0;
-  right: -12px;
+  right: -16px;
   bottom: 0;
-  width: 12px;
+  width: 16px;
   pointer-events: none;
   background: linear-gradient(
     to right,
-    color-mix(in srgb, var(--bg-primary) 50%, transparent),
+    color-mix(in srgb, var(--bg-primary) 60%, transparent),
     transparent
   );
   opacity: 0;
   transition: opacity 0.2s ease;
 }
 
-/* Show sticky column shadow when scrolled (controlled via wrapper data attribute) */
-.dt-scroll-wrapper[data-can-scroll-left="true"] .dt-sticky-col-last::after {
+/* Show sticky column shadow when scrolled (only when scrolling is possible) */
+.dt-scroll-wrapper[data-can-scroll="true"][data-can-scroll-left="true"] .dt-sticky-col-last::after {
   opacity: 1;
 }

@@ -17,7 +17,7 @@ import {
   validateSqlDirectory,
 } from './sqlDirectoryService.js';
 import { parseSqlMetadata, validateSqlMetadata } from './parser/index.js';
-import { parseBody, sendJson } from '../utils/index.js';
+import { parseBody, sendJson, sendInternalError } from '../utils/index.js';
 
 /* ==============================================
    Helper Functions
@@ -59,6 +59,90 @@ function buildSqlPaths(
 }
 
 /* ==============================================
+   Path Security Validation
+   ============================================== */
+
+/**
+ * Validate that a filename doesn't contain path traversal attacks
+ *
+ * Security: Prevents directory traversal attacks where malicious input
+ * like "../../../etc/passwd" could read arbitrary files.
+ *
+ * Blocks:
+ * - Directory traversal: ".."
+ * - Home directory expansion: "~"
+ * - Null bytes: "\0" (used to bypass extension checks)
+ * - Absolute paths (Unix and Windows)
+ * - Backslashes (Windows path separator)
+ *
+ * @param filename - The filename to validate
+ * @returns true if safe, false if potentially malicious
+ */
+function isFilenameSafe(filename: string): boolean {
+  // Block directory traversal
+  if (filename.includes('..')) return false;
+
+  // Block home directory expansion
+  if (filename.includes('~')) return false;
+
+  // Block null bytes (used to bypass extension checks)
+  if (filename.includes('\0')) return false;
+
+  // Block absolute paths (Unix)
+  if (filename.startsWith('/')) return false;
+
+  // Block absolute paths (Windows - drive letter)
+  if (/^[a-zA-Z]:/.test(filename)) return false;
+
+  // Block backslash (Windows path separator)
+  if (filename.includes('\\')) return false;
+
+  return true;
+}
+
+/**
+ * Validate that a directory path doesn't access sensitive system locations
+ *
+ * Security: For personalPath, we allow full paths (user specifies their
+ * SQL directory), but block access to sensitive system directories.
+ *
+ * @param dirPath - The directory path to validate
+ * @returns true if safe, false if potentially accessing sensitive locations
+ */
+function isDirectoryPathSafe(dirPath: string): boolean {
+  // Block directory traversal in any part of the path
+  if (dirPath.includes('..')) return false;
+
+  // Block null bytes
+  if (dirPath.includes('\0')) return false;
+
+  // Normalize for comparison (lowercase, forward slashes)
+  const normalized = dirPath.toLowerCase().replace(/\\/g, '/');
+
+  // Block sensitive Unix system directories
+  const blockedUnixPaths = [
+    '/etc', '/var', '/usr', '/root', '/bin', '/sbin',
+    '/lib', '/lib64', '/boot', '/proc', '/sys', '/dev',
+  ];
+
+  // Block sensitive Windows system directories
+  const blockedWindowsPaths = [
+    'c:/windows', 'c:/program files', 'c:/program files (x86)',
+    'c:/programdata', 'c:/users/public', 'c:/users/default',
+  ];
+
+  const allBlockedPaths = [...blockedUnixPaths, ...blockedWindowsPaths];
+
+  for (const blocked of allBlockedPaths) {
+    if (normalized === blocked || normalized.startsWith(blocked + '/')) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/* ==============================================
    Route Handlers
    ============================================== */
 
@@ -83,13 +167,7 @@ export function createGetSourcesHandler(env: Record<string, string>) {
         data: { sources: configs },
       });
     } catch (error) {
-      sendJson(res, 500, {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        },
-      });
+      sendInternalError(res, error);
     }
   };
 }
@@ -149,6 +227,17 @@ export function createGetFilesHandler(env: Record<string, string>) {
             });
             return;
           }
+          // Security: Validate path doesn't access sensitive directories
+          if (!isDirectoryPathSafe(personalPath)) {
+            sendJson(res, 400, {
+              success: false,
+              error: {
+                code: 'INVALID_PATH',
+                message: 'Path contains invalid characters or accesses restricted directories',
+              },
+            });
+            return;
+          }
           files = await getPersonalSqlFiles(personalPath);
           break;
       }
@@ -158,13 +247,7 @@ export function createGetFilesHandler(env: Record<string, string>) {
         data: { files },
       });
     } catch (error) {
-      sendJson(res, 500, {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        },
-      });
+      sendInternalError(res, error);
     }
   };
 }
@@ -206,6 +289,30 @@ export function createGetFileHandler(env: Record<string, string>) {
         return;
       }
 
+      // Security: Validate filename doesn't contain path traversal
+      if (!isFilenameSafe(filename)) {
+        sendJson(res, 400, {
+          success: false,
+          error: {
+            code: 'INVALID_FILENAME',
+            message: 'Filename contains invalid characters',
+          },
+        });
+        return;
+      }
+
+      // Security: Validate personalPath if provided
+      if (personalPath && !isDirectoryPathSafe(personalPath)) {
+        sendJson(res, 400, {
+          success: false,
+          error: {
+            code: 'INVALID_PATH',
+            message: 'Path contains invalid characters or accesses restricted directories',
+          },
+        });
+        return;
+      }
+
       const paths = buildSqlPaths(env, personalPath);
 
       const fileInfo = await getSqlFile(source, filename, paths);
@@ -230,13 +337,7 @@ export function createGetFileHandler(env: Record<string, string>) {
         },
       });
     } catch (error) {
-      sendJson(res, 500, {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        },
-      });
+      sendInternalError(res, error);
     }
   };
 }
@@ -278,6 +379,30 @@ export function createValidateFileHandler(env: Record<string, string>) {
         return;
       }
 
+      // Security: Validate filename doesn't contain path traversal
+      if (!isFilenameSafe(filename)) {
+        sendJson(res, 400, {
+          success: false,
+          error: {
+            code: 'INVALID_FILENAME',
+            message: 'Filename contains invalid characters',
+          },
+        });
+        return;
+      }
+
+      // Security: Validate personalPath if provided
+      if (personalPath && !isDirectoryPathSafe(personalPath)) {
+        sendJson(res, 400, {
+          success: false,
+          error: {
+            code: 'INVALID_PATH',
+            message: 'Path contains invalid characters or accesses restricted directories',
+          },
+        });
+        return;
+      }
+
       const paths = buildSqlPaths(env, personalPath);
 
       const content = await getSqlFileContent(source, filename, paths);
@@ -301,13 +426,7 @@ export function createValidateFileHandler(env: Record<string, string>) {
         data: validation,
       });
     } catch (error) {
-      sendJson(res, 500, {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        },
-      });
+      sendInternalError(res, error);
     }
   };
 }
@@ -349,13 +468,7 @@ export async function handleValidateContent(
       },
     });
   } catch (error) {
-    sendJson(res, 500, {
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-    });
+    sendInternalError(res, error);
   }
 }
 
@@ -378,6 +491,18 @@ export async function handleConfigureShared(
         error: {
           code: 'MISSING_PARAMETER',
           message: 'Missing required field: path',
+        },
+      });
+      return;
+    }
+
+    // Security: Validate path doesn't access sensitive directories
+    if (!isDirectoryPathSafe(body.path)) {
+      sendJson(res, 400, {
+        success: false,
+        error: {
+          code: 'INVALID_PATH',
+          message: 'Path contains invalid characters or accesses restricted directories',
         },
       });
       return;
@@ -407,13 +532,7 @@ export async function handleConfigureShared(
       },
     });
   } catch (error) {
-    sendJson(res, 500, {
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-    });
+    sendInternalError(res, error);
   }
 }
 
@@ -434,6 +553,18 @@ export async function handleValidatePersonal(
         error: {
           code: 'MISSING_PARAMETER',
           message: 'Missing required field: path',
+        },
+      });
+      return;
+    }
+
+    // Security: Validate path doesn't access sensitive directories
+    if (!isDirectoryPathSafe(body.path)) {
+      sendJson(res, 400, {
+        success: false,
+        error: {
+          code: 'INVALID_PATH',
+          message: 'Path contains invalid characters or accesses restricted directories',
         },
       });
       return;
@@ -465,13 +596,7 @@ export async function handleValidatePersonal(
       },
     });
   } catch (error) {
-    sendJson(res, 500, {
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-    });
+    sendInternalError(res, error);
   }
 }
 

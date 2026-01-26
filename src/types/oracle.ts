@@ -71,7 +71,8 @@ export type OracleErrorCode =
   | 'TIMEOUT'
   | 'CONNECTION_LOST'
   | 'NETWORK_ERROR'
-  | 'INTERNAL_ERROR';
+  | 'INTERNAL_ERROR'
+  | 'UNAUTHORIZED'; // Session expired or invalid (from server middleware)
 
 /**
  * Oracle query error response

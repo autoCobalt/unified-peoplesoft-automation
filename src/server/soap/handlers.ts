@@ -10,7 +10,7 @@ import type { ActionType } from '../../types/soap.js';
 import type { SoapCredentials } from '../../types/connection.js';
 import { soapService } from './soapService.js';
 import { sessionService } from '../auth/index.js';
-import { parseBody, sendJson } from '../utils/index.js';
+import { parseBody, sendJson, sendInternalError } from '../utils/index.js';
 
 /* ==============================================
    Route Handlers
@@ -93,13 +93,7 @@ export async function handleConnect(
       sendJson(res, 401, result);
     }
   } catch (error) {
-    sendJson(res, 500, {
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-    });
+    sendInternalError(res, error);
   }
 }
 
@@ -156,13 +150,7 @@ export async function handleGetCIShape(
 
     sendJson(res, result.success ? 200 : 500, result);
   } catch (error) {
-    sendJson(res, 500, {
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-    });
+    sendInternalError(res, error);
   }
 }
 
@@ -247,12 +235,6 @@ export async function handleSubmit(
 
     sendJson(res, result.success ? 200 : 500, result);
   } catch (error) {
-    sendJson(res, 500, {
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-    });
+    sendInternalError(res, error);
   }
 }

@@ -75,6 +75,13 @@ async function apiRequest<T>(
     });
 
     const data = await response.json() as OracleApiResponse<T>;
+
+    // If the server returns UNAUTHORIZED, the session is expired or invalid.
+    // Clear the stale token to signal that re-authentication is needed.
+    if (!data.success && data.error.code === 'UNAUTHORIZED') {
+      clearSessionToken();
+    }
+
     return data;
 
   } catch (error) {

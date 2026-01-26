@@ -23,11 +23,20 @@ export function SoapConnection() {
     soapState,
     soapCredentials,
     connectSoap,
+    soapHintActive,
   } = useConnection();
 
   const [showInfo, setShowInfo] = useState(false);
 
   const displayUsername = soapCredentials?.username ?? '';
+
+  // Build class list - only apply hint when not connected
+  const panelClasses = [
+    'connection-panel',
+    'soap-panel',
+    soapState.isConnected ? 'connected' : '',
+    soapHintActive && !soapState.isConnected ? 'hint-active' : '',
+  ].filter(Boolean).join(' ');
 
   const handleConnect = (credentials: { username: string; password: string }) => {
     void connectSoap(credentials);
@@ -39,7 +48,7 @@ export function SoapConnection() {
     <SlideIn
       direction="right"
       delay={0.2}
-      className={`connection-panel soap-panel ${soapState.isConnected ? 'connected' : ''}`}
+      className={panelClasses}
     >
       <AnimatePresence mode="wait">
         {soapState.isConnected ? (

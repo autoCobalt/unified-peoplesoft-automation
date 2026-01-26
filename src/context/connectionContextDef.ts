@@ -37,6 +37,12 @@ export interface ConnectionContextType {
   // Utility
   isFullyConnected: boolean;
   hasActiveConnection: boolean;
+
+  // UI Hints (for cross-component visual feedback)
+  oracleHintActive: boolean;
+  setOracleHintActive: (active: boolean) => void;
+  soapHintActive: boolean;
+  setSoapHintActive: (active: boolean) => void;
 }
 
 /* ==============================================

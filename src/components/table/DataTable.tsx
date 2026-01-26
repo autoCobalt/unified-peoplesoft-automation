@@ -108,6 +108,7 @@ export function DataTable<TData>({
   // Scroll state for shadow indicators
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const theadRef = useRef<HTMLTableSectionElement>(null);
+  const [canScroll, setCanScroll] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -125,6 +126,10 @@ export function DataTable<TData>({
     const { scrollLeft, scrollWidth, clientWidth } = container;
     const tolerance = 1; // Account for sub-pixel rounding
 
+    // Check if horizontal scrolling is possible at all
+    const scrollingPossible = scrollWidth > clientWidth + tolerance;
+    setCanScroll(scrollingPossible);
+
     setCanScrollLeft(scrollLeft > tolerance);
     setCanScrollRight(scrollLeft < scrollWidth - clientWidth - tolerance);
   }, []);
@@ -133,6 +138,7 @@ export function DataTable<TData>({
    * Measures actual header cell widths and calculates cumulative offsets
    * for sticky column positioning. Uses getBoundingClientRect() for
    * sub-pixel precision to prevent tiny shifts when sticky activates.
+   * Also sets a CSS variable for total sticky column width (used for border highlight).
    */
   const measureStickyOffsets = useCallback(() => {
     if (!theadRef.current || stickyColumns <= 0) return;
@@ -154,6 +160,21 @@ export function DataTable<TData>({
     }
 
     setStickyOffsets(offsets);
+
+    // Set CSS variable for total sticky column width (for border highlight overlay)
+    if (stickyColumns > 0 && stickyColumns <= cells.length) {
+      const lastStickyCell = cells[stickyColumns - 1];
+      const lastStickyRect = lastStickyCell.getBoundingClientRect();
+      const totalStickyWidth = lastStickyRect.right - firstCellRect.left;
+
+      // Set CSS variable on the scroll wrapper (with defensive guard against NaN/Infinity)
+      if (scrollContainerRef.current?.parentElement && Number.isFinite(totalStickyWidth)) {
+        scrollContainerRef.current.parentElement.style.setProperty(
+          '--dt-sticky-width',
+          `${String(totalStickyWidth)}px`
+        );
+      }
+    }
   }, [stickyColumns]);
 
   // Use ResizeObserver to measure sticky offsets when table layout changes
@@ -342,6 +363,7 @@ export function DataTable<TData>({
       {/* Table with scroll wrapper for shadow indicators */}
       <div
         className="dt-scroll-wrapper"
+        data-can-scroll={canScroll}
         data-can-scroll-left={canScrollLeft}
         data-can-scroll-right={canScrollRight}
       >

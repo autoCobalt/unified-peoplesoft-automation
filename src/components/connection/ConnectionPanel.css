@@ -37,6 +37,22 @@
   box-shadow: 0 0 0 1px var(--status-success), 0 0 20px rgba(63, 185, 80, 0.15);
 }
 
+/* Hint active state - pulsing border to draw attention */
+.connection-panel.hint-active {
+  animation: hint-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%, 100% {
+    border-color: rgba(180, 140, 50, 0.4);
+    box-shadow: 0 0 0 1px rgba(180, 140, 50, 0.3), 0 0 4px rgba(210, 170, 60, 0.15);
+  }
+  50% {
+    border-color: #e0b040;
+    box-shadow: 0 0 0 2px #e0b040, 0 0 14px rgba(224, 176, 64, 0.45);
+  }
+}
+
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -77,10 +93,6 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
-}
-
-.connected-title .title-short {
-  display: none;
 }
 
 .connected-service-name {
@@ -336,4 +348,24 @@
   font-size: 11px;
   color: var(--accent-primary);
   font-weight: 600;
+}
+
+/* ==============================================
+   Reduced Motion Preferences
+   ============================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  /* Disable decorative pulsing animation */
+  .connection-panel.hint-active {
+    animation: none;
+    border-color: #e0b040;
+    box-shadow: 0 0 0 2px #e0b040, 0 0 14px rgba(224, 176, 64, 0.45);
+  }
+
+  /* Disable transitions for panels */
+  .connection-panel {
+    transition: none;
+  }
+
+  /* Note: Spinner animation is kept for functional feedback */
 }

@@ -23,11 +23,20 @@ export function OracleConnection() {
     oracleState,
     oracleCredentials,
     connectOracle,
+    oracleHintActive,
   } = useConnection();
 
   const [showInfo, setShowInfo] = useState(false);
 
   const displayUsername = oracleCredentials?.username ?? '';
+
+  // Build class list - only apply hint when not connected
+  const panelClasses = [
+    'connection-panel',
+    'oracle-panel',
+    oracleState.isConnected ? 'connected' : '',
+    oracleHintActive && !oracleState.isConnected ? 'hint-active' : '',
+  ].filter(Boolean).join(' ');
 
   const handleConnect = (credentials: { username: string; password: string }) => {
     void connectOracle(credentials);
@@ -39,7 +48,7 @@ export function OracleConnection() {
     <SlideIn
       direction="left"
       delay={0.1}
-      className={`connection-panel oracle-panel ${oracleState.isConnected ? 'connected' : ''}`}
+      className={panelClasses}
     >
       <AnimatePresence mode="wait">
         {oracleState.isConnected ? (

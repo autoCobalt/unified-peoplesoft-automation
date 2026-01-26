@@ -79,3 +79,12 @@
     transform: rotate(360deg);
   }
 }
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  .sf-overview-button {
+    transition: none;
+  }
+
+  /* Note: Spinner animation is kept for functional loading feedback */
+}

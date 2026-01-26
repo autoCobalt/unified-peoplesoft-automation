@@ -151,3 +151,15 @@
     display: none;
   }
 }
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  .mode-indicator {
+    animation: none;
+  }
+
+  .dev-username-input,
+  .dev-button {
+    transition: none;
+  }
+}

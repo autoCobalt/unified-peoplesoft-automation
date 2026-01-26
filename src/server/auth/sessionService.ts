@@ -13,6 +13,7 @@
  */
 
 import { randomBytes } from 'crypto';
+import { logInfo } from '../utils/index.js';
 
 /* ==============================================
    Configuration
@@ -125,9 +126,7 @@ class SessionService {
 
     this.sessions.set(token, session);
 
-    console.log(
-      `[Auth] Session created for ${authSource} user (active sessions: ${String(this.sessions.size)})`
-    );
+    logInfo('Auth', `Session created for ${authSource} user (active sessions: ${String(this.sessions.size)})`);
 
     return token;
   }
@@ -162,7 +161,7 @@ class SessionService {
     if (elapsed > SESSION_TIMEOUT_MS) {
       // Session expired - remove it
       this.sessions.delete(token);
-      console.log('[Auth] Session expired and removed');
+      logInfo('Auth', 'Session expired and removed');
       return null;
     }
 
@@ -180,7 +179,7 @@ class SessionService {
   invalidateSession(token: string | undefined): void {
     if (token && this.sessions.has(token)) {
       this.sessions.delete(token);
-      console.log(`[Auth] Session invalidated (remaining: ${String(this.sessions.size)})`);
+      logInfo('Auth', `Session invalidated (remaining: ${String(this.sessions.size)})`);
     }
   }
 
@@ -201,7 +200,7 @@ class SessionService {
     }
 
     if (count > 0) {
-      console.log(`[Auth] Invalidated ${String(count)} ${authSource} session(s)`);
+      logInfo('Auth', `Invalidated ${String(count)} ${authSource} session(s)`);
     }
   }
 
@@ -228,22 +227,35 @@ class SessionService {
 
   /**
    * Remove all expired sessions
+   *
+   * Uses a two-phase approach (collect then delete) for defensive coding:
+   * - Phase 1: Identify expired tokens without modifying the Map
+   * - Phase 2: Delete identified tokens
+   *
+   * Note: While JavaScript's single-threaded nature makes in-loop deletion
+   * safe, this pattern is clearer and more robust for future maintainers.
    */
   private cleanupExpiredSessions(): void {
     const now = Date.now();
-    let removed = 0;
+
+    // Phase 1: Collect tokens to remove (no mutation during iteration)
+    const tokensToRemove: string[] = [];
 
     for (const [token, session] of this.sessions) {
       const elapsed = now - session.lastActivityAt.getTime();
 
       if (elapsed > SESSION_TIMEOUT_MS) {
-        this.sessions.delete(token);
-        removed++;
+        tokensToRemove.push(token);
       }
     }
 
-    if (removed > 0) {
-      console.log(`[Auth] Cleanup removed ${String(removed)} expired session(s)`);
+    // Phase 2: Remove collected tokens
+    for (const token of tokensToRemove) {
+      this.sessions.delete(token);
+    }
+
+    if (tokensToRemove.length > 0) {
+      logInfo('Auth', `Cleanup removed ${String(tokensToRemove.length)} expired session(s)`);
     }
   }
 

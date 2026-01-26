@@ -87,11 +87,16 @@ export function hasProgress<T extends WorkflowStepBase>(
 
 /**
  * Check if a workflow step is an error state.
+ * Includes runtime type check for message to guard against malformed data.
  */
 export function isErrorStep<T extends WorkflowStepBase>(
   step: T
 ): step is T & WorkflowErrorStep {
-  return step.step === 'error' && 'message' in step;
+  return (
+    step.step === 'error' &&
+    'message' in step &&
+    typeof (step as WorkflowErrorStep).message === 'string'
+  );
 }
 
 /**
@@ -165,6 +170,10 @@ export interface WorkflowActionButtonProps {
   className?: string;
   /** Whether button is disabled (besides processing state) */
   disabled?: boolean;
+  /** Pointer enter handler (for hint activation when disabled) */
+  onPointerEnter?: () => void;
+  /** Pointer leave handler (for hint deactivation) */
+  onPointerLeave?: () => void;
 }
 
 /**

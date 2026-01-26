@@ -65,6 +65,8 @@ export function WorkflowActionButton({
   onAction,
   className = '',
   disabled = false,
+  onPointerEnter,
+  onPointerLeave,
 }: WorkflowActionButtonProps) {
   const baseClass = 'wf-action-button';
   // Apply processing class for both processing and paused states (visual continuity)
@@ -76,6 +78,10 @@ export function WorkflowActionButton({
       className={`${baseClass} ${processingClass} ${pausedClass} ${className}`.trim()}
       onClick={onAction}
       disabled={isProcessing || isPaused || disabled}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+      aria-busy={isProcessing || isPaused}
+      aria-label={isPaused ? `${label} - paused` : isProcessing ? `${label} - processing` : undefined}
     >
       {renderButtonContent(isProcessing, isPaused, progress, label)}
     </InteractiveElement>
