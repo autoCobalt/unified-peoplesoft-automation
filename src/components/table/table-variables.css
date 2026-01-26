@@ -39,8 +39,8 @@
   --dt-font-mono: var(--font-mono, ui-monospace, monospace);
 
   /* Spacing */
-  --dt-cell-padding-y: 0.5rem;
-  --dt-cell-padding-x: 0.75rem;
+  --dt-cell-padding-y: 0.25rem;
+  --dt-cell-padding-x: 0.375rem;
   --dt-border-radius: 0.375rem;
 
   /* Button */

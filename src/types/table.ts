@@ -237,6 +237,15 @@ export interface DataTableProps<TData> {
   showRowNumbers?: boolean;
 
   /**
+   * Number of columns to make sticky (fixed) while horizontally scrolling.
+   * Useful for keeping identifier columns visible in wide tables.
+   *
+   * @example
+   * stickyColumns={2}  // First two columns stay fixed (e.g., row # + ID)
+   */
+  stickyColumns?: number;
+
+  /**
    * Enable stagger animation for table rows.
    * Rows animate in with a cascading delay effect.
    *

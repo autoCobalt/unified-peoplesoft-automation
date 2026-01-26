@@ -24,18 +24,40 @@
   color: var(--text-tertiary);
 }
 
-/* === Date Match Highlighting === */
-.sf-table-row--date-match {
-  background: color-mix(in srgb, var(--status-warning) 8%, transparent);
-}
-
-.sf-table-row--date-match:hover {
-  background: color-mix(in srgb, var(--status-warning) 12%, transparent);
-}
-
+/* === Date Match Cell Highlighting === */
 .sf-table-cell--date-warning {
-  color: var(--status-warning);
-  font-weight: 600;
+  /* Moderate background - noticeable but not alarming */
+  background: color-mix(in srgb, var(--status-warning) 18%, transparent);
+  color: color-mix(in srgb, var(--status-warning) 90%, var(--text-primary));
+  font-weight: 500;
+}
+
+/* === Transaction Hyperlink === */
+.sf-transaction-link {
+  color: var(--color-link, #60a5fa);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  transition: color 0.15s ease;
+}
+
+.sf-transaction-link:visited {
+  /* Muted purple to indicate visited pages */
+  color: var(--color-link-visited, #a78bfa);
+}
+
+.sf-transaction-link:hover {
+  text-decoration: underline;
+  color: var(--color-link-hover, #93c5fd);
+}
+
+.sf-transaction-link:visited:hover {
+  color: var(--color-link-visited-hover, #c4b5fd);
+}
+
+.sf-transaction-link:focus-visible {
+  outline: 2px solid var(--color-focus, #60a5fa);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* === Responsive === */

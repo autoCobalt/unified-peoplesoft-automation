@@ -153,8 +153,9 @@ export function CardStack<T extends ElementType = 'div'>({
   );
 
   // Wrap in perspective container if enabled
+  // overflow: hidden prevents rotated content from clipping with elements above
   if (withPerspective && !prefersReducedMotion) {
-    return <div style={{ perspective: '1200px' }}>{content}</div>;
+    return <div style={{ perspective: '1200px', overflow: 'hidden' }}>{content}</div>;
   }
 
   return content;

@@ -36,10 +36,31 @@ export const POOL_CONFIG = {
    ============================================== */
 
 /**
- * Get the path to SQL files directory
+ * Get the path to server SQL files directory (bundled with app)
  * Note: This resolves relative to the compiled output in development
  */
 export function getSqlDirectory(): string {
   // In Vite middleware, we're running from project root
-  return 'src/server/sql';
+  return 'src/server/sql/server';
 }
+
+/**
+ * Get the path to the examples SQL directory
+ */
+export function getSqlExamplesDirectory(): string {
+  return 'src/server/sql/examples';
+}
+
+/**
+ * SQL directory paths for all three tiers
+ *
+ * - server: Built-in SQL files (read-only)
+ * - shared: Configurable via environment variable
+ * - personal: Stored in localStorage on the client
+ */
+export const SQL_DIRECTORIES = {
+  /** Bundled server SQL files */
+  server: 'src/server/sql/server',
+  /** Examples for documentation/testing */
+  examples: 'src/server/sql/examples',
+} as const;

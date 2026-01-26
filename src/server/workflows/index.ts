@@ -28,6 +28,7 @@ import {
   soapGetCIShape,
   soapSubmit,
 } from '../soap/index.js';
+import { createSqlHandlers } from '../sql/index.js';
 
 /* ==============================================
    Route Definition Type
@@ -72,6 +73,9 @@ interface RouteConfig {
  *
  * These are business-level endpoints that hide Playwright implementation.
  * End users see only these URLs, not /api/browser/* endpoints.
+ */
+/**
+ * Static workflow routes (don't require environment configuration)
  */
 export const workflowRoutes: Record<string, RouteConfig> = {
   // ============================================
@@ -176,6 +180,67 @@ export const workflowRoutes: Record<string, RouteConfig> = {
     auth: 'authenticated',
   },
 };
+
+/* ==============================================
+   SQL Routes Factory
+   ============================================== */
+
+/**
+ * Create SQL-related routes with environment configuration
+ *
+ * SQL routes require environment variables for path configuration,
+ * so they must be created dynamically after env is loaded.
+ *
+ * @param env - Environment variables loaded via Vite's loadEnv()
+ * @returns SQL route configurations
+ */
+export function createSqlRoutes(env: Record<string, string>): Record<string, RouteConfig> {
+  const sqlHandlers = createSqlHandlers(env);
+
+  return {
+    // ============================================
+    // SQL Management Routes
+    // ============================================
+    // These routes manage SQL files across the three-tier system.
+    // Most are authenticated to prevent unauthorized file access.
+
+    '/api/sql/sources': {
+      method: 'GET',
+      handler: sqlHandlers.getSources,
+      auth: 'authenticated',
+    },
+    '/api/sql/files': {
+      method: 'GET',
+      handler: sqlHandlers.getFiles,
+      auth: 'authenticated',
+    },
+    '/api/sql/file': {
+      method: 'GET',
+      handler: sqlHandlers.getFile,
+      auth: 'authenticated',
+    },
+    '/api/sql/validate': {
+      method: 'GET',
+      handler: sqlHandlers.validateFile,
+      auth: 'authenticated',
+    },
+    '/api/sql/validate-content': {
+      method: 'POST',
+      handler: sqlHandlers.validateContent,
+      auth: 'authenticated',
+    },
+    '/api/sql/shared/configure': {
+      method: 'POST',
+      handler: sqlHandlers.configureShared,
+      auth: 'authenticated',
+    },
+    '/api/sql/personal/validate': {
+      method: 'POST',
+      handler: sqlHandlers.validatePersonal,
+      auth: 'authenticated',
+    },
+  };
+}
 
 /* ==============================================
    Re-exports

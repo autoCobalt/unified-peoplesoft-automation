@@ -25,11 +25,95 @@
   gap: 0.5rem;
 }
 
+/* === Scroll Wrapper (for shadow indicators) === */
+.dt-scroll-wrapper {
+  position: relative;
+  border: 1px solid var(--dt-border-color);
+  border-radius: var(--dt-border-radius);
+}
+
+/* Shadow indicators - appear when content is scrollable */
+.dt-scroll-wrapper::before,
+.dt-scroll-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 48px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 3;
+}
+
+/* Left shadow (indicates scrollable content to the left) */
+.dt-scroll-wrapper::before {
+  left: 0;
+  background: linear-gradient(
+    to right,
+    var(--bg-primary),
+    color-mix(in srgb, var(--bg-primary) 60%, transparent) 40%,
+    transparent
+  );
+  border-radius: var(--dt-border-radius) 0 0 var(--dt-border-radius);
+}
+
+/* Right shadow (indicates scrollable content to the right) */
+.dt-scroll-wrapper::after {
+  right: 0;
+  background: linear-gradient(
+    to left,
+    var(--bg-primary),
+    color-mix(in srgb, var(--bg-primary) 60%, transparent) 40%,
+    transparent
+  );
+  border-radius: 0 var(--dt-border-radius) var(--dt-border-radius) 0;
+}
+
+/* Show shadows based on scroll position (controlled via data attributes) */
+.dt-scroll-wrapper[data-can-scroll-left="true"]::before {
+  opacity: 1;
+}
+
+.dt-scroll-wrapper[data-can-scroll-right="true"]::after {
+  opacity: 1;
+}
+
 /* === Scroll Container === */
 .dt-scroll-container {
   overflow-x: auto;
-  border: 1px solid var(--dt-border-color);
+  overflow-y: hidden;
   border-radius: var(--dt-border-radius);
+  /* Prevent scroll chaining - releases vertical scroll immediately after horizontal stops */
+  overscroll-behavior-x: contain;
+}
+
+/* === Custom Scrollbar Styling === */
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+.dt-scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.dt-scroll-container::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 0 0 var(--dt-border-radius) var(--dt-border-radius);
+}
+
+.dt-scroll-container::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.dt-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Firefox */
+.dt-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-default) var(--bg-tertiary);
 }
 
 /* === Table === */
@@ -52,7 +136,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  text-align: left;
+  text-align: center;
   color: var(--dt-header-color);
   background: var(--dt-header-bg);
   border-bottom: 1px solid var(--dt-border-color);
@@ -63,12 +147,27 @@
 .dt-table td {
   padding: var(--dt-cell-padding-y) var(--dt-cell-padding-x);
   color: var(--dt-text-primary);
-  border-bottom: 1px solid var(--dt-border-color);
+  /* Subtle cell borders - horizontal and vertical */
+  border-bottom: 1px solid color-mix(in srgb, var(--dt-border-color) 50%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--dt-border-color) 35%, transparent);
   vertical-align: middle;
+}
+
+.dt-table td:last-child {
+  border-right: none;
 }
 
 .dt-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+/* === Header cell borders === */
+.dt-table th {
+  border-right: 1px solid color-mix(in srgb, var(--dt-border-color) 35%, transparent);
+}
+
+.dt-table th:last-child {
+  border-right: none;
 }
 
 /* Row hover */
@@ -192,4 +291,60 @@
 .dt-checkbox:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+/* === Sticky Columns === */
+
+/*
+ * Sticky column positioning is handled via inline styles from JavaScript.
+ * JS measures actual column widths and applies precise left values.
+ * This avoids CSS calculation mismatches with table layout.
+ */
+
+/* Base sticky cell styles */
+.dt-table th.dt-sticky-col,
+.dt-table td.dt-sticky-col {
+  position: sticky;
+  z-index: 1;
+  /* Remove cell borders from sticky columns - shadow indicates edge instead */
+  border-right: none !important;
+}
+
+/* Header sticky cells get higher z-index */
+.dt-table th.dt-sticky-col {
+  z-index: 2;
+  background: var(--dt-header-bg);
+}
+
+/* Body sticky cells */
+.dt-table td.dt-sticky-col {
+  background: var(--bg-secondary);
+}
+
+/* Hover state for sticky cells in hovered row */
+.dt-table tbody tr:hover td.dt-sticky-col {
+  background: var(--dt-row-bg-hover);
+}
+
+/* Shadow on LAST sticky column edge when scrolled */
+.dt-sticky-col-last::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -12px;
+  bottom: 0;
+  width: 12px;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--bg-primary) 50%, transparent),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Show sticky column shadow when scrolled (controlled via wrapper data attribute) */
+.dt-scroll-wrapper[data-can-scroll-left="true"] .dt-sticky-col-last::after {
+  opacity: 1;
 }

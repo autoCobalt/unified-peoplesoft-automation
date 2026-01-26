@@ -12,3 +12,4 @@ export * from './workflow';
 export * from './table';
 export * from './oracle';
 export * from './soap';
+export * from './sqlMetadata';

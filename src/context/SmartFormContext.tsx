@@ -34,8 +34,9 @@ import { generateMockRecords } from '../dev-data';
  */
 function generateMockQueryResults(): SmartFormQueryResult {
   const records = generateMockRecords();
-  const managerCount = records.filter(r => r.approverType === 'Manager').length;
-  const otherCount = records.filter(r => r.approverType === 'Other').length;
+  // Filter by MGR_CUR: 1 = Manager, 0 = Other
+  const managerCount = records.filter(r => r.MGR_CUR === 1).length;
+  const otherCount = records.filter(r => r.MGR_CUR === 0).length;
 
   return {
     totalCount: records.length,
@@ -142,28 +143,33 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     // Simulate preparation delay
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Generate prepared submissions from manager records
+    // Generate prepared submissions from manager records (MGR_CUR = 1)
     const managerRecords = state.queryResults?.transactions.filter(
-      r => r.approverType === 'Manager'
+      r => r.MGR_CUR === 1
     ) ?? [];
 
-    const positionSubs: PreparedSubmission[] = managerRecords.map(record => ({
-      id: `pos-${record.id}`,
-      emplid: record.emplid,
-      employeeName: record.employeeName,
-      ciType: 'CI_POSITION_DATA',
-      status: 'pending',
-      payload: JSON.stringify({ emplid: record.emplid, effdt: record.newEffdt }),
-    }));
+    const positionSubs: PreparedSubmission[] = managerRecords.map(record => {
+      // EMPLOYEE_NAME is now a required field on SmartFormRecord
+      return {
+        id: `pos-${record.TRANSACTION_NBR}`,
+        emplid: record.EMPLID,
+        employeeName: record.EMPLOYEE_NAME,
+        ciType: 'CI_POSITION_DATA',
+        status: 'pending',
+        payload: JSON.stringify({ emplid: record.EMPLID, effdt: record.CUR_JOB_EFFDT }),
+      };
+    });
 
-    const jobSubs: PreparedSubmission[] = managerRecords.map(record => ({
-      id: `job-${record.id}`,
-      emplid: record.emplid,
-      employeeName: record.employeeName,
-      ciType: 'CI_JOB_DATA',
-      status: 'pending',
-      payload: JSON.stringify({ emplid: record.emplid, effdt: record.newEffdt }),
-    }));
+    const jobSubs: PreparedSubmission[] = managerRecords.map(record => {
+      return {
+        id: `job-${record.TRANSACTION_NBR}`,
+        emplid: record.EMPLID,
+        employeeName: record.EMPLOYEE_NAME,
+        ciType: 'CI_JOB_DATA',
+        status: 'pending',
+        payload: JSON.stringify({ emplid: record.EMPLID, effdt: record.CUR_JOB_EFFDT }),
+      };
+    });
 
     setPreparedPositionData(positionSubs);
     setPreparedJobData(jobSubs);
@@ -180,8 +186,9 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
    * Browser lifecycle is handled internally by the server.
    */
   const startApprovals = useCallback(async () => {
+    // Filter by MGR_CUR = 1 for Manager queue
     const managerRecords = state.queryResults?.transactions.filter(
-      r => r.approverType === 'Manager'
+      r => r.MGR_CUR === 1
     ) ?? [];
 
     if (managerRecords.length === 0) {
@@ -189,7 +196,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       return;
     }
 
-    const transactionIds = managerRecords.map(r => r.transaction);
+    const transactionIds = managerRecords.map(r => r.TRANSACTION_NBR);
     const firstTransactionId = transactionIds[0];
 
     // Start approval workflow - browser opens internally on server
@@ -406,12 +413,17 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   }, []);
 
   const createPositionRecords = useCallback(async () => {
+    // Filter by MGR_CUR = 0 for Other queue
     const otherRecords = state.queryResults?.transactions.filter(
-      r => r.approverType === 'Other'
+      r => r.MGR_CUR === 0
     ) ?? [];
 
-    // Get distinct position numbers
-    const distinctPositions = [...new Set(otherRecords.map(r => r.positionNumber).filter(Boolean))];
+    // Get distinct position numbers (POSITION_NBR is dynamic field)
+    const distinctPositions = [...new Set(
+      otherRecords
+        .map(r => r.POSITION_NBR as string | null | undefined)
+        .filter((p): p is string => Boolean(p))
+    )];
     const total = distinctPositions.length;
 
     for (let i = 0; i < total; i++) {
@@ -427,8 +439,9 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   }, [state.queryResults, setOtherWorkflow, refreshQuery]);
 
   const processOtherApprovals = useCallback(async () => {
+    // Filter by MGR_CUR = 0 for Other queue
     const otherRecords = state.queryResults?.transactions.filter(
-      r => r.approverType === 'Other'
+      r => r.MGR_CUR === 0
     ) ?? [];
 
     if (otherRecords.length === 0) {
@@ -475,19 +488,29 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
 
   const filteredRecords = useMemo(() => {
     if (!state.queryResults) return [];
-    return state.queryResults.transactions.filter(
-      t => t.approverType === (state.activeSubTab === 'manager' ? 'Manager' : 'Other')
-    );
+    // Filter by MGR_CUR: 1 = Manager, 0 = Other
+    const isManager = state.activeSubTab === 'manager';
+    return state.queryResults.transactions
+      .filter(t => t.MGR_CUR === (isManager ? 1 : 0))
+      .sort((a, b) => {
+        // Sort by TRANSACTION_NBR numerically (ascending)
+        const numA = Number(a.TRANSACTION_NBR) || 0;
+        const numB = Number(b.TRANSACTION_NBR) || 0;
+        return numA - numB;
+      });
   }, [state.queryResults, state.activeSubTab]);
 
 
   const distinctPositionCount = useMemo(() => {
     if (!state.queryResults) return 0;
+    // Filter by MGR_CUR = 0 for Other queue
     const otherRecords = state.queryResults.transactions.filter(
-      r => r.approverType === 'Other'
+      r => r.MGR_CUR === 0
     );
     const distinctPositions = new Set(
-      otherRecords.map(r => r.positionNumber).filter(Boolean)
+      otherRecords
+        .map(r => r.POSITION_NBR as string | null | undefined)
+        .filter((p): p is string => Boolean(p))
     );
     return distinctPositions.size;
   }, [state.queryResults]);

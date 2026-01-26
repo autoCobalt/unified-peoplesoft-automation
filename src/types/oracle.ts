@@ -97,17 +97,33 @@ export type OracleApiResponse<T> =
    ============================================== */
 
 /**
- * Raw row type from the SmartForm pending transactions query
- * Column names match the SQL SELECT clause
+ * Raw row type from the SmartForm pending transactions query.
+ *
+ * This type is flexible to support dynamic Oracle columns.
+ * Only the fields required for filtering and linking are explicitly typed.
+ *
+ * Required fields from Oracle:
+ * - MGR_CUR: number (1 = Manager, 0 = Other)
+ * - WEB_LINK: string (full URL for transaction hyperlink)
+ * - TRANSACTION_NBR: string (transaction identifier)
+ * - EMPLID: string (employee ID)
+ * - EMPLOYEE_NAME: string (employee full name)
+ *
+ * All other columns are passed through dynamically.
  */
 export interface SmartFormQueryRow {
+  /** Manager current flag: 1 = Manager queue, 0 = Other queue */
+  MGR_CUR: number;
+  /** Full URL for the transaction hyperlink */
+  WEB_LINK: string;
+  /** Transaction number identifier */
   TRANSACTION_NBR: string;
+  /** Employee ID */
   EMPLID: string;
+  /** Employee full name */
   EMPLOYEE_NAME: string;
-  CURRENT_EFFDT: string;
-  NEW_EFFDT: string;
-  APPROVER_TYPE: 'Manager' | 'Other';
-  POSITION_NBR: string | null;
+  /** Allow any additional Oracle columns */
+  [key: string]: unknown;
 }
 
 /* ==============================================

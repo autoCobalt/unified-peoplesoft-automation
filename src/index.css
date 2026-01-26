@@ -30,6 +30,7 @@
 
   /* Borders */
   --border-default: #30363d;
+  --border-secondary: #30363d;
   --border-muted: #21262d;
 
   /* Spacing */
@@ -45,7 +46,7 @@
 
   /* Sizing */
   --min-width: 450px;
-  --max-width: 950px;
+  --max-width: 1050px;
   --border-radius: 8px;
   --border-radius-sm: 4px;
 }
@@ -90,7 +91,7 @@ a:hover {
   min-width: var(--min-width);
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 0 var(--space-md) var(--space-md);
+  padding: 0 var(--space-xs) var(--space-xs);
 }
 
 .main-content {

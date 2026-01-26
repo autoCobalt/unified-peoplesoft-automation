@@ -17,11 +17,12 @@
 
 import type { ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'http';
-import { workflowRoutes } from './workflows/index.js';
+import { workflowRoutes, createSqlRoutes } from './workflows/index.js';
 import { handleTestSiteRequest } from './test-site/index.js';
 import { soapService, buildSoapConfig } from './soap/index.js';
 import { sessionService } from './auth/index.js';
 import { initializeSecureLogger, logInfo, logDebug, logWarn, logError, parseBody } from './utils/index.js';
+import { runSqlMetadataTest } from './sql/devTest.js';
 
 /**
  * Session token header name
@@ -229,6 +230,12 @@ export function configureWorkflowMiddleware(
   const soapConfig = buildSoapConfig(env);
   soapService.initialize(soapConfig, isDevelopment);
 
+  // Create SQL routes with environment configuration
+  const sqlRoutes = createSqlRoutes(env);
+
+  // Merge all routes into a single lookup table
+  const allRoutes = { ...workflowRoutes, ...sqlRoutes };
+
   server.middlewares.use((req, res, next) => {
     const url = req.url ?? '';
 
@@ -271,7 +278,9 @@ export function configureWorkflowMiddleware(
     setSecurityHeaders(res);
 
     // Find matching route - use explicit lookup to allow undefined
-    const route = Object.hasOwn(workflowRoutes, url) ? workflowRoutes[url] : undefined;
+    // Extract base URL without query string for route matching
+    const baseUrl = url.split('?')[0];
+    const route = Object.hasOwn(allRoutes, baseUrl) ? allRoutes[baseUrl] : undefined;
 
     if (!route) {
       res.statusCode = 404;
@@ -280,7 +289,7 @@ export function configureWorkflowMiddleware(
         success: false,
         error: {
           code: 'NOT_FOUND',
-          message: `Route not found: ${url}`,
+          message: `Route not found: ${baseUrl}`,
         },
       }));
       return;
@@ -368,13 +377,16 @@ export function configureWorkflowMiddleware(
 
   logInfo('Vite', 'Workflow API middleware configured');
   logInfo('Vite', 'Available endpoints:');
-  Object.entries(workflowRoutes).forEach(([path, { method }]) => {
+  Object.entries(allRoutes).forEach(([path, { method }]) => {
     logInfo('Vite', `  ${method} ${path}`);
   });
 
   if (isDevelopment) {
     logInfo('Vite', 'Test site enabled (VITE_APP_MODE=development)');
     logInfo('Vite', '  GET /test-site?TRANSACTION_NBR=123456');
+
+    // Run SQL metadata parser test in development mode
+    void runSqlMetadataTest();
   }
 }
 

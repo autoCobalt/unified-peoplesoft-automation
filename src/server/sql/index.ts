@@ -1,8 +1,11 @@
 /**
- * SQL Query Registry
+ * SQL Module
  *
- * Maps query identifiers to their SQL files and metadata.
- * This is the single source of truth for available queries.
+ * Central module for SQL file management:
+ * - Query registry for Oracle queries
+ * - Metadata parser and validator
+ * - Directory service for three-tier SQL system
+ * - HTTP handlers for SQL API endpoints
  */
 
 import type { OracleQueryId, QueryConfig, QueryRegistry } from '../../types/oracle.js';
@@ -16,7 +19,7 @@ import type { OracleQueryId, QueryConfig, QueryRegistry } from '../../types/orac
  *
  * When adding a new query:
  * 1. Add the query ID to OracleQueryId in src/types/oracle.ts
- * 2. Create the SQL file in this folder
+ * 2. Create the SQL file in src/server/sql/server/
  * 3. Add the entry to this registry
  */
 export const QUERY_REGISTRY: QueryRegistry = {
@@ -53,3 +56,31 @@ export function isValidQueryId(queryId: string): queryId is OracleQueryId {
 export function getAvailableQueryIds(): OracleQueryId[] {
   return Object.keys(QUERY_REGISTRY) as OracleQueryId[];
 }
+
+/* ==============================================
+   Re-exports
+   ============================================== */
+
+// Parser and validator
+export {
+  parseSqlMetadata,
+  validateSqlMetadata,
+  hasMetadataBlock,
+  hasClosedMetadataBlock,
+} from './parser/index.js';
+
+// Directory service
+export {
+  getServerSqlFiles,
+  getSharedSqlFiles,
+  getPersonalSqlFiles,
+  getExampleSqlFiles,
+  getSqlSourceStatus,
+  getSqlFile,
+  getSqlFileContent,
+  validateSqlDirectory,
+  parseMetadataFromContent,
+} from './sqlDirectoryService.js';
+
+// HTTP handlers
+export { createSqlHandlers } from './handlers.js';

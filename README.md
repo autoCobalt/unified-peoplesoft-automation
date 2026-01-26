@@ -53,12 +53,16 @@ npm run dev
 
 The `.env.local` file (created during installation) controls application behavior:
 
-| Variable | Purpose |
-|----------|---------|
-| `VITE_APP_MODE` | `development` (mock data) or `production` (real systems) |
-| `VITE_ORACLE_*` | Oracle database connection settings |
-| `VITE_PS_*` | PeopleSoft SOAP endpoint configuration |
-| `VITE_ALLOWED_ORIGINS` | Production CORS origins (comma-separated, e.g., `https://app.example.com`) |
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `VITE_APP_MODE` | Yes | `development` (mock data) or `production` (real systems) |
+| `VITE_ORACLE_HOSTNAME` | Yes | Oracle database server hostname |
+| `VITE_ORACLE_SERVICE_NAME` | Yes | Oracle service name (ask DBA if unsure) |
+| `VITE_PS_SERVER` | Yes | PeopleSoft web server hostname |
+| `VITE_PS_SITE_NAME` | Yes | PeopleSoft site name (e.g., HRPRD, HRTST) |
+| `VITE_PS_PORTAL` | Yes | Portal name (e.g., EMPLOYEE) |
+| `VITE_PS_NODE` | Yes | Node name (usually PT_LOCAL) |
+| `VITE_ALLOWED_ORIGINS` | Prod | CORS origins (comma-separated, e.g., `https://app.example.com`) |
 
 See `.env.example` for all available options with descriptions.
 
@@ -141,6 +145,42 @@ The application implements multiple security layers:
 - **CORS Protection** — Explicit origin allowlist (configurable via `VITE_ALLOWED_ORIGINS`)
 - **Request Size Limits** — 2MB body limit prevents memory exhaustion attacks
 - **Secure Logging** — Sensitive data (passwords, tokens) automatically redacted in production logs
+
+## SQL Management
+
+The application includes a three-tier SQL file management system:
+
+| Tier | Location | Access | Purpose |
+|------|----------|--------|---------|
+| **Server** | `src/server/sql/server/` | Read-only | Bundled queries maintained by developers |
+| **Shared** | Configurable path | Read/Write | Department-level queries on network share |
+| **Personal** | User-specified | Full | Individual user's custom queries |
+
+### SQL Metadata
+
+SQL files support structured metadata comments for documentation:
+
+```sql
+/*
+ * @sql-meta
+ * name: my-query
+ * description: What this query does
+ * author: Your Name
+ * version: 1.0.0
+ *
+ * @returns
+ * - COLUMN_NAME: TYPE - description
+ *
+ * @params
+ * - param_name: TYPE (required) - description
+ *
+ * @tags
+ * - category
+ * @end-sql-meta
+ */
+```
+
+See [`docs/SQL-METADATA-GUIDE.md`](docs/SQL-METADATA-GUIDE.md) for complete documentation.
 
 ## Architecture
 

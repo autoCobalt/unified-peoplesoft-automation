@@ -2,7 +2,7 @@
  * SmartForm Types
  *
  * Type definitions for the SmartForm feature, including:
- * - Transaction records and query results
+ * - Transaction records and query results (supports dynamic Oracle columns)
  * - Sub-tab navigation
  * - Workflow state machines for Manager and Other approval processes
  * - CI submission records with status tracking
@@ -15,29 +15,52 @@
 /** Status of an individual SmartForm record */
 export type SmartFormRecordStatus = 'pending' | 'processing' | 'success' | 'error';
 
-/** Individual SmartForm transaction record */
+/**
+ * SmartForm transaction record with dynamic Oracle columns.
+ *
+ * Required fields:
+ * - MGR_CUR: Numeric flag (1 = Manager, 0 = Other) for filtering
+ * - WEB_LINK: Full URL for transaction hyperlink (hidden from display)
+ * - TRANSACTION_NBR: Transaction identifier (displayed as hyperlink)
+ * - EMPLID: Employee ID
+ * - EMPLOYEE_NAME: Employee full name
+ *
+ * All other Oracle columns are passed through dynamically.
+ * Field names use Oracle convention (UPPER_SNAKE_CASE).
+ */
 export interface SmartFormRecord {
-  /** Unique identifier for the record */
-  id: string;
-  /** Transaction identifier (e.g., TXN001) */
-  transaction: string;
-  /** Employee ID */
-  emplid: string;
-  /** Employee full name */
-  employeeName: string;
-  /** Current effective date in YYYY-MM-DD format */
-  currentEffdt: string;
-  /** New effective date in YYYY-MM-DD format */
-  newEffdt: string;
-  /** Approver type: determines which sub-tab the record belongs to */
-  approverType: 'Manager' | 'Other';
-  /** Current processing status */
+  /** Manager current flag: 1 = Manager queue, 0 = Other queue */
+  MGR_CUR: 0 | 1;
+  /** Full URL for the transaction hyperlink (hidden from table display) */
+  WEB_LINK: string;
+  /** Transaction number - displayed as clickable hyperlink */
+  TRANSACTION_NBR: string;
+  /** Employee ID (typically displayed with monospace font) */
+  EMPLID: string;
+  /** Employee full name (guaranteed field from Oracle) */
+  EMPLOYEE_NAME: string;
+  /** Current processing status (added client-side for workflow tracking) */
   status: SmartFormRecordStatus;
-  /** Position number (used for Other workflow) */
-  positionNumber?: string;
   /** Error message if status is 'error' */
   errorMessage?: string;
+  /** Additional dynamic fields from Oracle query */
+  [key: string]: unknown;
 }
+
+/**
+ * Fields that are hidden from table display but used for logic/linking.
+ */
+export const HIDDEN_SMARTFORM_FIELDS = ['MGR_CUR', 'WEB_LINK', 'status', 'errorMessage'] as const;
+
+/**
+ * Fields that should use monospace font.
+ */
+export const MONOSPACE_SMARTFORM_FIELDS = ['EMPLID', 'TRANSACTION_NBR', 'CUR_POS'] as const;
+
+/**
+ * Fields that contain dates (will be formatted as MM/DD/YYYY).
+ */
+export const DATE_SMARTFORM_FIELDS = ['EFFDT', 'CUR_JOB_EFFDT'] as const;
 
 /* ==============================================
    Query Result Types

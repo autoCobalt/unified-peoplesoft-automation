@@ -18,6 +18,7 @@
  * />
  */
 
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { Variants } from 'framer-motion';
 import { FadeIn } from '../motion';
@@ -99,17 +100,96 @@ export function DataTable<TData>({
   ariaLabel,
   tabPanel,
   showRowNumbers = false,
+  stickyColumns = 0,
   staggerRows = false,
 }: DataTableProps<TData>) {
   const prefersReducedMotion = useReducedMotion();
 
+  // Scroll state for shadow indicators
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const theadRef = useRef<HTMLTableSectionElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // Sticky column left offsets (measured from actual DOM)
+  const [stickyOffsets, setStickyOffsets] = useState<number[]>([]);
+
+  /**
+   * Updates scroll state based on current scroll position.
+   * Called on scroll events and on mount/data changes.
+   */
+  const updateScrollState = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    const tolerance = 1; // Account for sub-pixel rounding
+
+    setCanScrollLeft(scrollLeft > tolerance);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - tolerance);
+  }, []);
+
+  /**
+   * Measures actual header cell widths and calculates cumulative offsets
+   * for sticky column positioning. Uses getBoundingClientRect() for
+   * sub-pixel precision to prevent tiny shifts when sticky activates.
+   */
+  const measureStickyOffsets = useCallback(() => {
+    if (!theadRef.current || stickyColumns <= 0) return;
+
+    const headerRow = theadRef.current.querySelector('tr');
+    if (!headerRow) return;
+
+    const cells = headerRow.querySelectorAll('th');
+    if (cells.length === 0) return;
+
+    // Use first cell's left edge as reference point
+    const firstCellRect = cells[0].getBoundingClientRect();
+    const offsets: number[] = [];
+
+    for (let i = 0; i < stickyColumns && i < cells.length; i++) {
+      const cellRect = cells[i].getBoundingClientRect();
+      // Offset is distance from first cell's left edge to this cell's left edge
+      offsets.push(cellRect.left - firstCellRect.left);
+    }
+
+    setStickyOffsets(offsets);
+  }, [stickyColumns]);
+
+  // Use ResizeObserver to measure sticky offsets when table layout changes
+  // ResizeObserver fires on initial observe, so no separate initial call needed
+  useEffect(() => {
+    if (!theadRef.current || stickyColumns <= 0) return;
+
+    const observer = new ResizeObserver(() => {
+      measureStickyOffsets();
+    });
+
+    // Observe the thead element - this triggers an initial callback
+    observer.observe(theadRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [measureStickyOffsets, stickyColumns]);
+
+  // Update scroll state on mount and when data changes
+  useEffect(() => {
+    updateScrollState();
+
+    window.addEventListener('resize', updateScrollState);
+    return () => {
+      window.removeEventListener('resize', updateScrollState);
+    };
+  }, [updateScrollState, data]);
+
   // Build effective columns (prepend row number if enabled)
+  // Note: Row number column width is controlled by CSS (--dt-sticky-col-0-width)
   const effectiveColumns: ColumnDef<TData>[] = showRowNumbers
     ? [
         {
           id: '__rowNumber',
           header: '#',
-          width: '3rem',
           align: 'center',
           render: (_value, _row, index) => index + 1,
         },
@@ -145,13 +225,16 @@ export function DataTable<TData>({
     const rowClickHandler = rowConfig?.onClick;
     const combinedRowClass = `${rowClassName} ${rowClickHandler ? 'dt-row--clickable' : ''}`.trim();
 
-    const cells = effectiveColumns.map(column => {
+    const cells = effectiveColumns.map((column, colIndex) => {
       const value = getValue(row, column.accessor);
       const cellClassFn = column.cellClassName;
       const cellClass =
         typeof cellClassFn === 'function'
           ? cellClassFn(value, row, index)
           : cellClassFn ?? '';
+
+      const isSticky = colIndex < stickyColumns;
+      const stickyLeft = isSticky ? stickyOffsets[colIndex] : undefined;
 
       return (
         <td
@@ -160,8 +243,11 @@ export function DataTable<TData>({
             ${getAlignClass(column.align)}
             ${(column.mono || column.type === 'mono') ? 'dt-cell--mono' : ''}
             ${column.type === 'number' ? 'dt-cell--number' : ''}
+            ${isSticky ? 'dt-sticky-col' : ''}
+            ${colIndex === stickyColumns - 1 ? 'dt-sticky-col-last' : ''}
             ${cellClass}
           `.trim()}
+          style={stickyLeft !== undefined ? { left: stickyLeft } : undefined}
         >
           {renderCell({ column, row, value, index })}
         </td>
@@ -253,27 +339,47 @@ export function DataTable<TData>({
         </div>
       )}
 
-      {/* Table */}
-      <div className="dt-scroll-container">
-        <table className="dt-table" aria-label={ariaLabel}>
-          <thead>
-            <tr>
-              {effectiveColumns.map(column => (
-                <th
-                  key={column.id}
-                  className={`
-                    ${getAlignClass(column.align)}
-                    ${column.headerClassName ?? ''}
-                  `.trim()}
-                  style={column.width ? { width: column.width } : undefined}
-                >
-                  {column.header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          {renderTbody()}
-        </table>
+      {/* Table with scroll wrapper for shadow indicators */}
+      <div
+        className="dt-scroll-wrapper"
+        data-can-scroll-left={canScrollLeft}
+        data-can-scroll-right={canScrollRight}
+      >
+        <div
+          ref={scrollContainerRef}
+          className="dt-scroll-container"
+          onScroll={updateScrollState}
+        >
+          <table className="dt-table" aria-label={ariaLabel}>
+            <thead ref={theadRef}>
+              <tr>
+                {effectiveColumns.map((column, colIndex) => {
+                  const isSticky = colIndex < stickyColumns;
+                  const stickyLeft = isSticky ? stickyOffsets[colIndex] : undefined;
+
+                  return (
+                    <th
+                      key={column.id}
+                      className={`
+                        ${getAlignClass(column.align)}
+                        ${column.headerClassName ?? ''}
+                        ${isSticky ? 'dt-sticky-col' : ''}
+                        ${colIndex === stickyColumns - 1 ? 'dt-sticky-col-last' : ''}
+                      `.trim()}
+                      style={{
+                        ...(column.width && { width: column.width }),
+                        ...(stickyLeft !== undefined && { left: stickyLeft }),
+                      }}
+                    >
+                      {column.header}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            {renderTbody()}
+          </table>
+        </div>
       </div>
     </FadeIn>
   );
