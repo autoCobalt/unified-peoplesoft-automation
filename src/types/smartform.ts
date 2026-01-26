@@ -60,7 +60,7 @@ export const MONOSPACE_SMARTFORM_FIELDS = ['EMPLID', 'TRANSACTION_NBR', 'CUR_POS
 /**
  * Fields that contain dates (will be formatted as MM/DD/YYYY).
  */
-export const DATE_SMARTFORM_FIELDS = ['EFFDT', 'CUR_JOB_EFFDT'] as const;
+export const DATE_SMARTFORM_FIELDS = ['NEW_EFFDT', 'CUR_EFFDT'] as const;
 
 /* ==============================================
    Query Result Types

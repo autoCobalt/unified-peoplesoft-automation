@@ -73,11 +73,6 @@
   align-items: center;
 }
 
-/* Ensure smooth height transitions for collapsible sections */
-.smartform-panel > div:not(.sf-header-row) {
-  overflow: hidden;
-}
-
 /* ==============================================
    Responsive: Stack on narrow screens
    ============================================== */

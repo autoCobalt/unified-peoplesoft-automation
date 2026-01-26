@@ -81,7 +81,7 @@ export function SmartFormPanel() {
       </div>
 
       {/* Content: Workflow + Table (visible after query) */}
-      <ExpandCollapse isOpen={hasQueried} className="sf-content">
+      <ExpandCollapse isOpen={hasQueried} className="sf-content" overflow="visible">
         {/* Workflow Section with slide transition */}
         <PresenceWrapper
           transitionKey={activeSubTab}
@@ -89,6 +89,7 @@ export function SmartFormPanel() {
           direction={slideDirection}
           duration={0.15}
           mode="popLayout"
+          overflow="visible"
         >
           <WorkflowSection />
         </PresenceWrapper>

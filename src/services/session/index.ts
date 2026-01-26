@@ -10,5 +10,8 @@ export {
   clearSessionToken,
   hasSessionToken,
   getSessionHeaders,
+  checkSessionStatus,
   SESSION_HEADER,
 } from './sessionStore.js';
+
+export type { SessionStatusResponse } from './sessionStore.js';

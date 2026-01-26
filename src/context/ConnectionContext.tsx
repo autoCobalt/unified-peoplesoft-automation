@@ -22,7 +22,7 @@ import {
   type ReactNode,
 } from 'react';
 import { isDevelopment, oracleConfig } from '../config';
-import { setSessionToken, clearSessionToken } from '../services/session';
+import { setSessionToken, clearSessionToken, checkSessionStatus, hasSessionToken } from '../services/session';
 import type {
   OracleCredentials,
   OracleConnectionState,
@@ -384,6 +384,103 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       delete window.devSimulate;
     };
   }, [disconnectAll]);
+
+  /* ============================================
+     Session Expiration Monitoring
+
+     Polls the server periodically to detect session expiration.
+     When session expires, resets connection UI to show disconnected state.
+     ============================================ */
+
+  /**
+   * Handle session expiration - reset connection states
+   *
+   * This is called when we detect the session has expired server-side.
+   * We need to update the UI to show disconnected without calling the
+   * disconnect endpoints (which would fail with 401 anyway).
+   */
+  const handleSessionExpired = useCallback(() => {
+    // Only reset if we think we're connected
+    if (!oracleState.isConnected && !soapState.isConnected) {
+      return;
+    }
+
+    console.log('🔒 [Session] Session expired - resetting connection state');
+
+    // Clear client-side token
+    clearSessionToken();
+
+    // Reset connection states (without calling server - session is already gone)
+    setOracleState(initialOracleState);
+    setOracleCredentialsState(null);
+    setSoapState(initialSoapState);
+    setSoapCredentialsState(null);
+  }, [oracleState.isConnected, soapState.isConnected]);
+
+  useEffect(() => {
+    // Only monitor when we have an active connection AND a session token
+    // This check ensures:
+    // 1. Polling only starts when user has connected
+    // 2. Polling stops when session expires (connection states reset to false)
+    const isConnected = oracleState.isConnected || soapState.isConnected;
+    if (!isConnected || !hasSessionToken()) {
+      return;
+    }
+
+    // Poll interval: Check every 2 minutes
+    // Server session timeout is 30 minutes, so this gives us plenty of warning
+    const POLL_INTERVAL_MS = 2 * 60 * 1000;
+
+    /**
+     * Check session status and handle expiration
+     */
+    const checkSession = async () => {
+      const status = await checkSessionStatus();
+
+      // null/undefined means network error - don't clear session, might be temporary
+      if (!status) {
+        return;
+      }
+
+      // Session expired or invalid
+      if (!status.valid) {
+        handleSessionExpired();
+      }
+    };
+
+    // Initial check (delayed slightly to avoid race with connection setup)
+    const initialCheckTimeout = setTimeout(() => {
+      void checkSession();
+    }, 1000);
+
+    // Periodic polling
+    const pollInterval = setInterval(() => {
+      void checkSession();
+    }, POLL_INTERVAL_MS);
+
+    /**
+     * Handle visibility change - check session when user returns to tab
+     *
+     * This catches the case where user leaves tab open, session expires,
+     * and they return later. Better UX than waiting for next poll.
+     */
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && hasSessionToken()) {
+        void checkSession();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup - runs when:
+    // 1. Component unmounts
+    // 2. Connection states change (including when session expires and states reset)
+    return () => {
+      clearTimeout(initialCheckTimeout);
+      clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [oracleState.isConnected, soapState.isConnected, handleSessionExpired]);
 
   /* ============================================
      Derived State

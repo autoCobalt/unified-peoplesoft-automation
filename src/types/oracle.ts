@@ -100,29 +100,51 @@ export type OracleApiResponse<T> =
 /**
  * Raw row type from the SmartForm pending transactions query.
  *
- * This type is flexible to support dynamic Oracle columns.
- * Only the fields required for filtering and linking are explicitly typed.
- *
- * Required fields from Oracle:
- * - MGR_CUR: number (1 = Manager, 0 = Other)
- * - WEB_LINK: string (full URL for transaction hyperlink)
- * - TRANSACTION_NBR: string (transaction identifier)
- * - EMPLID: string (employee ID)
- * - EMPLOYEE_NAME: string (employee full name)
- *
- * All other columns are passed through dynamically.
+ * Required fields (14 total):
+ * - TRANSACTION_NBR: string - Unique transaction identifier
+ * - MGR_CUR: number - Manager flag (1 = Manager, 0 = Other)
+ * - EMPLID: string - Employee ID
+ * - EMPL_RCD: number - Employee record number
+ * - EMPLOYEE_NAME: string - Full employee name
+ * - NEW_EFFDT: string - New effective date (Oracle date, DD-MMM-YY)
+ * - CUR_EFFDT: string - Current effective date (Oracle date, DD-MMM-YY)
+ * - CUR_POS: string - Current position number
+ * - POSITION_CREATE_CI: string | null - Position Create CI flag
+ * - POSITION_UPDATE_CI: string | null - Position Update CI flag
+ * - JOB_UPDATE_CI: string | null - Job Update CI flag
+ * - DEPT_CO_UPDATE_CI: string | null - Dept/Co Update CI flag
+ * - FIELD_DIFFERENCES: string | null - Field differences description
+ * - WEB_LINK: string - Full URL for transaction hyperlink
  */
 export interface SmartFormQueryRow {
+  /** Unique transaction identifier */
+  TRANSACTION_NBR: string;
   /** Manager current flag: 1 = Manager queue, 0 = Other queue */
   MGR_CUR: number;
-  /** Full URL for the transaction hyperlink */
-  WEB_LINK: string;
-  /** Transaction number identifier */
-  TRANSACTION_NBR: string;
   /** Employee ID */
   EMPLID: string;
+  /** Employee record number */
+  EMPL_RCD: number;
   /** Employee full name */
   EMPLOYEE_NAME: string;
+  /** New effective date (Oracle date format, DD-MMM-YY) */
+  NEW_EFFDT: string;
+  /** Current effective date (Oracle date format, DD-MMM-YY) */
+  CUR_EFFDT: string;
+  /** Current position number */
+  CUR_POS: string;
+  /** Position Create CI flag (nullable) */
+  POSITION_CREATE_CI: string | null;
+  /** Position Update CI flag (nullable) */
+  POSITION_UPDATE_CI: string | null;
+  /** Job Update CI flag (nullable) */
+  JOB_UPDATE_CI: string | null;
+  /** Dept/Co Update CI flag (nullable) */
+  DEPT_CO_UPDATE_CI: string | null;
+  /** Field differences description (nullable) */
+  FIELD_DIFFERENCES: string | null;
+  /** Full URL for the transaction hyperlink */
+  WEB_LINK: string;
   /** Allow any additional Oracle columns */
   [key: string]: unknown;
 }

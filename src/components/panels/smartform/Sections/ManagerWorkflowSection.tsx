@@ -24,7 +24,6 @@ import type {
 import { useWorkflowDefinition } from '../../../../hooks';
 import type { ActionMap, RequirementStatus } from '../../../../workflows';
 import { managerWorkflowDefinition } from '../../../../workflows';
-import { SlideIn } from '../../../motion';
 import {
   WorkflowActionButton,
   WorkflowChecklist,
@@ -213,15 +212,9 @@ export function ManagerWorkflowSection() {
         </div>
       )}
 
-      <SlideIn
-        as="h3"
-        direction="up"
-        withExit
-        instantExit
-        className="sf-workflow-title"
-      >
+      <h3 className="sf-workflow-title">
         Manager Approval Workflow
-      </SlideIn>
+      </h3>
 
       {/* Task Checklist */}
       <WorkflowChecklist tasks={checklistTasks} />

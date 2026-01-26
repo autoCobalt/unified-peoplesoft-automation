@@ -11,6 +11,54 @@
   --dt-status-pending-color: var(--status-warning);
 }
 
+/* === Prevent Text Wrapping in Cells === */
+.sf-table .dt-table td {
+  white-space: nowrap;
+}
+
+/* === Unchecked Row Styling === */
+.sf-table-row--unchecked td {
+  /* Slightly faded text */
+  color: color-mix(in srgb, var(--text-primary) 50%, transparent);
+  /* Subtle background tint to indicate exclusion */
+  background: color-mix(in srgb, var(--text-tertiary) 6%, transparent);
+}
+
+/* Sticky columns need OPAQUE backgrounds to cover content when scrolling.
+ * Mix with bg-secondary instead of transparent for sticky cells. */
+.sf-table-row--unchecked td.dt-sticky-col {
+  background: color-mix(in srgb, var(--text-tertiary) 6%, var(--bg-secondary));
+}
+
+/* Also fade the transaction link (has explicit color that overrides inherited) */
+.sf-table-row--unchecked .sf-transaction-link {
+  color: color-mix(in srgb, var(--color-link, #60a5fa) 50%, transparent);
+}
+
+.sf-table-row--unchecked .sf-transaction-link:visited {
+  color: color-mix(in srgb, var(--color-link-visited, #e879f9) 50%, transparent);
+}
+
+/* === Null Value Cell Styling === */
+.sf-table .dt-cell--null {
+  background: color-mix(in srgb, #e879f9 10%, transparent);
+}
+
+/* Sticky columns with null values need opaque backgrounds */
+.sf-table .dt-cell--null.dt-sticky-col {
+  background: color-mix(in srgb, #e879f9 10%, var(--bg-secondary));
+}
+
+/* Unchecked rows with null values */
+.sf-table .sf-table-row--unchecked td.dt-cell--null {
+  background: color-mix(in srgb, #e879f9 6%, transparent);
+}
+
+/* Unchecked rows with null values in sticky columns - opaque */
+.sf-table .sf-table-row--unchecked td.dt-cell--null.dt-sticky-col {
+  background: color-mix(in srgb, #e879f9 6%, var(--bg-secondary));
+}
+
 /* === Toolbar Elements === */
 .sf-table-row-count {
   font-size: 0.8125rem;
@@ -42,7 +90,7 @@
 
 .sf-transaction-link:visited {
   /* Muted purple to indicate visited pages */
-  color: var(--color-link-visited, #a78bfa);
+  color: var(--color-link-visited, #e879f9);
 }
 
 .sf-transaction-link:hover {

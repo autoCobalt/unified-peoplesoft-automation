@@ -98,3 +98,63 @@ export function getSessionHeaders(): Record<string, string> {
 
   return {};
 }
+
+/* ==============================================
+   Session Status Checking
+   ============================================== */
+
+/**
+ * Response from the session status endpoint
+ */
+export interface SessionStatusResponse {
+  success: boolean;
+  data?: {
+    valid: boolean;
+    expiresInMs: number;
+    reason?: 'no_token' | 'expired';
+  };
+}
+
+/**
+ * Check session validity with the server
+ *
+ * This is a lightweight call used for polling to detect session expiration.
+ * It does NOT extend the session (passive check only).
+ *
+ * @returns Session status or null if request failed
+ */
+export async function checkSessionStatus(): Promise<SessionStatusResponse['data'] | null> {
+  try {
+    const token = getSessionToken();
+
+    // No token means no session to check
+    if (!token) {
+      return { valid: false, expiresInMs: 0, reason: 'no_token' };
+    }
+
+    const response = await fetch('/api/session/status', {
+      method: 'GET',
+      headers: {
+        [SESSION_HEADER]: token,
+      },
+    });
+
+    if (!response.ok) {
+      // Network/server error - don't clear session, might be temporary
+      console.warn('[Session] Status check failed:', response.status);
+      return null;
+    }
+
+    const result = await response.json() as SessionStatusResponse;
+
+    if (result.success && result.data) {
+      return result.data;
+    }
+
+    return null;
+  } catch (error) {
+    // Network error - don't clear session, might be temporary
+    console.warn('[Session] Status check error:', error);
+    return null;
+  }
+}

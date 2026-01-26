@@ -45,6 +45,8 @@ interface PresenceWrapperOwnProps {
   mode?: PresenceMode;
   /** Animation duration in seconds (default: 0.2) */
   duration?: number;
+  /** Overflow behavior for popLayout container (default: 'hidden') */
+  overflow?: 'hidden' | 'visible';
 }
 
 export type PresenceWrapperProps<T extends ElementType = 'div'> =
@@ -93,14 +95,17 @@ function createVariants(variant: PresenceVariant, duration: number): Variants {
 }
 
 /**
- * Styles for popLayout container to clip exiting elements.
+ * Creates styles for popLayout container.
  * position: relative ensures absolute-positioned exit element stays contained.
- * overflow: hidden clips content that extends beyond container bounds.
+ * overflow: hidden (default) clips content that extends beyond container bounds.
+ * overflow: visible allows dropdowns/tooltips to escape the container.
  */
-const popLayoutContainerStyle: React.CSSProperties = {
-  position: 'relative',
-  overflow: 'hidden',
-};
+function getPopLayoutContainerStyle(overflow: 'hidden' | 'visible'): React.CSSProperties {
+  return {
+    position: 'relative',
+    overflow,
+  };
+}
 
 /**
  * AnimatePresence wrapper for content transitions.
@@ -118,6 +123,7 @@ export function PresenceWrapper<T extends ElementType = 'div'>({
   direction = 1,
   mode = 'wait',
   duration = 0.2,
+  overflow = 'hidden',
   ...rest
 }: PresenceWrapperProps<T>) {
   const prefersReducedMotion = useReducedMotion();
@@ -151,7 +157,7 @@ export function PresenceWrapper<T extends ElementType = 'div'>({
   // Wrap in container for popLayout to clip exiting absolute-positioned elements
   if (mode === 'popLayout') {
     return (
-      <div style={popLayoutContainerStyle}>
+      <div style={getPopLayoutContainerStyle(overflow)}>
         {animatePresenceContent}
       </div>
     );

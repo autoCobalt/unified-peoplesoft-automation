@@ -29,6 +29,7 @@ import {
   soapSubmit,
 } from '../soap/index.js';
 import { createSqlHandlers } from '../sql/index.js';
+import { handleGetSessionStatus } from '../auth/index.js';
 
 /* ==============================================
    Route Definition Type
@@ -78,6 +79,17 @@ interface RouteConfig {
  * Static workflow routes (don't require environment configuration)
  */
 export const workflowRoutes: Record<string, RouteConfig> = {
+  // ============================================
+  // Session Routes
+  // ============================================
+  // Session status is public so client can check validity without auth.
+  // Used for polling to detect session expiration.
+  '/api/session/status': {
+    method: 'GET',
+    handler: handleGetSessionStatus,
+    auth: 'public',
+  },
+
   // ============================================
   // Manager Workflow Routes (all authenticated)
   // ============================================

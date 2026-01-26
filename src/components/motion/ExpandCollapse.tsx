@@ -28,6 +28,8 @@ interface ExpandCollapseOwnProps {
   speed?: AnimationSpeed;
   /** Unmount children when collapsed (default: true) */
   unmountOnCollapse?: boolean;
+  /** Overflow behavior (default: 'hidden'). Use 'visible' for dropdowns/tooltips. */
+  overflow?: 'hidden' | 'visible';
 }
 
 export type ExpandCollapseProps<T extends ElementType = 'div'> =
@@ -52,6 +54,7 @@ export function ExpandCollapse<T extends ElementType = 'div'>({
   isOpen,
   speed = 'default',
   unmountOnCollapse = true,
+  overflow = 'hidden',
   ...rest
 }: ExpandCollapseProps<T>) {
   const prefersReducedMotion = useReducedMotion();
@@ -69,7 +72,7 @@ export function ExpandCollapse<T extends ElementType = 'div'>({
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
       transition={{ duration }}
-      style={{ overflow: 'hidden' }}
+      style={{ overflow }}
       {...rest}
     >
       {children}
@@ -91,7 +94,7 @@ export function ExpandCollapse<T extends ElementType = 'div'>({
         height: isOpen ? 'auto' : 0,
       }}
       transition={{ duration }}
-      style={{ overflow: 'hidden' }}
+      style={{ overflow }}
       {...rest}
     >
       {children}

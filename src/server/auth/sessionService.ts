@@ -280,6 +280,40 @@ class SessionService {
   getActiveSessionCount(): number {
     return this.sessions.size;
   }
+
+  /**
+   * Get session info without updating last activity (read-only check)
+   *
+   * Returns session validity and time remaining until expiration.
+   * Does NOT extend the session (no sliding expiration on this call).
+   *
+   * Why a separate method from validateSession?
+   * - Client polling for status shouldn't extend session lifetime
+   * - Polling should be passive - only actual API usage extends session
+   */
+  getSessionInfo(token: string | undefined): { valid: boolean; expiresInMs: number } | null {
+    if (!token) {
+      return null;
+    }
+
+    const session = this.sessions.get(token);
+
+    if (!session) {
+      return { valid: false, expiresInMs: 0 };
+    }
+
+    const now = Date.now();
+    const lastActivity = session.lastActivityAt.getTime();
+    const elapsed = now - lastActivity;
+    const expiresInMs = SESSION_TIMEOUT_MS - elapsed;
+
+    if (expiresInMs <= 0) {
+      // Session has expired
+      return { valid: false, expiresInMs: 0 };
+    }
+
+    return { valid: true, expiresInMs };
+  }
 }
 
 /* ==============================================

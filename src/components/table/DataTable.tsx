@@ -256,6 +256,8 @@ export function DataTable<TData>({
 
       const isSticky = colIndex < stickyColumns;
       const stickyLeft = isSticky ? stickyOffsets[colIndex] : undefined;
+      // Only mark as null if column has an accessor (data columns, not computed/action columns)
+      const isNullValue = column.accessor !== undefined && (value === null || value === undefined);
 
       return (
         <td
@@ -266,6 +268,7 @@ export function DataTable<TData>({
             ${column.type === 'number' ? 'dt-cell--number' : ''}
             ${isSticky ? 'dt-sticky-col' : ''}
             ${colIndex === stickyColumns - 1 ? 'dt-sticky-col-last' : ''}
+            ${isNullValue ? 'dt-cell--null' : ''}
             ${cellClass}
           `.trim()}
           style={stickyLeft !== undefined ? { left: stickyLeft } : undefined}

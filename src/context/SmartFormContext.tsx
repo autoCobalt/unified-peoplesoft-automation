@@ -156,7 +156,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         employeeName: record.EMPLOYEE_NAME,
         ciType: 'CI_POSITION_DATA',
         status: 'pending',
-        payload: JSON.stringify({ emplid: record.EMPLID, effdt: record.CUR_JOB_EFFDT }),
+        payload: JSON.stringify({ emplid: record.EMPLID, effdt: record.CUR_EFFDT }),
       };
     });
 
@@ -167,7 +167,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         employeeName: record.EMPLOYEE_NAME,
         ciType: 'CI_JOB_DATA',
         status: 'pending',
-        payload: JSON.stringify({ emplid: record.EMPLID, effdt: record.CUR_JOB_EFFDT }),
+        payload: JSON.stringify({ emplid: record.EMPLID, effdt: record.CUR_EFFDT }),
       };
     });
 
