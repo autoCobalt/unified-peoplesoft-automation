@@ -12,15 +12,17 @@
 import { useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { SmartFormContext, type SmartFormContextType } from './smartFormContextDef';
 import { isDevelopment } from '../config';
-import { workflowApi } from '../services';
+import { workflowApi, oracleApi } from '../services';
 import type {
   SmartFormState,
   SmartFormSubTab,
   SmartFormQueryResult,
+  SmartFormRecord,
   ManagerWorkflowStep,
   OtherWorkflowStep,
   PreparedSubmission,
 } from '../types';
+import type { QueryResultRow } from '../types/oracle';
 import {
   INITIAL_SMARTFORM_STATE,
   INITIAL_MANAGER_WORKFLOW,
@@ -29,8 +31,22 @@ import {
 import { generateMockRecords } from '../dev-data';
 
 /**
+ * Transform Oracle query rows to SmartFormRecord array.
+ * Adds the client-side 'status' field that Oracle doesn't provide.
+ *
+ * Type assertion is intentional: Oracle returns dynamic rows matching
+ * the SQL schema defined in smartform-pending-transactions.sql
+ */
+function transformOracleRows(rows: QueryResultRow[]): SmartFormRecord[] {
+  return rows.map(row => ({
+    ...(row as Record<string, unknown>),
+    status: 'pending' as const,
+  })) as SmartFormRecord[];
+}
+
+/**
  * Generate mock query results.
- * In production, this would be replaced with actual Oracle API calls.
+ * Used in development mode when VITE_APP_MODE !== 'production'.
  */
 function generateMockQueryResults(): SmartFormQueryResult {
   const records = generateMockRecords();
@@ -86,10 +102,34 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   const runQuery = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true }));
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    let results: SmartFormQueryResult;
 
-    const results = generateMockQueryResults();
+    if (isDevelopment) {
+      // Development mode: use mock data
+      await new Promise(resolve => setTimeout(resolve, 800));
+      results = generateMockQueryResults();
+    } else {
+      // Production mode: call Oracle API
+      const response = await oracleApi.query.smartFormTransactions();
+
+      if (!response.success) {
+        // Handle error - keep previous state but stop loading
+        console.error('SmartForm query failed:', response.error.message);
+        setState(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
+      // Transform Oracle rows to SmartFormRecord (adds client-side status field)
+      const transactions = transformOracleRows(response.data.rows);
+
+      results = {
+        totalCount: transactions.length,
+        managerCount: transactions.filter(r => r.MGR_CUR === 1).length,
+        otherCount: transactions.filter(r => r.MGR_CUR === 0).length,
+        transactions,
+        queriedAt: new Date(),
+      };
+    }
 
     setState(prev => ({
       ...prev,
@@ -110,9 +150,33 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     // Same as runQuery but preserves workflow state
     setState(prev => ({ ...prev, isLoading: true }));
 
-    await new Promise(resolve => setTimeout(resolve, 600));
+    let results: SmartFormQueryResult;
 
-    const results = generateMockQueryResults();
+    if (isDevelopment) {
+      // Development mode: use mock data
+      await new Promise(resolve => setTimeout(resolve, 600));
+      results = generateMockQueryResults();
+    } else {
+      // Production mode: call Oracle API
+      const response = await oracleApi.query.smartFormTransactions();
+
+      if (!response.success) {
+        console.error('SmartForm refresh failed:', response.error.message);
+        setState(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
+      // Transform Oracle rows to SmartFormRecord (adds client-side status field)
+      const transactions = transformOracleRows(response.data.rows);
+
+      results = {
+        totalCount: transactions.length,
+        managerCount: transactions.filter(r => r.MGR_CUR === 1).length,
+        otherCount: transactions.filter(r => r.MGR_CUR === 0).length,
+        transactions,
+        queriedAt: new Date(),
+      };
+    }
 
     setState(prev => ({
       ...prev,
