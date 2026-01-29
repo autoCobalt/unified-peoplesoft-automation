@@ -1,0 +1,71 @@
+Each CI-related field (POSITION_CREATE_CI, POSITION_UPDATE_CI, JOB_UPDATE_CI, DEPT_CO_UPDATE_CI) should be stored as its own context object for the smartform tab's context. The CI-related field itself will be a delimited string where the first two delimited values are [Action to use when submitting to PeopleSoft SOAP, Component Interface Name to use when submitting to PeopleSoft SOAP] with the following pattern (delimiter will be a pipe "|", with ":" used to further delimit "Field # Property" key from "Field # value" value. Please note that the field ordering may not be the same as the component interface's ordering of field properties.):
+
+"(Action to use when submitting to PeopleSoft SOAP)|(Component Interface Name to use when submitting to PeopleSoft SOAP)|(Field 1 property name):(Field 1 value)|(Field 2 property name):(Field 2 value)|(etc.)"
+
+Examples of data that may be found in these CI-related fields (These examples will not contain all expected fields, but it will show how they will look with data returned. Fields that are missing but expected are to be stored as null values):
+- "CREATE|CI_POSITION_DATA|POSITION_NBR:00000000|EFFDT:25-FEB-26|EFF_STATUS:A|ACTION_REASON:NEW|BUSINESS_UNIT:WMH|DEPTID:2213|JOBCODE:220099|MAX_HEAD_COUNT:99"
+- "UPDATE|CI_POSITION_DATA|POSITION_NBR:12312345|EFFDT:22-JAN-26|EFF_STATUS:A|ACTION_REASON:UPD|BUSINESS_UNIT:WFM|DEPTID:3113"
+- "UPDATEDATA|CI_JOB_DATA|KEYPROP_EMPLID:555288|KEYPROP_EMPL_RCD:1|KEYPROP_EFFDT:12-JAN-26|KEYPROP_EFFSEQ:1|BUSINESS_UNIT:CFG|DEPTID:8235|MAX_HEAD_COUNT:99"
+
+Details on the following CI-related fields that will be found in the smartform-pending-transactions.sql query (to be submitted to PeopleSoft's SOAP server):
+- Query field name: POSITION_CREATE_CI
+  - Action: CREATE (to be used when submitting to PeopleSoft SOAP. This should always be the same for this CI-related field)
+  - Component Interface Name: CI_POSITION_DATA (to be used when submitting to PeopleSoft SOAP. This should always be the same for this CI-related field)
+  - Expected fields and their field type in the Database (always stored as a string in the application, unless it's a NUMBER type):
+    - POSITION_NBR:VARCHAR2[Length of 8] (For the POSITION_CREATE_CI, this value should always be "00000000")
+    - EFFDT:DATE
+    - EFF_STATUS:VARCHAR2[Length of 1] (always "A")
+    - ACTION_REASON:VARCHAR2[Length of 3] (always "NEW")
+    - BUSINESS_UNIT:VARHCAR2[Length of 5]
+    - DEPTID:VARCHAR2[Length of 10]
+    - JOBCODE:VARCHAR2[Length of 6]
+    - MAX_HEAD_COUNT:NUMBER (always "99")
+    - UPDATE_INCUMBENTS:VARCHAR2[Length of 1] (always "Y")
+    - REPORTS_TO:VARCHAR2[Length of 8]
+    - LOCATION:VARCHAR2[10]
+    - MAIL_DROP:VARCHAR2[Length of 50]
+    - COMPANY:VARCHAR2[Length of 3]
+    - STD_HOURS:NUMBER
+    - UNION_CD:VARCHAR2[Length of 3]
+    - SHIFT:VARCHAR2[Length of 1]
+    - REG_TEMP:VARCHAR2[Length of 1]
+    - FULL_PART_TIME:VARCHAR2[Length of 1]
+    - INCLUDE_TITLE:VARCHAR2[Length of 1]
+- Query field name: POSITION_UPDATE_CI
+  - Action: UPDATE/UPDATEDATA (May be either UPDATE or UPDATEDATA. To be used when submitting to PeopleSoft SOAP.)
+  - Component Interface Name: CI_POSITION_DATA (to be used when submitting to PeopleSoft SOAP. This should always be the same for this CI-related field)
+  - Expected fields and their field type in the Database (always stored as a string in the application, unless it's a NUMBER type):
+    - POSITION_NBR:VARCHAR2[Length of 8]
+    - EFFDT:DATE
+    - EFF_STATUS:VARCHAR2[Length of 1] (always "A")
+    - ACTION_REASON:VARCHAR2[Length of 3] (always "UPD")
+    - BUSINESS_UNIT:VARHCAR2[Length of 5]
+    - DEPTID:VARCHAR2[Length of 10]
+    - JOBCODE:VARCHAR2[Length of 6]
+    - UPDATE_INCUMBENTS:VARCHAR2[Length of 1] (always "Y")
+    - REPORTS_TO:VARCHAR2[Length of 8]
+    - LOCATION:VARCHAR2[10]
+    - COMPANY:VARCHAR2[Length of 3]
+    - STD_HOURS:NUMBER
+    - UNION_CD:VARCHAR2[Length of 3]
+    - SHIFT:VARCHAR2[Length of 1]
+    - REG_TEMP:VARCHAR2[Length of 1]
+    - FULL_PART_TIME:VARCHAR2[Length of 1]
+    - INCLUDE_TITLE:VARCHAR2[Length of 1]
+- Query field name: JOB_UPDATE_CI
+  - Action: UPDATEDATA (to be used when submitting to PeopleSoft SOAP. This should always be the same for this CI-related field)
+  - Component Interface Name: CI_JOB_DATA (to be used when submitting to PeopleSoft SOAP. This should always be the same for this CI-related field)
+  - Expected fields and their field type in the Database (always stored as a string in the application, unless it's a NUMBER type):
+    - KEYPROP_EMPLID:VARCHAR2[Length of 11]
+    - KEYPROP_EMPL_RCD:NUMBER
+    - KEYPROP_EFFDT:DATE
+    - KEYPROP_EFFSEQ:NUMBER
+    - PROP_POSITION_NBR:VARCHAR2[Length of 8]
+- Query field name: DEPT_CO_UPDATE_CI
+  - Action: UPDATEDATA (to be used when submitting to PeopleSoft SOAP. This should always be the same for this CI-related field)
+  - Component Interface Name: DEPARTMENT_TBL (to be used when submitting to PeopleSoft SOAP. This should always be the same for this CI-related field)
+  - Expected fields and their field type in the Database (always stored as a string in the application, unless it's a NUMBER type):
+    - SETID:VARCHAR2[Length of 5] (always "SHARE")
+    - DEPTID:VARCHAR2[Length of 10]
+    - EFFDT:DATE
+    - COMPANY:VARCHAR2[Length of 3]

@@ -1,4 +1,4 @@
-/*
+  /*
  * @sql-meta
  * name: smartform-pending-transactions
  * description: Retrieves all pending CI transactions awaiting approval. Results are used to populate the SmartForm data table.
@@ -34,21 +34,23 @@
  * The WHERE 1 = 0 clause ensures no rows are returned until the query is updated.
  * @end-sql-meta
  */
-
-SELECT
-    'TXN000001' AS TRANSACTION_NBR,
-    1 AS MGR_CUR,
-    '123456' AS EMPLID,
-    0 AS EMPL_RCD,
-    'Placeholder Employee' AS EMPLOYEE_NAME,
-    '01-JAN-25' AS NEW_EFFDT,
-    '01-FEB-25' AS CUR_EFFDT,
-    'POS00001' AS CUR_POS,
-    NULL AS POSITION_CREATE_CI,
-    NULL AS POSITION_UPDATE_CI,
-    NULL AS JOB_UPDATE_CI,
-    NULL AS DEPT_CO_UPDATE_CI,
-    NULL AS FIELD_DIFFERENCES,
-    'https://example.com/txn/TXN000001' AS WEB_LINK
-FROM DUAL
-WHERE 1 = 0  -- Returns no rows - replace entire query for production
+select
+    a.transaction_nbr
+  , a.mgr_cur
+  , a.emplid
+  , a.empl_rcd
+  , a.employee_name
+  , a.new_effdt
+  , a.cur_effdt
+  , a.cur_pos
+  , a.position_create_ci
+  , a.position_update_ci
+  , a.job_update_ci
+  , a.dept_co_update_ci
+  , a.field_differences
+  , a.web_link
+from
+  (
+    -- PLACEHOLDER FOR NOW. LOGIC TO BE ADDED SHORTLY
+  ) a
+;
