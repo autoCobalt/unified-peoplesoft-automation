@@ -138,13 +138,14 @@ function buildDynamicColumns(
 
 /**
  * CI preview table configuration — display order and data key mapping.
+ * tabFilter is an array of sub-tabs where the table should appear.
  * Order: deptCoUpdate, positionUpdate, jobUpdate, positionCreate
  */
 const CI_PREVIEW_CONFIG = [
-  { template: DEPT_CO_UPDATE_CI_TEMPLATE,     dataKey: 'deptCoUpdate' as const,    tabFilter: 'manager' as const, checkDuplicates: true },
-  { template: POSITION_UPDATE_CI_TEMPLATE,    dataKey: 'positionUpdate' as const,  tabFilter: 'manager' as const, checkDuplicates: true },
-  { template: JOB_UPDATE_CI_TEMPLATE,         dataKey: 'jobUpdate' as const,       tabFilter: 'manager' as const, checkDuplicates: false },
-  { template: POSITION_CREATE_CI_TEMPLATE,    dataKey: 'positionCreate' as const,  tabFilter: 'other' as const,   checkDuplicates: true },
+  { template: DEPT_CO_UPDATE_CI_TEMPLATE,     dataKey: 'deptCoUpdate' as const,    tabFilter: ['manager', 'other'] as const, checkDuplicates: true },
+  { template: POSITION_UPDATE_CI_TEMPLATE,    dataKey: 'positionUpdate' as const,  tabFilter: ['manager'] as const,          checkDuplicates: true },
+  { template: JOB_UPDATE_CI_TEMPLATE,         dataKey: 'jobUpdate' as const,       tabFilter: ['manager'] as const,          checkDuplicates: false },
+  { template: POSITION_CREATE_CI_TEMPLATE,    dataKey: 'positionCreate' as const,  tabFilter: ['other'] as const,            checkDuplicates: true },
 ] as const;
 
 /** All unique CI names referenced by the preview tables */
@@ -310,7 +311,7 @@ export function DataTableSection() {
   const ciDuplicateSets = useMemo(() => {
     const result = new Map<string, Set<string>>();
     for (const { template, dataKey, tabFilter, checkDuplicates } of CI_PREVIEW_CONFIG) {
-      if (!checkDuplicates || tabFilter !== activeSubTab) continue;
+      if (!checkDuplicates || !tabFilter.some(t => t === activeSubTab)) continue;
       const allRecords = parsedCIData[dataKey] as ParsedCIRecordBase[];
       const records = allRecords.filter(r => selectedRows.has(r.transactionNbr));
       if (records.length > 0) {
@@ -422,16 +423,16 @@ export function DataTableSection() {
     <div ref={crossHoverRef} className="sf-tables-wrapper">
       {/* CI Preview Tables (above the main results table) */}
       {CI_PREVIEW_CONFIG.map(({ template, dataKey, tabFilter, checkDuplicates }) => {
-        // Only show table on its designated sub-tab
-        if (tabFilter !== activeSubTab) return null;
+        // Only show table on its designated sub-tab(s)
+        if (!tabFilter.some(t => t === activeSubTab)) return null;
 
         const allRecords = parsedCIData[dataKey] as ParsedCIRecordBase[];
         const records = allRecords.filter(r => selectedRows.has(r.transactionNbr));
         if (records.length === 0) return null;
 
         const ciColumns = buildCIPreviewColumns(template, getLabel);
-        const isManagerTable = tabFilter === 'manager';
-        const dataStatusMap = isManagerTable
+        const showStatusColumn = activeSubTab === 'manager' && statusMaps.has(dataKey);
+        const dataStatusMap = showStatusColumn
           ? (statusMaps.get(dataKey) ?? new Map<string, PreparedSubmissionStatus>())
           : null;
         const finalColumns = dataStatusMap
@@ -479,7 +480,7 @@ export function DataTableSection() {
               data={records}
               keyAccessor="transactionNbr"
               showRowNumbers={true}
-              stickyColumns={isManagerTable ? 3 : 2}
+              stickyColumns={showStatusColumn ? 3 : 2}
               emptyMessage="No records"
               ariaLabel={`${template.queryFieldName} preview`}
               rowConfig={duplicateCount > 0 ? {
