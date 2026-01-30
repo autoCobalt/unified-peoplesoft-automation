@@ -3,7 +3,6 @@
  * Feature-specific styles for the Manager workflow.
  * Generic workflow styles (checklist, button, status) are in
  * src/components/workflow/ and imported by those components.
- * Submission tables use the DataTable component from src/components/table/.
  */
 
 /* Container */
@@ -35,57 +34,6 @@
   align-items: center;
   gap: var(--space-sm);
   margin: var(--space-xs) 0;
-}
-
-/* Submission Tables Container - full width, not centered */
-.sf-workflow-submissions {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-secondary);
-  align-self: stretch;
-  width: 100%;
-}
-
-.sf-workflow-sub-table-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.sf-workflow-sub-table-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin: 0;
-  font-family: var(--font-mono, monospace);
-}
-
-/* DataTable Overrides for Submission Tables */
-.sf-workflow-sub-table {
-  /* Force full width */
-  width: 100% !important;
-
-  /* Compact sizing for workflow context */
-  --dt-font-size: 0.8125rem;
-  --dt-font-size-header: 0.6875rem;
-  --dt-cell-padding-x: 0.75rem;
-  --dt-cell-padding-y: 0.5rem;
-
-  /* Custom status colors */
-  --dt-status-pending-bg: var(--bg-tertiary);
-  --dt-status-pending-color: var(--text-tertiary);
-  --dt-status-processing-bg: color-mix(in srgb, var(--accent-primary) 15%, transparent);
-  --dt-status-processing-color: var(--accent-primary);
-}
-
-/* Force table inside to stretch */
-.sf-workflow-sub-table .dt-table {
-  table-layout: fixed;
-  width: 100%;
 }
 
 /* Requirements Warning */

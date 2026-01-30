@@ -122,7 +122,7 @@ export interface PreparedSubmission {
   /** Employee name for display */
   employeeName: string;
   /** CI type being submitted */
-  ciType: 'CI_POSITION_DATA' | 'CI_JOB_DATA';
+  ciType: 'CI_POSITION_DATA' | 'CI_JOB_DATA' | 'DEPARTMENT_TBL';
   /** Current submission status */
   status: PreparedSubmissionStatus;
   /** Error message if status is 'error' */
@@ -141,9 +141,10 @@ export interface PreparedSubmission {
  * The Manager workflow follows these steps:
  * 1. idle → approving (Process approvals via browser automation)
  * 2. approved
- * 3. submitting-position (Submit CI_POSITION_DATA)
- * 4. submitting-job (Submit CI_JOB_DATA)
- * 5. complete
+ * 3. submitting-dept-co (Submit DEPARTMENT_TBL — auto-skipped if none)
+ * 4. submitting-position (Submit CI_POSITION_DATA)
+ * 5. submitting-job (Submit CI_JOB_DATA)
+ * 6. complete
  *
  * CI data is auto-parsed on query execution — no manual prepare step needed.
  * Can transition to 'error' from any step.
@@ -152,6 +153,7 @@ export type ManagerWorkflowStep =
   | { step: 'idle' }
   | { step: 'approving'; current: number; total: number; currentItem?: string }
   | { step: 'approved' }
+  | { step: 'submitting-dept-co'; current: number; total: number }
   | { step: 'submitting-position'; current: number; total: number }
   | { step: 'submitting-job'; current: number; total: number }
   | { step: 'complete' }

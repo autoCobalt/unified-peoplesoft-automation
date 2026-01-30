@@ -35,6 +35,7 @@ import { findCIDuplicates } from '../utils';
 import {
   POSITION_UPDATE_CI_TEMPLATE,
   POSITION_CREATE_CI_TEMPLATE,
+  DEPT_CO_UPDATE_CI_TEMPLATE,
 } from '../server/ci-definitions/templates/smartform';
 
 /**
@@ -81,7 +82,7 @@ function generateMockQueryResults(): { results: SmartFormQueryResult; parsedCIDa
  */
 function buildPreparedSubmissions(
   transactions: SmartFormRecord[]
-): { position: PreparedSubmission[]; job: PreparedSubmission[] } {
+): { position: PreparedSubmission[]; job: PreparedSubmission[]; deptCo: PreparedSubmission[] } {
   const managerRecords = transactions.filter(r => r.MGR_CUR === 1);
 
   const position: PreparedSubmission[] = managerRecords.map(record => ({
@@ -102,7 +103,18 @@ function buildPreparedSubmissions(
     payload: JSON.stringify({ emplid: record.EMPLID, effdt: record.CUR_EFFDT }),
   }));
 
-  return { position, job };
+  const deptCo: PreparedSubmission[] = managerRecords
+    .filter(record => record.DEPT_CO_UPDATE_CI != null)
+    .map(record => ({
+      id: `deptco-${record.TRANSACTION_NBR}`,
+      emplid: record.EMPLID,
+      employeeName: record.EMPLOYEE_NAME,
+      ciType: 'DEPARTMENT_TBL' as const,
+      status: 'pending' as const,
+      payload: JSON.stringify({ deptid: record.DEPTID }),
+    }));
+
+  return { position, job, deptCo };
 }
 
 /* ==============================================
@@ -131,6 +143,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   const isPauseActionInFlightRef = useRef(false);
 
   // Prepared submission storage (separate from workflow state for cleaner updates)
+  const [preparedDeptCoData, setPreparedDeptCoData] = useState<PreparedSubmission[]>([]);
   const [preparedPositionData, setPreparedPositionData] = useState<PreparedSubmission[]>([]);
   const [preparedJobData, setPreparedJobData] = useState<PreparedSubmission[]>([]);
 
@@ -208,6 +221,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
 
     // Auto-populate prepared submissions from manager records
     const prepared = buildPreparedSubmissions(results.transactions);
+    setPreparedDeptCoData(prepared.deptCo);
     setPreparedPositionData(prepared.position);
     setPreparedJobData(prepared.job);
 
@@ -265,6 +279,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
 
     // Auto-populate prepared submissions from refreshed data
     const prepared = buildPreparedSubmissions(results.transactions);
+    setPreparedDeptCoData(prepared.deptCo);
     setPreparedPositionData(prepared.position);
     setPreparedJobData(prepared.job);
 
@@ -429,6 +444,62 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     // happens server-side when startApprovals is called
   }, []);
 
+  const submitDeptCoData = useCallback(async () => {
+    const managerSelected = selectedByTabRef.current.manager;
+
+    // Compute dept co CI duplicates from selected records
+    const deptCoRecords = parsedCIDataRef.current.deptCoUpdate
+      .filter(r => managerSelected.has(r.transactionNbr));
+    const deptCoDuplicates = findCIDuplicates(deptCoRecords, DEPT_CO_UPDATE_CI_TEMPLATE.fields);
+
+    // Build indices of selected dept co submissions (excluding duplicates)
+    const selectedIndices: number[] = [];
+    for (let i = 0; i < preparedDeptCoData.length; i++) {
+      const txnNbr = preparedDeptCoData[i].id.replace('deptco-', '');
+      if (managerSelected.has(txnNbr) && !deptCoDuplicates.has(txnNbr)) {
+        selectedIndices.push(i);
+      }
+    }
+
+    const total = selectedIndices.length;
+
+    // Calculate totals for subsequent step (position)
+    const posTotal = preparedPositionData.filter(sub =>
+      managerSelected.has(sub.id.replace('pos-', ''))
+    ).length;
+
+    // Process selected dept co submissions
+    for (let s = 0; s < total; s++) {
+      const i = selectedIndices[s];
+      setManagerWorkflow({ step: 'submitting-dept-co', current: s + 1, total });
+
+      setPreparedDeptCoData(prev =>
+        prev.map((sub, idx) =>
+          idx === i ? { ...sub, status: 'submitting' } : sub
+        )
+      );
+
+      // Simulate CI submission (real implementation will call SOAP API)
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      // For the last item, transition to next step BEFORE marking success
+      if (s === total - 1) {
+        setManagerWorkflow({ step: 'submitting-position', current: 0, total: posTotal });
+      }
+
+      setPreparedDeptCoData(prev =>
+        prev.map((sub, idx) =>
+          idx === i ? { ...sub, status: 'success' } : sub
+        )
+      );
+    }
+
+    // If no dept co items, still transition to position step
+    if (total === 0) {
+      setManagerWorkflow({ step: 'submitting-position', current: 0, total: posTotal });
+    }
+  }, [preparedDeptCoData, preparedPositionData, setManagerWorkflow]);
+
   const submitPositionData = useCallback(async () => {
     const managerSelected = selectedByTabRef.current.manager;
 
@@ -531,6 +602,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     void workflowApi.manager.stop();
     // Reset local state
     setManagerWorkflow(INITIAL_MANAGER_WORKFLOW);
+    setPreparedDeptCoData([]);
     setPreparedPositionData([]);
     setPreparedJobData([]);
     setIsWorkflowPaused(false);
@@ -701,6 +773,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       processApprovals,
       pauseApprovals,
       resumeApprovals,
+      submitDeptCoData,
       submitPositionData,
       submitJobData,
       resetManagerWorkflow,
@@ -712,6 +785,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       setTransactionSelected,
       filteredRecords,
       distinctPositionCount,
+      preparedDeptCoData,
       preparedPositionData,
       preparedJobData,
       parsedCIData: state.parsedCIData,
@@ -725,6 +799,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       processApprovals,
       pauseApprovals,
       resumeApprovals,
+      submitDeptCoData,
       submitPositionData,
       submitJobData,
       resetManagerWorkflow,
@@ -736,6 +811,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       setTransactionSelected,
       filteredRecords,
       distinctPositionCount,
+      preparedDeptCoData,
       preparedPositionData,
       preparedJobData,
     ]

@@ -1,26 +1,22 @@
 /**
  * ManagerWorkflowSection Component
  *
- * Displays the 3-task Manager approval workflow:
+ * Displays the 4-task Manager approval workflow:
  * 1. Process approvals (browser opens automatically)
- * 2. Submit position data
- * 3. Submit job data
+ * 2. Submit dept company clearing (auto-skipped if no records)
+ * 3. Submit position data
+ * 4. Submit job data
  *
  * CI data is auto-parsed during query execution — no manual prepare step.
- * Features a progressive action button and prepared submission tables.
+ * Submission status is displayed in the CI preview tables (DataTableSection).
  * Uses shared workflow components for the checklist, button, and status messages.
- * Uses the DataTable component for displaying prepared CI submissions.
  *
  * Uses the definition-driven workflow system from src/workflows/.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useSmartForm, useConnection } from '../../../../context';
-import type {
-  PreparedSubmission,
-  ChecklistTask,
-  ColumnDef,
-} from '../../../../types';
+import type { ChecklistTask } from '../../../../types';
 import { useWorkflowDefinition } from '../../../../hooks';
 import type { ActionMap, RequirementStatus } from '../../../../workflows';
 import { managerWorkflowDefinition } from '../../../../workflows';
@@ -29,40 +25,7 @@ import {
   WorkflowChecklist,
   WorkflowStatusMessage,
 } from '../../../workflow';
-import { DataTable } from '../../../table';
 import './ManagerWorkflowSection.css';
-
-/**
- * Column definitions for prepared submission tables.
- * Memoized to prevent unnecessary re-renders.
- */
-function useSubmissionColumns(): ColumnDef<PreparedSubmission>[] {
-  return useMemo(() => [
-    {
-      id: 'emplid',
-      header: 'Emplid',
-      accessor: 'emplid',
-      type: 'mono',
-    },
-    {
-      id: 'employeeName',
-      header: 'Employee',
-      accessor: 'employeeName',
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      accessor: 'status',
-      type: 'status',
-      statusClassMap: {
-        pending: 'pending',
-        submitting: 'processing',
-        success: 'success',
-        error: 'error',
-      },
-    },
-  ], []);
-}
 
 export function ManagerWorkflowSection() {
   const {
@@ -70,10 +33,10 @@ export function ManagerWorkflowSection() {
     openBrowser,
     pauseApprovals,
     resumeApprovals,
+    submitDeptCoData,
     submitPositionData,
     submitJobData,
-    preparedPositionData,
-    preparedJobData,
+    preparedDeptCoData,
     isWorkflowPaused,
   } = useSmartForm();
 
@@ -89,9 +52,10 @@ export function ManagerWorkflowSection() {
   // This keeps action logic in the context provider while definitions stay pure
   const actionMap: ActionMap = useMemo(() => ({
     approvals: openBrowser,
+    'dept-co': submitDeptCoData,
     position: submitPositionData,
     job: submitJobData,
-  }), [openBrowser, submitPositionData, submitJobData]);
+  }), [openBrowser, submitDeptCoData, submitPositionData, submitJobData]);
 
   // Build requirement status from connection states
   const requirementStatus: RequirementStatus = useMemo(() => ({
@@ -156,11 +120,14 @@ export function ManagerWorkflowSection() {
     setSoapHintActive(false);
   };
 
-  // Column definitions for submission tables
-  const submissionColumns = useSubmissionColumns();
-
-  // Use prepared data from context (persists across workflow steps)
-  const hasPreparedData = preparedPositionData.length > 0 || preparedJobData.length > 0;
+  // Auto-skip dept co step when no records exist
+  // When the workflow reaches 'approved' and there are no dept co records,
+  // immediately fire submitDeptCoData which transitions to submitting-position
+  useEffect(() => {
+    if (stepName === 'approved' && preparedDeptCoData.length === 0) {
+      void submitDeptCoData();
+    }
+  }, [stepName, preparedDeptCoData.length, submitDeptCoData]);
 
   return (
     <section className="sf-workflow-container">
@@ -232,43 +199,6 @@ export function ManagerWorkflowSection() {
         />
       )}
 
-      {/* Submission Tracking Tables — visible during submission steps and after completion */}
-      {hasPreparedData && (
-        stepName === 'approved' || stepName === 'submitting-position' ||
-        stepName === 'submitting-job' || isComplete
-      ) && (
-        <div className="sf-workflow-submissions">
-          {/* CI_POSITION_DATA Table */}
-          {preparedPositionData.length > 0 && (
-            <div className="sf-workflow-sub-table-container">
-              <h4 className="sf-workflow-sub-table-title">CI_POSITION_DATA</h4>
-              <DataTable
-                className="sf-workflow-sub-table"
-                columns={submissionColumns}
-                data={preparedPositionData}
-                keyAccessor="id"
-                emptyMessage="No position data"
-                ariaLabel="CI_POSITION_DATA submissions"
-              />
-            </div>
-          )}
-
-          {/* CI_JOB_DATA Table */}
-          {preparedJobData.length > 0 && (
-            <div className="sf-workflow-sub-table-container">
-              <h4 className="sf-workflow-sub-table-title">CI_JOB_DATA</h4>
-              <DataTable
-                className="sf-workflow-sub-table"
-                columns={submissionColumns}
-                data={preparedJobData}
-                keyAccessor="id"
-                emptyMessage="No job data"
-                ariaLabel="CI_JOB_DATA submissions"
-              />
-            </div>
-          )}
-        </div>
-      )}
     </section>
   );
 }

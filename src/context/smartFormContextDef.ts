@@ -34,6 +34,7 @@ export interface SmartFormContextType {
   processApprovals: () => Promise<void>;
   pauseApprovals: () => Promise<void>;
   resumeApprovals: () => Promise<void>;
+  submitDeptCoData: () => Promise<void>;
   submitPositionData: () => Promise<void>;
   submitJobData: () => Promise<void>;
   resetManagerWorkflow: () => void;
@@ -55,6 +56,7 @@ export interface SmartFormContextType {
   distinctPositionCount: number;
 
   // Prepared Submission Data (persists across workflow steps and tab switches)
+  preparedDeptCoData: PreparedSubmission[];
   preparedPositionData: PreparedSubmission[];
   preparedJobData: PreparedSubmission[];
 

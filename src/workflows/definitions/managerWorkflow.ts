@@ -1,10 +1,11 @@
 /**
  * Manager Workflow Definition
  *
- * The Manager approval workflow handles the 3-task process:
+ * The Manager approval workflow handles the 4-task process:
  * 1. Process approvals via browser automation
- * 2. Submit CI_POSITION_DATA
- * 3. Submit CI_JOB_DATA
+ * 2. Submit DEPARTMENT_TBL (dept company clearing — auto-skipped if none)
+ * 3. Submit CI_POSITION_DATA
+ * 4. Submit CI_JOB_DATA
  *
  * CI data is auto-parsed during query execution — no manual prepare step.
  *
@@ -46,6 +47,12 @@ export const MANAGER_STEPS: readonly StepConfig<ManagerWorkflowStepName>[] = [
     name: 'approved',
     processingBehavior: 'never',
     label: 'Approvals complete',
+    validTransitions: ['submitting-dept-co', 'error'],
+  },
+  {
+    name: 'submitting-dept-co',
+    processingBehavior: 'transitional',
+    label: 'Submitting dept company data',
     validTransitions: ['submitting-position', 'error'],
   },
   {
@@ -95,8 +102,16 @@ export const MANAGER_TASKS: readonly TaskConfig<ManagerWorkflowStepName>[] = [
     buttonLabel: 'Process Approvals',
   },
   {
-    id: 'position',
+    id: 'dept-co',
     triggerStep: 'approved',
+    completionStep: 'submitting-position',
+    label: 'Submit dept company clearing (if any)',
+    buttonLabel: 'Submit DEPARTMENT_TBL',
+    requires: ['soap'],
+  },
+  {
+    id: 'position',
+    triggerStep: 'submitting-position',
     completionStep: 'submitting-job',
     label: 'Submit position data',
     buttonLabel: 'Submit CI_POSITION_DATA',

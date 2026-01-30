@@ -6,6 +6,7 @@
  *
  * Features:
  * - CI preview tables with two-row headers (field name + label)
+ * - Submission status column on manager-tab CI tables (pending → submitting → success/error)
  * - Row numbers column (first column, sticky, auto-generated)
  * - Row selection via checkbox column (second column, sticky)
  * - TRANSACTION_NBR displayed as clickable hyperlink (uses WEB_LINK)
@@ -21,6 +22,7 @@ import { useSmartForm, useCILabels } from '../../../../context';
 import type {
   SmartFormRecord,
   ColumnDef,
+  PreparedSubmissionStatus,
 } from '../../../../types';
 import {
   HIDDEN_SMARTFORM_FIELDS,
@@ -183,6 +185,42 @@ function buildCIPreviewColumns<T extends ParsedCIRecordBase>(
   return [txnColumn, ...fieldColumns];
 }
 
+/**
+ * Build a STATUS column for manager-tab CI preview tables.
+ * Looks up submission status from an external Map keyed by transactionNbr.
+ */
+function buildStatusColumn<T extends ParsedCIRecordBase>(
+  statusMap: Map<string, PreparedSubmissionStatus>,
+): ColumnDef<T> {
+  const statusClassMap: Record<string, string> = {
+    pending: 'pending',
+    submitting: 'processing',
+    success: 'success',
+    error: 'error',
+  };
+
+  return {
+    id: '__status',
+    header: (
+      <>
+        <span className="sf-ci-header-name">STATUS</span>
+        <span className="sf-ci-header-label">Submission</span>
+      </>
+    ),
+    width: '5.5rem',
+    align: 'center',
+    render: (_value, row) => {
+      const status = statusMap.get(row.transactionNbr) ?? 'pending';
+      const cssClass = statusClassMap[status] ?? status;
+      return (
+        <span className={`dt-status dt-status--${cssClass}`}>
+          {status}
+        </span>
+      );
+    },
+  };
+}
+
 /* ==============================================
    Excel Export Helpers
    ============================================== */
@@ -231,6 +269,9 @@ export function DataTableSection() {
     parsedCIData,
     selectedByTab,
     setTransactionSelected,
+    preparedDeptCoData,
+    preparedPositionData,
+    preparedJobData,
   } = useSmartForm();
   const { activeSubTab } = state;
   const { ensureLabels, getLabel } = useCILabels();
@@ -241,6 +282,24 @@ export function DataTableSection() {
       void ensureLabels(ciName);
     }
   }, [ensureLabels]);
+
+  // Build status lookup: dataKey → Map<transactionNbr, status>
+  // Used to inject a STATUS column into manager-tab CI preview tables
+  const statusMaps = useMemo(() => {
+    const buildMap = (submissions: { id: string; status: PreparedSubmissionStatus }[], prefix: string) => {
+      const map = new Map<string, PreparedSubmissionStatus>();
+      for (const sub of submissions) {
+        map.set(sub.id.replace(prefix, ''), sub.status);
+      }
+      return map;
+    };
+
+    return new Map<string, Map<string, PreparedSubmissionStatus>>([
+      ['deptCoUpdate', buildMap(preparedDeptCoData, 'deptco-')],
+      ['positionUpdate', buildMap(preparedPositionData, 'pos-')],
+      ['jobUpdate', buildMap(preparedJobData, 'job-')],
+    ]);
+  }, [preparedDeptCoData, preparedPositionData, preparedJobData]);
 
   // Selection for the active sub-tab (from context, persists across tab switches)
   const selectedRows = selectedByTab[activeSubTab];
@@ -371,6 +430,14 @@ export function DataTableSection() {
         if (records.length === 0) return null;
 
         const ciColumns = buildCIPreviewColumns(template, getLabel);
+        const isManagerTable = tabFilter === 'manager';
+        const dataStatusMap = isManagerTable
+          ? (statusMaps.get(dataKey) ?? new Map<string, PreparedSubmissionStatus>())
+          : null;
+        const finalColumns = dataStatusMap
+          ? [buildStatusColumn(dataStatusMap), ...ciColumns]
+          : ciColumns;
+
         const duplicateSet = checkDuplicates
           ? (ciDuplicateSets.get(dataKey) ?? new Set<string>())
           : new Set<string>();
@@ -408,11 +475,11 @@ export function DataTableSection() {
             </h4>
             <DataTable
               className="sf-ci-preview-table"
-              columns={ciColumns}
+              columns={finalColumns}
               data={records}
               keyAccessor="transactionNbr"
               showRowNumbers={true}
-              stickyColumns={2}
+              stickyColumns={isManagerTable ? 3 : 2}
               emptyMessage="No records"
               ariaLabel={`${template.queryFieldName} preview`}
               rowConfig={duplicateCount > 0 ? {
