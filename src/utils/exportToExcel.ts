@@ -44,6 +44,23 @@ export function exportToExcel(
   const wsData = [headers, ...rows];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
+  // Force all data cells to text type so Excel preserves leading zeros
+  // (e.g., POSITION_NBR "00000000" stays "00000000" instead of becoming 0).
+  // Row 0 is headers; data starts at row 1.
+  const totalRows = rows.length + 1; // +1 for header row
+  const totalCols = columns.length;
+  for (let r = 1; r < totalRows; r++) {
+    for (let c = 0; c < totalCols; c++) {
+      const cellRef = XLSX.utils.encode_cell({ r, c });
+      const cell = ws[cellRef] as XLSX.CellObject | undefined;
+      if (cell) {
+        cell.t = 's';
+        cell.v = String(cell.v);
+        cell.z = '@';
+      }
+    }
+  }
+
   // Auto-size columns based on header length and max value length
   ws['!cols'] = columns.map((col, i) => {
     let maxLen = col.header.length;

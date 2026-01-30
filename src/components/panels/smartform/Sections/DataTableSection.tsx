@@ -35,7 +35,7 @@ import {
   POSITION_CREATE_CI_TEMPLATE,
 } from '../../../../server/ci-definitions/templates/smartform';
 import { DataTable } from '../../../table';
-import { exportToExcel } from '../../../../utils';
+import { exportToExcel, findCIDuplicates, filterCIDuplicates } from '../../../../utils';
 import type { ExcelColumn } from '../../../../utils';
 import { DownloadIcon } from '../../../icons';
 import './DataTableSection.css';
@@ -139,10 +139,10 @@ function buildDynamicColumns(
  * Order: deptCoUpdate, positionUpdate, jobUpdate, positionCreate
  */
 const CI_PREVIEW_CONFIG = [
-  { template: DEPT_CO_UPDATE_CI_TEMPLATE,     dataKey: 'deptCoUpdate' as const,    tabFilter: 'manager' as const },
-  { template: POSITION_UPDATE_CI_TEMPLATE,    dataKey: 'positionUpdate' as const,  tabFilter: 'manager' as const },
-  { template: JOB_UPDATE_CI_TEMPLATE,         dataKey: 'jobUpdate' as const,       tabFilter: 'manager' as const },
-  { template: POSITION_CREATE_CI_TEMPLATE,    dataKey: 'positionCreate' as const,  tabFilter: 'other' as const },
+  { template: DEPT_CO_UPDATE_CI_TEMPLATE,     dataKey: 'deptCoUpdate' as const,    tabFilter: 'manager' as const, checkDuplicates: true },
+  { template: POSITION_UPDATE_CI_TEMPLATE,    dataKey: 'positionUpdate' as const,  tabFilter: 'manager' as const, checkDuplicates: true },
+  { template: JOB_UPDATE_CI_TEMPLATE,         dataKey: 'jobUpdate' as const,       tabFilter: 'manager' as const, checkDuplicates: false },
+  { template: POSITION_CREATE_CI_TEMPLATE,    dataKey: 'positionCreate' as const,  tabFilter: 'other' as const,   checkDuplicates: true },
 ] as const;
 
 /** All unique CI names referenced by the preview tables */
@@ -245,6 +245,22 @@ export function DataTableSection() {
   // Selection for the active sub-tab (from context, persists across tab switches)
   const selectedRows = selectedByTab[activeSubTab];
 
+  // Compute duplicate sets for CI preview tables that have checkDuplicates enabled.
+  // Operates on selectedRows-filtered records so unchecking a "first occurrence"
+  // correctly reassigns which row is canonical vs duplicate.
+  const ciDuplicateSets = useMemo(() => {
+    const result = new Map<string, Set<string>>();
+    for (const { template, dataKey, tabFilter, checkDuplicates } of CI_PREVIEW_CONFIG) {
+      if (!checkDuplicates || tabFilter !== activeSubTab) continue;
+      const allRecords = parsedCIData[dataKey] as ParsedCIRecordBase[];
+      const records = allRecords.filter(r => selectedRows.has(r.transactionNbr));
+      if (records.length > 0) {
+        result.set(dataKey, findCIDuplicates(records, template.fields));
+      }
+    }
+    return result;
+  }, [parsedCIData, selectedRows, activeSubTab]);
+
   // Build columns dynamically from the first row's keys
   // Checkbox column is prepended to the dynamic columns
   const columns = useMemo(() => {
@@ -346,7 +362,7 @@ export function DataTableSection() {
   return (
     <div ref={crossHoverRef} className="sf-tables-wrapper">
       {/* CI Preview Tables (above the main results table) */}
-      {CI_PREVIEW_CONFIG.map(({ template, dataKey, tabFilter }) => {
+      {CI_PREVIEW_CONFIG.map(({ template, dataKey, tabFilter, checkDuplicates }) => {
         // Only show table on its designated sub-tab
         if (tabFilter !== activeSubTab) return null;
 
@@ -355,6 +371,15 @@ export function DataTableSection() {
         if (records.length === 0) return null;
 
         const ciColumns = buildCIPreviewColumns(template, getLabel);
+        const duplicateSet = checkDuplicates
+          ? (ciDuplicateSets.get(dataKey) ?? new Set<string>())
+          : new Set<string>();
+        const duplicateCount = duplicateSet.size;
+
+        // Excel export excludes duplicates (when detection is enabled)
+        const exportRecords = checkDuplicates
+          ? filterCIDuplicates(records, template.fields)
+          : records;
 
         return (
           <div key={dataKey} className="sf-ci-preview-container">
@@ -366,7 +391,7 @@ export function DataTableSection() {
                 aria-label={`Download ${template.queryFieldName} as Excel`}
                 onClick={() => {
                   exportToExcel(
-                    records as unknown as Record<string, unknown>[],
+                    exportRecords as unknown as Record<string, unknown>[],
                     buildCIExcelColumns(template),
                     buildExcelFileName(template.queryFieldName),
                   );
@@ -375,6 +400,11 @@ export function DataTableSection() {
                 <DownloadIcon />
               </button>
               {template.queryFieldName}
+              {duplicateCount > 0 && (
+                <span className="sf-ci-duplicate-count">
+                  {duplicateCount} duplicate{duplicateCount !== 1 ? 's' : ''} excluded
+                </span>
+              )}
             </h4>
             <DataTable
               className="sf-ci-preview-table"
@@ -385,6 +415,12 @@ export function DataTableSection() {
               stickyColumns={2}
               emptyMessage="No records"
               ariaLabel={`${template.queryFieldName} preview`}
+              rowConfig={duplicateCount > 0 ? {
+                className: (row) =>
+                  duplicateSet.has(row.transactionNbr)
+                    ? 'sf-ci-row--duplicate'
+                    : '',
+              } : undefined}
             />
           </div>
         );

@@ -31,6 +31,11 @@ import {
 } from '../types';
 import { generateMockRecords } from '../dev-data';
 import { parseCIDataFromRecords } from '../server/ci-definitions/parser';
+import { findCIDuplicates } from '../utils';
+import {
+  POSITION_UPDATE_CI_TEMPLATE,
+  POSITION_CREATE_CI_TEMPLATE,
+} from '../server/ci-definitions/templates/smartform';
 
 /**
  * Transform Oracle query rows to SmartFormRecord array.
@@ -144,6 +149,9 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
 
   const selectedByTabRef = useRef(selectedByTab);
   selectedByTabRef.current = selectedByTab;
+
+  const parsedCIDataRef = useRef(state.parsedCIData);
+  parsedCIDataRef.current = state.parsedCIData;
 
   /* ==============================================
      Query Actions
@@ -424,11 +432,16 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   const submitPositionData = useCallback(async () => {
     const managerSelected = selectedByTabRef.current.manager;
 
-    // Build indices of selected position submissions
+    // Compute position update CI duplicates from selected records
+    const posUpdateRecords = parsedCIDataRef.current.positionUpdate
+      .filter(r => managerSelected.has(r.transactionNbr));
+    const posUpdateDuplicates = findCIDuplicates(posUpdateRecords, POSITION_UPDATE_CI_TEMPLATE.fields);
+
+    // Build indices of selected position submissions (excluding duplicates)
     const selectedIndices: number[] = [];
     for (let i = 0; i < preparedPositionData.length; i++) {
       const txnNbr = preparedPositionData[i].id.replace('pos-', '');
-      if (managerSelected.has(txnNbr)) {
+      if (managerSelected.has(txnNbr) && !posUpdateDuplicates.has(txnNbr)) {
         selectedIndices.push(i);
       }
     }
@@ -566,9 +579,19 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       r => r.MGR_CUR === 0 && otherSelected.has(r.TRANSACTION_NBR)
     ) ?? [];
 
+    // Compute position create CI duplicates from selected records
+    const posCreateRecords = parsedCIDataRef.current.positionCreate
+      .filter(r => otherSelected.has(r.transactionNbr));
+    const posCreateDuplicates = findCIDuplicates(posCreateRecords, POSITION_CREATE_CI_TEMPLATE.fields);
+
+    // Exclude transactions with duplicate CI data
+    const nonDuplicateRecords = otherRecords.filter(
+      r => !posCreateDuplicates.has(r.TRANSACTION_NBR)
+    );
+
     // Get distinct position numbers (POSITION_NBR is dynamic field)
     const distinctPositions = [...new Set(
-      otherRecords
+      nonDuplicateRecords
         .map(r => r.POSITION_NBR as string | null | undefined)
         .filter((p): p is string => Boolean(p))
     )];

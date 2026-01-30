@@ -201,6 +201,30 @@
   white-space: nowrap;
 }
 
+/* ===== CI DUPLICATE ROW STYLING ===== */
+
+/* Duplicate CI rows: same visual as unchecked rows (faded text + subtle bg).
+ * Separate class keeps semantics distinct from user-unchecked rows. */
+.sf-ci-row--duplicate td {
+  color: color-mix(in srgb, var(--text-primary) 50%, transparent);
+  background: color-mix(in srgb, var(--text-tertiary) 6%, transparent);
+}
+
+/* Sticky columns need opaque backgrounds to cover scrolling content */
+.sf-ci-row--duplicate td.dt-sticky-col {
+  background: color-mix(in srgb, var(--text-tertiary) 6%, var(--bg-secondary));
+}
+
+/* Badge showing duplicate count next to CI table title */
+.sf-ci-duplicate-count {
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  margin-left: 0.5rem;
+  font-style: italic;
+}
+
 /* ===== CROSS-TABLE HOVER ===== */
 
 /* Wrapper for cross-table hover event delegation.
