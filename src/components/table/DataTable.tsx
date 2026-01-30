@@ -33,11 +33,11 @@ import './DataTable.css';
 
 const STAGGER_DEFAULTS = {
   /** Target total duration for all rows to start animating (seconds) */
-  targetDuration: 0.25,
+  targetDuration: 0.18,
   /** Minimum delay between rows (seconds) */
-  minDelay: 0.01,
+  minDelay: 0.008,
   /** Maximum delay between rows (seconds) */
-  maxDelay: 0.035,
+  maxDelay: 0.025,
   /** Y offset for row animation (0 = opacity only) */
   offset: 0,
 } as const;
@@ -53,7 +53,7 @@ function createContainerVariants(staggerDelay: number): Variants {
       transition: {
         staggerChildren: staggerDelay,
         // Slightly delay start to let container settle
-        delayChildren: 0.05,
+        delayChildren: 0.03,
       },
     },
   };
@@ -78,7 +78,7 @@ function createRowVariants(offset: number): Variants {
     visible: {
       ...visible,
       transition: {
-        duration: 0.25,
+        duration: 0.2,
         ease: 'easeOut',
       },
     },
@@ -149,23 +149,23 @@ export function DataTable<TData>({
     const cells = headerRow.querySelectorAll('th');
     if (cells.length === 0) return;
 
-    // Use first cell's left edge as reference point
-    const firstCellRect = cells[0].getBoundingClientRect();
+    // Use cumulative widths so sticky cells sit flush against each other.
+    // Position-based offsets (cellRect.left) include collapsed-border gaps
+    // between cells, leaving uncovered strips where scrolled content bleeds through.
     const offsets: number[] = [];
+    let cumulativeLeft = 0;
 
     for (let i = 0; i < stickyColumns && i < cells.length; i++) {
-      const cellRect = cells[i].getBoundingClientRect();
-      // Offset is distance from first cell's left edge to this cell's left edge
-      offsets.push(cellRect.left - firstCellRect.left);
+      offsets.push(cumulativeLeft);
+      cumulativeLeft += cells[i].getBoundingClientRect().width;
     }
 
     setStickyOffsets(offsets);
 
     // Set CSS variable for total sticky column width (for border highlight overlay)
     if (stickyColumns > 0 && stickyColumns <= cells.length) {
-      const lastStickyCell = cells[stickyColumns - 1];
-      const lastStickyRect = lastStickyCell.getBoundingClientRect();
-      const totalStickyWidth = lastStickyRect.right - firstCellRect.left;
+      // cumulativeLeft is now the sum of all sticky cell widths
+      const totalStickyWidth = cumulativeLeft;
 
       // Set CSS variable on the scroll wrapper (with defensive guard against NaN/Infinity)
       if (scrollContainerRef.current?.parentElement && Number.isFinite(totalStickyWidth)) {
@@ -205,13 +205,15 @@ export function DataTable<TData>({
   }, [updateScrollState, data]);
 
   // Build effective columns (prepend row number if enabled)
-  // Note: Row number column width is controlled by CSS (--dt-sticky-col-0-width)
+  // Fixed width prevents table auto-layout from varying the column size,
+  // which would shift sticky offsets for subsequent columns on resize.
   const effectiveColumns: ColumnDef<TData>[] = showRowNumbers
     ? [
         {
           id: '__rowNumber',
           header: '#',
           align: 'center',
+          width: '2rem',
           render: (_value, _row, index) => index + 1,
         },
         ...columns,
@@ -283,6 +285,7 @@ export function DataTable<TData>({
       return (
         <motion.tr
           key={rowKey}
+          data-row-key={String(rowKey)}
           className={combinedRowClass}
           variants={rowVariants}
           onClick={
@@ -300,6 +303,7 @@ export function DataTable<TData>({
     return (
       <tr
         key={rowKey}
+        data-row-key={String(rowKey)}
         className={combinedRowClass}
         onClick={
           rowClickHandler

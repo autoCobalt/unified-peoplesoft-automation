@@ -30,6 +30,17 @@ import {
 } from '../soap/index.js';
 import { createSqlHandlers } from '../sql/index.js';
 import { handleGetSessionStatus } from '../auth/index.js';
+import {
+  handleFetchCIShape,
+  handleListCIShapes,
+  handleGetCIShape,
+  handleGetCIShapeLabels,
+  handleListTemplates,
+  handleGetTemplate,
+  handleSaveTemplate,
+  handleUpdateTemplate,
+  handleDeleteTemplate,
+} from '../ci-definitions/handlers.js';
 
 /* ==============================================
    Route Definition Type
@@ -189,6 +200,58 @@ export const workflowRoutes: Record<string, RouteConfig> = {
   '/api/soap/submit': {
     method: 'POST',
     handler: soapSubmit,
+    auth: 'authenticated',
+  },
+
+  // ============================================
+  // CI Definition Routes
+  // ============================================
+  // CI shapes and custom templates require authentication.
+  // fetch-ci-shape additionally requires active SOAP credentials
+  // (enforced internally by soapService).
+  '/api/soap/fetch-ci-shape': {
+    method: 'POST',
+    handler: handleFetchCIShape,
+    auth: 'authenticated',
+  },
+  '/api/ci-shapes': {
+    method: 'GET',
+    handler: handleListCIShapes,
+    auth: 'authenticated',
+  },
+  '/api/ci-shapes/detail': {
+    method: 'GET',
+    handler: handleGetCIShape,
+    auth: 'authenticated',
+  },
+  '/api/ci-shapes/labels': {
+    method: 'GET',
+    handler: handleGetCIShapeLabels,
+    auth: 'authenticated',
+  },
+  '/api/ci-templates': {
+    method: 'GET',
+    handler: handleListTemplates,
+    auth: 'authenticated',
+  },
+  '/api/ci-templates/by-id': {
+    method: 'GET',
+    handler: handleGetTemplate,
+    auth: 'authenticated',
+  },
+  '/api/ci-templates/save': {
+    method: 'POST',
+    handler: handleSaveTemplate,
+    auth: 'authenticated',
+  },
+  '/api/ci-templates/update': {
+    method: 'POST',
+    handler: handleUpdateTemplate,
+    auth: 'authenticated',
+  },
+  '/api/ci-templates/delete': {
+    method: 'POST',
+    handler: handleDeleteTemplate,
     auth: 'authenticated',
   },
 };

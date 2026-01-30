@@ -1,8 +1,11 @@
 /**
  * DataTableSection Component
  *
- * Displays the filtered transaction records using the shared DataTable component.
+ * Displays CI preview tables and filtered transaction records using the shared
+ * DataTable component.
+ *
  * Features:
+ * - CI preview tables with two-row headers (field name + label)
  * - Row numbers column (first column, sticky, auto-generated)
  * - Row selection via checkbox column (second column, sticky)
  * - TRANSACTION_NBR displayed as clickable hyperlink (uses WEB_LINK)
@@ -13,8 +16,8 @@
  * - Hidden fields (MGR_CUR, WEB_LINK) excluded from display
  */
 
-import { useMemo, useState, useCallback } from 'react';
-import { useSmartForm } from '../../../../context';
+import { useMemo, useEffect, useRef } from 'react';
+import { useSmartForm, useCILabels } from '../../../../context';
 import type {
   SmartFormRecord,
   ColumnDef,
@@ -24,6 +27,13 @@ import {
   MONOSPACE_SMARTFORM_FIELDS,
   DATE_SMARTFORM_FIELDS,
 } from '../../../../types';
+import type { CIUsageTemplate, ParsedCIRecordBase } from '../../../../server/ci-definitions/types';
+import {
+  DEPT_CO_UPDATE_CI_TEMPLATE,
+  POSITION_UPDATE_CI_TEMPLATE,
+  JOB_UPDATE_CI_TEMPLATE,
+  POSITION_CREATE_CI_TEMPLATE,
+} from '../../../../server/ci-definitions/templates/smartform';
 import { DataTable } from '../../../table';
 import './DataTableSection.css';
 
@@ -117,84 +127,79 @@ function buildDynamicColumns(
     });
 }
 
-/**
- * Selection state with data signature for auto-reset detection.
- * When the data signature changes, selection resets to include all rows.
- */
-interface SelectionState {
-  /** Signature of the current data (used to detect data changes) */
-  signature: string;
-  /** Set of selected TRANSACTION_NBR values */
-  selected: Set<string>;
-}
+/* ==============================================
+   CI Preview Table Helpers
+   ============================================== */
 
 /**
- * Selection states keyed by sub-tab ID.
- * Each sub-tab maintains its own independent selection.
- * Uses Partial to indicate not all tabs may have state yet.
+ * CI preview table configuration — display order and data key mapping.
+ * Order: deptCoUpdate, positionUpdate, jobUpdate, positionCreate
  */
-type SelectionByTab = Partial<Record<string, SelectionState>>;
+const CI_PREVIEW_CONFIG = [
+  { template: DEPT_CO_UPDATE_CI_TEMPLATE,     dataKey: 'deptCoUpdate' as const,    tabFilter: 'manager' as const },
+  { template: POSITION_UPDATE_CI_TEMPLATE,    dataKey: 'positionUpdate' as const,  tabFilter: 'manager' as const },
+  { template: JOB_UPDATE_CI_TEMPLATE,         dataKey: 'jobUpdate' as const,       tabFilter: 'manager' as const },
+  { template: POSITION_CREATE_CI_TEMPLATE,    dataKey: 'positionCreate' as const,  tabFilter: 'other' as const },
+] as const;
+
+/** All unique CI names referenced by the preview tables */
+const CI_NAMES_TO_LOAD = [...new Set(CI_PREVIEW_CONFIG.map(c => c.template.ciName))];
 
 /**
- * Creates a selection state with all records selected.
+ * Build column definitions for a CI preview table.
+ * Prepends a TRANSACTION_NBR column and maps template fields to two-row headers.
  */
-function createFullSelection(records: SmartFormRecord[]): SelectionState {
-  return {
-    signature: records.map(r => r.TRANSACTION_NBR).join(','),
-    selected: new Set(records.map(r => r.TRANSACTION_NBR)),
+function buildCIPreviewColumns<T extends ParsedCIRecordBase>(
+  template: CIUsageTemplate,
+  getLabel: (ciName: string, fieldName: string) => string,
+): ColumnDef<T>[] {
+  const txnColumn: ColumnDef<T> = {
+    id: 'transactionNbr',
+    header: (
+      <>
+        <span className="sf-ci-header-name">TRANSACTION_NBR</span>
+        <span className="sf-ci-header-label">Transaction Number</span>
+      </>
+    ),
+    accessor: 'transactionNbr' as keyof T,
+    type: 'mono',
   };
+
+  const fieldColumns: ColumnDef<T>[] = template.fields.map(field => ({
+    id: field.name,
+    header: (
+      <>
+        <span className="sf-ci-header-name">{field.name}</span>
+        <span className="sf-ci-header-label">{getLabel(template.ciName, field.name)}</span>
+      </>
+    ),
+    accessor: field.name as keyof T,
+    type: 'text' as const,
+  }));
+
+  return [txnColumn, ...fieldColumns];
 }
 
 export function DataTableSection() {
-  const { state, filteredRecords } = useSmartForm();
+  const {
+    state,
+    filteredRecords,
+    parsedCIData,
+    selectedByTab,
+    setTransactionSelected,
+  } = useSmartForm();
   const { activeSubTab } = state;
+  const { ensureLabels, getLabel } = useCILabels();
 
-  // Track selection state PER SUB-TAB so switching tabs preserves selections
-  const [selectionByTab, setSelectionByTab] = useState<SelectionByTab>(() => ({
-    [activeSubTab]: createFullSelection(filteredRecords),
-  }));
+  // Fetch labels for all CI shapes used by preview tables
+  useEffect(() => {
+    for (const ciName of CI_NAMES_TO_LOAD) {
+      void ensureLabels(ciName);
+    }
+  }, [ensureLabels]);
 
-  // Get or create selection state for current tab
-  const currentTabSelection = selectionByTab[activeSubTab];
-  const currentSignature = filteredRecords.map(r => r.TRANSACTION_NBR).join(',');
-
-  // Initialize selection for this tab if it doesn't exist,
-  // or reset if the underlying data changed (e.g., new query results)
-  if (!currentTabSelection || currentTabSelection.signature !== currentSignature) {
-    setSelectionByTab(prev => ({
-      ...prev,
-      [activeSubTab]: createFullSelection(filteredRecords),
-    }));
-  }
-
-  // Extract selected set for current tab (with stable fallback for first render)
-  const selectedRows = useMemo(() => {
-    return currentTabSelection?.selected
-      ?? new Set(filteredRecords.map(r => r.TRANSACTION_NBR));
-  }, [currentTabSelection?.selected, filteredRecords]);
-
-  // Memoized checkbox toggle handler (updates the current tab's selection)
-  const handleCheckboxChange = useCallback(
-    (row: SmartFormRecord, checked: boolean) => {
-      const key = row.TRANSACTION_NBR;
-      setSelectionByTab(prev => {
-        const tabState = prev[activeSubTab];
-        if (!tabState) return prev;
-
-        const next = new Set(tabState.selected);
-        if (checked) {
-          next.add(key);
-        } else {
-          next.delete(key);
-        }
-        return {
-          ...prev,
-          [activeSubTab]: { ...tabState, selected: next },
-        };
-      });
-    },
-    [activeSubTab]
-  );
+  // Selection for the active sub-tab (from context, persists across tab switches)
+  const selectedRows = selectedByTab[activeSubTab];
 
   // Build columns dynamically from the first row's keys
   // Checkbox column is prepended to the dynamic columns
@@ -207,7 +212,9 @@ export function DataTableSection() {
       align: 'center',
       width: '36px',
       checked: (row) => selectedRows.has(row.TRANSACTION_NBR),
-      onCheckedChange: handleCheckboxChange,
+      onCheckedChange: (row, checked) => {
+        setTransactionSelected(row.TRANSACTION_NBR, checked);
+      },
     };
 
     if (filteredRecords.length === 0) {
@@ -220,42 +227,139 @@ export function DataTableSection() {
     }
 
     return [checkboxColumn, ...buildDynamicColumns(filteredRecords[0])];
-  }, [filteredRecords, selectedRows, handleCheckboxChange]);
+  }, [filteredRecords, selectedRows, setTransactionSelected]);
 
   const queueLabel = activeSubTab === 'manager' ? 'Manager' : 'Other';
   const rowCount = filteredRecords.length;
 
+  // Cross-table hover: ref for event delegation wrapper
+  const crossHoverRef = useRef<HTMLDivElement>(null);
+
+  // Cross-table hover: highlight rows with matching transaction numbers
+  useEffect(() => {
+    const wrapper = crossHoverRef.current;
+    if (!wrapper) return;
+
+    let lastKey: string | null = null;
+    let lastSourceTable: Element | null = null;
+
+    function clearHighlights() {
+      if (!wrapper || !lastKey) return;
+      const highlighted = wrapper.querySelectorAll('tr.sf-cross-hover');
+      for (const el of highlighted) {
+        el.classList.remove('sf-cross-hover');
+      }
+      lastKey = null;
+      lastSourceTable = null;
+    }
+
+    function handleMouseOver(e: MouseEvent) {
+      const tr = (e.target as HTMLElement).closest('tr[data-row-key]');
+      if (!tr) {
+        clearHighlights();
+        return;
+      }
+
+      const key = tr.getAttribute('data-row-key');
+      const sourceTable = tr.closest('table');
+
+      // Skip if same row in same table (no change)
+      if (key === lastKey && sourceTable === lastSourceTable) return;
+
+      clearHighlights();
+      if (!key || !wrapper) return;
+
+      // Find all rows with matching key across ALL tables in the wrapper
+      const allMatches = wrapper.querySelectorAll(
+        `tr[data-row-key="${CSS.escape(key)}"]`
+      );
+
+      // Highlight only rows in OTHER tables (source table has native :hover)
+      for (const match of allMatches) {
+        if (match.closest('table') !== sourceTable) {
+          match.classList.add('sf-cross-hover');
+        }
+      }
+
+      lastKey = key;
+      lastSourceTable = sourceTable;
+    }
+
+    function handleMouseLeave() {
+      clearHighlights();
+    }
+
+    wrapper.addEventListener('mouseover', handleMouseOver);
+    wrapper.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      wrapper.removeEventListener('mouseover', handleMouseOver);
+      wrapper.removeEventListener('mouseleave', handleMouseLeave);
+      clearHighlights();
+    };
+  }, []);
+
   return (
-    <DataTable
-      className="sf-table"
-      columns={columns}
-      data={filteredRecords}
-      keyAccessor="TRANSACTION_NBR"
-      showRowNumbers={true}
-      stickyColumns={3}
-      staggerRows={true}
-      emptyMessage="No transactions in this queue"
-      toolbar={{
-        left: (
+    <div ref={crossHoverRef} className="sf-tables-wrapper">
+      {/* CI Preview Tables (above the main results table) */}
+      {CI_PREVIEW_CONFIG.map(({ template, dataKey, tabFilter }) => {
+        // Only show table on its designated sub-tab
+        if (tabFilter !== activeSubTab) return null;
+
+        const allRecords = parsedCIData[dataKey] as ParsedCIRecordBase[];
+        const records = allRecords.filter(r => selectedRows.has(r.transactionNbr));
+        if (records.length === 0) return null;
+
+        const ciColumns = buildCIPreviewColumns(template, getLabel);
+
+        return (
+          <div key={dataKey} className="sf-ci-preview-container">
+            <h4 className="sf-ci-preview-title">{template.queryFieldName}</h4>
+            <DataTable
+              className="sf-ci-preview-table"
+              columns={ciColumns}
+              data={records}
+              keyAccessor="transactionNbr"
+              showRowNumbers={true}
+              stickyColumns={2}
+              emptyMessage="No records"
+              ariaLabel={`${template.queryFieldName} preview`}
+            />
+          </div>
+        );
+      })}
+
+      {/* Main Results Section: Toolbar → Title Bar → DataTable */}
+      <div className="sf-results-container">
+        <div className="sf-results-toolbar">
           <span className="sf-table-row-count">
             {rowCount} row{rowCount !== 1 ? 's' : ''}
           </span>
-        ),
-        right: (
           <span className="sf-table-queue-label">
             {queueLabel} Approval Queue
           </span>
-        ),
-      }}
-      rowConfig={{
-        className: (row) =>
-          selectedRows.has(row.TRANSACTION_NBR) ? '' : 'sf-table-row--unchecked',
-      }}
-      tabPanel={{
-        id: `sf-tabpanel-${activeSubTab}`,
-        labelledBy: `sf-tab-${activeSubTab}`,
-      }}
-      ariaLabel={`${queueLabel} approval transactions`}
-    />
+        </div>
+        <h4 className="sf-results-title">Pending Transactions</h4>
+        <DataTable
+          className="sf-table"
+          columns={columns}
+          data={filteredRecords}
+          keyAccessor="TRANSACTION_NBR"
+          showRowNumbers={true}
+          stickyColumns={3}
+          staggerRows={true}
+          emptyMessage="No transactions in this queue"
+          rowConfig={{
+            className: (row) =>
+              selectedRows.has(row.TRANSACTION_NBR) ? '' : 'sf-table-row--unchecked',
+          }}
+          tabPanel={{
+            id: `sf-tabpanel-${activeSubTab}`,
+            labelledBy: `sf-tab-${activeSubTab}`,
+          }}
+          ariaLabel={`${queueLabel} approval transactions`}
+        />
+      </div>
+    </div>
   );
 }

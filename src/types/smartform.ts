@@ -6,7 +6,10 @@
  * - Sub-tab navigation
  * - Workflow state machines for Manager and Other approval processes
  * - CI submission records with status tracking
+ * - Parsed CI data from pipe-delimited strings
  */
+
+import type { ParsedCIData } from '../server/ci-definitions/types.js';
 
 /* ==============================================
    Record Types
@@ -50,7 +53,10 @@ export interface SmartFormRecord {
 /**
  * Fields that are hidden from table display but used for logic/linking.
  */
-export const HIDDEN_SMARTFORM_FIELDS = ['MGR_CUR', 'WEB_LINK', 'status', 'errorMessage'] as const;
+export const HIDDEN_SMARTFORM_FIELDS = [
+  'MGR_CUR', 'WEB_LINK', 'status', 'errorMessage',
+  'POSITION_CREATE_CI', 'POSITION_UPDATE_CI', 'JOB_UPDATE_CI', 'DEPT_CO_UPDATE_CI',
+] as const;
 
 /**
  * Fields that should use monospace font.
@@ -133,20 +139,17 @@ export interface PreparedSubmission {
  * Manager workflow step - discriminated union
  *
  * The Manager workflow follows these steps:
- * 1. idle → preparing (Prepare CI submissions)
- * 2. prepared (Shows prepared submission tables)
- * 3. approving (Process approvals via browser automation - browser opens automatically)
- * 4. approved
- * 5. submitting-position (Submit CI_POSITION_DATA)
- * 6. submitting-job (Submit CI_JOB_DATA)
- * 7. complete
+ * 1. idle → approving (Process approvals via browser automation)
+ * 2. approved
+ * 3. submitting-position (Submit CI_POSITION_DATA)
+ * 4. submitting-job (Submit CI_JOB_DATA)
+ * 5. complete
  *
+ * CI data is auto-parsed on query execution — no manual prepare step needed.
  * Can transition to 'error' from any step.
  */
 export type ManagerWorkflowStep =
   | { step: 'idle' }
-  | { step: 'preparing'; ciType: 'position' | 'job' }
-  | { step: 'prepared'; positionData: PreparedSubmission[]; jobData: PreparedSubmission[] }
   | { step: 'approving'; current: number; total: number; currentItem?: string }
   | { step: 'approved' }
   | { step: 'submitting-position'; current: number; total: number }
@@ -208,6 +211,8 @@ export interface SmartFormState {
   managerWorkflow: ManagerWorkflowStep;
   /** Other workflow current step */
   otherWorkflow: OtherWorkflowStep;
+  /** Parsed CI data from pipe-delimited strings (grouped by CI type) */
+  parsedCIData: ParsedCIData;
 }
 
 /* ==============================================
@@ -220,6 +225,14 @@ export const INITIAL_MANAGER_WORKFLOW: ManagerWorkflowStep = { step: 'idle' };
 /** Initial state for Other workflow */
 export const INITIAL_OTHER_WORKFLOW: OtherWorkflowStep = { step: 'idle' };
 
+/** Initial empty parsed CI data */
+export const INITIAL_PARSED_CI_DATA: ParsedCIData = {
+  positionCreate: [],
+  positionUpdate: [],
+  jobUpdate: [],
+  deptCoUpdate: [],
+};
+
 /** Initial SmartForm state */
 export const INITIAL_SMARTFORM_STATE: SmartFormState = {
   hasQueried: false,
@@ -228,4 +241,5 @@ export const INITIAL_SMARTFORM_STATE: SmartFormState = {
   activeSubTab: 'manager',
   managerWorkflow: INITIAL_MANAGER_WORKFLOW,
   otherWorkflow: INITIAL_OTHER_WORKFLOW,
+  parsedCIData: INITIAL_PARSED_CI_DATA,
 };

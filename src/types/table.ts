@@ -58,8 +58,8 @@ export interface ColumnDef<TData> {
   /** Unique identifier for the column */
   id: string;
 
-  /** Column header text (can be empty for action columns) */
-  header: string;
+  /** Column header content — plain string or ReactNode (e.g., two-row header via JSX) */
+  header: ReactNode;
 
   /**
    * How to access the cell value from the row data.

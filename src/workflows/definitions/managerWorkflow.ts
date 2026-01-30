@@ -1,11 +1,12 @@
 /**
  * Manager Workflow Definition
  *
- * The Manager approval workflow handles the 4-step process:
- * 1. Prepare CI submissions (gather data)
- * 2. Process approvals via browser automation
- * 3. Submit CI_POSITION_DATA
- * 4. Submit CI_JOB_DATA
+ * The Manager approval workflow handles the 3-task process:
+ * 1. Process approvals via browser automation
+ * 2. Submit CI_POSITION_DATA
+ * 3. Submit CI_JOB_DATA
+ *
+ * CI data is auto-parsed during query execution — no manual prepare step.
  *
  * This definition contains all configuration in one place:
  * - Step order and processing behaviors
@@ -24,8 +25,7 @@ import type { WorkflowDefinition, StepConfig, TaskConfig } from '../types';
  * Manager workflow step configurations.
  *
  * Processing behaviors:
- * - 'never': idle, prepared, approved, complete (waiting/terminal states)
- * - 'always': preparing (simple step, no progress tracking)
+ * - 'never': idle, approved, complete (waiting/terminal states)
  * - 'server-controlled': approving (server determines completion)
  * - 'transitional': submitting-position, submitting-job (step changes when done)
  */
@@ -34,18 +34,6 @@ export const MANAGER_STEPS: readonly StepConfig<ManagerWorkflowStepName>[] = [
     name: 'idle',
     processingBehavior: 'never',
     label: 'Ready to start',
-    validTransitions: ['preparing', 'error'],
-  },
-  {
-    name: 'preparing',
-    processingBehavior: 'always',
-    label: 'Preparing CI submissions',
-    validTransitions: ['prepared', 'error'],
-  },
-  {
-    name: 'prepared',
-    processingBehavior: 'never',
-    label: 'Submissions prepared',
     validTransitions: ['approving', 'error'],
   },
   {
@@ -100,15 +88,8 @@ export const MANAGER_STEPS: readonly StepConfig<ManagerWorkflowStepName>[] = [
  */
 export const MANAGER_TASKS: readonly TaskConfig<ManagerWorkflowStepName>[] = [
   {
-    id: 'prepare',
-    triggerStep: 'idle',
-    completionStep: 'prepared',
-    label: 'Prepare CI submissions',
-    buttonLabel: 'Prepare Submissions',
-  },
-  {
     id: 'approvals',
-    triggerStep: 'prepared',
+    triggerStep: 'idle',
     completionStep: 'approved',
     label: 'Process approvals (opens browser)',
     buttonLabel: 'Process Approvals',

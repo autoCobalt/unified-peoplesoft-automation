@@ -102,19 +102,19 @@
 }
 
 .dt-scroll-container::-webkit-scrollbar-thumb {
-  background: var(--border-default);
+  background: color-mix(in srgb, var(--accent-primary) 35%, var(--bg-tertiary));
   border-radius: 3px;
   transition: background 0.2s ease;
 }
 
 .dt-scroll-container::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
+  background: color-mix(in srgb, var(--accent-primary) 55%, var(--bg-tertiary));
 }
 
 /* Firefox */
 .dt-scroll-container {
   scrollbar-width: thin;
-  scrollbar-color: var(--border-default) var(--bg-tertiary);
+  scrollbar-color: color-mix(in srgb, var(--accent-primary) 35%, var(--bg-tertiary)) var(--bg-tertiary);
 }
 
 /* === Table === */

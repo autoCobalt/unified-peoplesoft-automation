@@ -1,17 +1,17 @@
 /**
  * ManagerWorkflowSection Component
  *
- * Displays the 4-step Manager approval workflow:
- * 1. Prepare CI submissions
- * 2. Process approvals (browser opens automatically)
- * 3. Submit position data
- * 4. Submit job data
+ * Displays the 3-task Manager approval workflow:
+ * 1. Process approvals (browser opens automatically)
+ * 2. Submit position data
+ * 3. Submit job data
  *
+ * CI data is auto-parsed during query execution — no manual prepare step.
  * Features a progressive action button and prepared submission tables.
  * Uses shared workflow components for the checklist, button, and status messages.
  * Uses the DataTable component for displaying prepared CI submissions.
  *
- * Uses the new definition-driven workflow system from src/workflows/.
+ * Uses the definition-driven workflow system from src/workflows/.
  */
 
 import { useMemo } from 'react';
@@ -67,7 +67,6 @@ function useSubmissionColumns(): ColumnDef<PreparedSubmission>[] {
 export function ManagerWorkflowSection() {
   const {
     state,
-    prepareSubmissions,
     openBrowser,
     pauseApprovals,
     resumeApprovals,
@@ -89,11 +88,10 @@ export function ManagerWorkflowSection() {
   // Action map connects task IDs to context-provided actions
   // This keeps action logic in the context provider while definitions stay pure
   const actionMap: ActionMap = useMemo(() => ({
-    prepare: prepareSubmissions,
     approvals: openBrowser,
     position: submitPositionData,
     job: submitJobData,
-  }), [prepareSubmissions, openBrowser, submitPositionData, submitJobData]);
+  }), [openBrowser, submitPositionData, submitJobData]);
 
   // Build requirement status from connection states
   const requirementStatus: RequirementStatus = useMemo(() => ({
@@ -185,16 +183,15 @@ export function ManagerWorkflowSection() {
               Requires {missingRequirementsText} connection
             </p>
           )}
-          {/* Pause/Resume controls - visible at prepared step (disabled) and approving step (enabled) */}
-          {(stepName === 'prepared' || stepName === 'approving') && (
+          {/* Pause/Resume controls - visible during approval processing */}
+          {stepName === 'approving' && (
             <div className="sf-workflow-pause-controls">
               {!isWorkflowPaused ? (
                 <button
                   type="button"
                   className="sf-workflow-pause-btn"
                   onClick={() => { void pauseApprovals(); }}
-                  disabled={stepName === 'prepared'}
-                  title={stepName === 'prepared' ? 'Pause will be available during approval processing' : 'Pause workflow between transactions'}
+                  title="Pause workflow between transactions"
                 >
                   ⏸ Pause
                 </button>
@@ -235,8 +232,11 @@ export function ManagerWorkflowSection() {
         />
       )}
 
-      {/* Prepared Submission Tables (using DataTable component) */}
+      {/* Submission Tracking Tables — visible during submission steps and after completion */}
       {hasPreparedData && (
+        stepName === 'approved' || stepName === 'submitting-position' ||
+        stepName === 'submitting-job' || isComplete
+      ) && (
         <div className="sf-workflow-submissions">
           {/* CI_POSITION_DATA Table */}
           {preparedPositionData.length > 0 && (

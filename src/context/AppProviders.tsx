@@ -14,6 +14,7 @@
 
 import type { ComponentType, ReactNode } from 'react';
 import { ConnectionProvider } from './ConnectionContext';
+import { CILabelsProvider } from './CILabelsContext';
 import { SmartFormProvider } from './SmartFormContext';
 
 /* ==============================================
@@ -35,6 +36,7 @@ type ProviderComponent = ComponentType<{ children: ReactNode }>;
  */
 const PROVIDERS: ProviderComponent[] = [
   ConnectionProvider,
+  CILabelsProvider,
   SmartFormProvider,
   // Add future tab providers here:
   // EDWTransferProvider,

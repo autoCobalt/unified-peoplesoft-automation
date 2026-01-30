@@ -1,0 +1,716 @@
+{
+  "ciName": "DEPARTMENT_TBL",
+  "fieldLabels": {
+    "SETID": "Set ID",
+    "DEPTID": "Department",
+    "EFFDT": "Effective Date",
+    "EFF_STATUS": "Status as of Effective Date",
+    "DESCR": "Description",
+    "DESCRSHORT": "Short Description",
+    "COMPANY": "Company",
+    "SETID_LOCATION": "Location Set ID",
+    "LOCATION": "Location Code",
+    "TAX_LOCATION_CD": "Tax Location Code",
+    "MANAGER_ID": "Manager ID",
+    "MANAGER_POSN": "Manager Position",
+    "BUDGET_YR_END_DT": "Budget Year End Date",
+    "BUDGET_LVL": "Budget Level",
+    "GL_EXPENSE": "GL Account #-Expense",
+    "EEO4_FUNCTION": "U.S. EEO4 Function",
+    "CAN_IND_SECTOR": "Canadian Industrial Sector",
+    "ACCIDENT_INS": "Accident Insurance",
+    "SI_ACCIDENT_NUM": "Social Insurance Accident Nbr",
+    "HAZARD": "Hazard",
+    "ESTABID": "Establishment ID",
+    "RISKCD": "Risk Code",
+    "FTE_EDIT_INDC": "FTE Edit Indicator",
+    "DEPT_TENURE_FLG": "Can Grant Tenure",
+    "TL_DISTRIB_INFO": "Use TL Distribution",
+    "USE_BUDGETS": "Use Comm Acctg / Budgeting",
+    "USE_ENCUMBRANCES": "Use Encumbrance Processing",
+    "USE_DISTRIBUTION": "Use Actuals Distribution",
+    "BUDGET_DEPTID": "Budget with Department",
+    "HP_STATS_DEPT_CD": "Stats-Can Dept Code",
+    "HP_STATS_DPCD_NW": "Stats-Can CIP",
+    "HP_STATS_FACULTY": "Stats-Can Faculty Code",
+    "HP_RTBC_OPTION": "Process Option",
+    "HP_AUTO_RTBC": "Automatic Budget Check",
+    "CLASS_UNIT_NZL": "Classification Unit",
+    "ORG_UNIT_AUS": "Organizational Unit",
+    "WORK_SECTOR_AUS": "Work Sector",
+    "APS_AGENT_CD_AUS": "Agency Code",
+    "IND_COMMITTEE_BEL": "Industrial Committee",
+    "NACE_CD_BEL": "NACE Code",
+    "MANAGER_TYPE": "Manager Type",
+    "UNION_CD": "Union Code",
+    "SUBCOMM_BEL": "Subcommittee",
+    "CAN_NAICS_CD": "NAICS Code",
+    "AT_SECTION": "AT SECTION",
+    "COST_CENTER_MEX": "Cost Center",
+    "COST_CENTER_ARG": "Cost Center",
+    "COST_CENTER_BRA": "Cost Center",
+    "PART_DEPTID_CHN": "Parent Department",
+    "PART_DISP_FLAG_CHN": "Not Display on Fin Data Rpt",
+    "ADMIN_RANK_CHN": "Administrative Rank",
+    "INST_CLASS_CHN": "Institution Classification"
+  },
+  "description": "",
+  "defaultAction": "CREATE",
+  "fetchedAt": "2026-01-30T12:41:56.685Z",
+  "source": "manual",
+  "level0Fields": [
+    {
+      "name": "SETID",
+      "display": true,
+      "edit": true,
+      "fieldLength": "5",
+      "fieldType": 0,
+      "key": true,
+      "label": "Set ID",
+      "readOnly": false,
+      "required": true
+    },
+    {
+      "name": "SETID",
+      "display": false,
+      "edit": true,
+      "fieldLength": "5",
+      "fieldType": 0,
+      "key": true,
+      "label": "Set ID",
+      "readOnly": false,
+      "required": true
+    },
+    {
+      "name": "DEPTID",
+      "display": true,
+      "edit": false,
+      "fieldLength": "10",
+      "fieldType": 0,
+      "key": true,
+      "label": "Department",
+      "readOnly": false,
+      "required": true
+    },
+    {
+      "name": "DEPTID",
+      "display": false,
+      "edit": false,
+      "fieldLength": "10",
+      "fieldType": 0,
+      "key": true,
+      "label": "Department",
+      "readOnly": false,
+      "required": true
+    }
+  ],
+  "collections": [
+    {
+      "name": "DEPT_TBL",
+      "recordTypeIdentifier": "1-0-0",
+      "fields": [
+        {
+          "name": "EFFDT",
+          "display": true,
+          "edit": false,
+          "fieldLength": "10",
+          "fieldType": 4,
+          "key": true,
+          "label": "Effective Date",
+          "readOnly": false,
+          "required": true
+        },
+        {
+          "name": "EFF_STATUS",
+          "display": true,
+          "edit": false,
+          "fieldLength": "1",
+          "fieldType": 0,
+          "key": false,
+          "label": "Status as of Effective Date",
+          "readOnly": false,
+          "required": true
+        },
+        {
+          "name": "DESCR",
+          "display": true,
+          "edit": false,
+          "fieldLength": "30",
+          "fieldType": 0,
+          "key": false,
+          "label": "Description",
+          "readOnly": false,
+          "required": true
+        },
+        {
+          "name": "DESCRSHORT",
+          "display": true,
+          "edit": false,
+          "fieldLength": "10",
+          "fieldType": 0,
+          "key": false,
+          "label": "Short Description",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "COMPANY",
+          "display": true,
+          "edit": true,
+          "fieldLength": "3",
+          "fieldType": 0,
+          "key": false,
+          "label": "Company",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "SETID_LOCATION",
+          "display": true,
+          "edit": true,
+          "fieldLength": "5",
+          "fieldType": 0,
+          "key": false,
+          "label": "Location Set ID",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "LOCATION",
+          "display": true,
+          "edit": true,
+          "fieldLength": "10",
+          "fieldType": 0,
+          "key": false,
+          "label": "Location Code",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "TAX_LOCATION_CD",
+          "display": true,
+          "edit": true,
+          "fieldLength": "10",
+          "fieldType": 0,
+          "key": false,
+          "label": "Tax Location Code",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "MANAGER_ID",
+          "display": true,
+          "edit": true,
+          "fieldLength": "11",
+          "fieldType": 0,
+          "key": false,
+          "label": "Manager ID",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "MANAGER_POSN",
+          "display": true,
+          "edit": true,
+          "fieldLength": "8",
+          "fieldType": 0,
+          "key": false,
+          "label": "Manager Position",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "BUDGET_YR_END_DT",
+          "display": true,
+          "edit": false,
+          "fieldLength": "4",
+          "fieldType": 2,
+          "key": false,
+          "label": "Budget Year End Date",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "BUDGET_LVL",
+          "display": true,
+          "edit": false,
+          "fieldLength": "1",
+          "fieldType": 0,
+          "key": false,
+          "label": "Budget Level",
+          "readOnly": false,
+          "required": true
+        },
+        {
+          "name": "GL_EXPENSE",
+          "display": true,
+          "edit": false,
+          "fieldLength": "35",
+          "fieldType": 0,
+          "key": false,
+          "label": "GL Account #-Expense",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "EEO4_FUNCTION",
+          "display": true,
+          "edit": false,
+          "fieldLength": "2",
+          "fieldType": 0,
+          "key": false,
+          "label": "U.S. EEO4 Function",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "CAN_IND_SECTOR",
+          "display": true,
+          "edit": false,
+          "fieldLength": "3",
+          "fieldType": 0,
+          "key": false,
+          "label": "Canadian Industrial Sector",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "ACCIDENT_INS",
+          "display": true,
+          "edit": true,
+          "fieldLength": "15",
+          "fieldType": 0,
+          "key": false,
+          "label": "Accident Insurance",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "SI_ACCIDENT_NUM",
+          "display": true,
+          "edit": false,
+          "fieldLength": "15",
+          "fieldType": 0,
+          "key": false,
+          "label": "Social Insurance Accident Nbr",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "HAZARD",
+          "display": true,
+          "edit": true,
+          "fieldLength": "8",
+          "fieldType": 0,
+          "key": false,
+          "label": "Hazard",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "ESTABID",
+          "display": true,
+          "edit": true,
+          "fieldLength": "12",
+          "fieldType": 0,
+          "key": false,
+          "label": "Establishment ID",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "RISKCD",
+          "display": true,
+          "edit": true,
+          "fieldLength": "6",
+          "fieldType": 0,
+          "key": false,
+          "label": "Risk Code",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "FTE_EDIT_INDC",
+          "display": true,
+          "edit": false,
+          "fieldLength": "1",
+          "fieldType": 0,
+          "key": false,
+          "label": "FTE Edit Indicator",
+          "readOnly": false,
+          "required": true
+        },
+        {
+          "name": "DEPT_TENURE_FLG",
+          "display": true,
+          "edit": false,
+          "fieldLength": "1",
+          "fieldType": 0,
+          "key": false,
+          "label": "Can Grant Tenure",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "TL_DISTRIB_INFO",
+          "display": true,
+          "edit": false,
+          "fieldLength": "1",
+          "fieldType": 0,
+          "key": false,
+          "label": "Use TL Distribution",
+          "readOnly": false,
+          "required": true
+        },
+        {
+          "name": "USE_BUDGETS",
+          "display": true,
+          "edit": false,
+          "fieldLength": "1",
+          "fieldType": 0,
+          "key": false,
+          "label": "Use Comm Acctg / Budgeting",
+          "readOnly": false,
+          "required": true
+        },
+        {
+          "name": "USE_ENCUMBRANCES",
+          "display": true,
+          "edit": false,
+          "fieldLength": "1",
+          "fieldType": 0,
+          "key": false,
+          "label": "Use Encumbrance Processing",
+          "readOnly": false,
+          "required": true
+        },
+        {
+          "name": "USE_DISTRIBUTION",
+          "display": true,
+          "edit": false,
+          "fieldLength": "1",
+          "fieldType": 0,
+          "key": false,
+          "label": "Use Actuals Distribution",
+          "readOnly": false,
+          "required": true
+        },
+        {
+          "name": "BUDGET_DEPTID",
+          "display": true,
+          "edit": false,
+          "fieldLength": "10",
+          "fieldType": 0,
+          "key": false,
+          "label": "Budget with Department",
+          "readOnly": false,
+          "required": true
+        },
+        {
+          "name": "HP_STATS_DEPT_CD",
+          "display": true,
+          "edit": false,
+          "fieldLength": "3",
+          "fieldType": 0,
+          "key": false,
+          "label": "Stats-Can Dept Code",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "HP_STATS_DPCD_NW",
+          "display": true,
+          "edit": true,
+          "fieldLength": "2",
+          "fieldType": 0,
+          "key": false,
+          "label": "Stats-Can CIP",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "HP_STATS_FACULTY",
+          "display": true,
+          "edit": true,
+          "fieldLength": "5",
+          "fieldType": 0,
+          "key": false,
+          "label": "Stats-Can Faculty Code",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "HP_RTBC_OPTION",
+          "display": true,
+          "edit": false,
+          "fieldLength": "1",
+          "fieldType": 0,
+          "key": false,
+          "label": "Process Option",
+          "readOnly": false,
+          "required": true
+        },
+        {
+          "name": "HP_AUTO_RTBC",
+          "display": true,
+          "edit": false,
+          "fieldLength": "1",
+          "fieldType": 0,
+          "key": false,
+          "label": "Automatic Budget Check",
+          "readOnly": false,
+          "required": true
+        },
+        {
+          "name": "CLASS_UNIT_NZL",
+          "display": true,
+          "edit": true,
+          "fieldLength": "5",
+          "fieldType": 0,
+          "key": false,
+          "label": "Classification Unit",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "ORG_UNIT_AUS",
+          "display": true,
+          "edit": true,
+          "fieldLength": "4",
+          "fieldType": 0,
+          "key": false,
+          "label": "Organizational Unit",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "WORK_SECTOR_AUS",
+          "display": true,
+          "edit": false,
+          "fieldLength": "1",
+          "fieldType": 0,
+          "key": false,
+          "label": "Work Sector",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "APS_AGENT_CD_AUS",
+          "display": true,
+          "edit": false,
+          "fieldLength": "3",
+          "fieldType": 2,
+          "key": false,
+          "label": "Agency Code",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "IND_COMMITTEE_BEL",
+          "display": true,
+          "edit": true,
+          "fieldLength": "3",
+          "fieldType": 0,
+          "key": false,
+          "label": "Industrial Committee",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "NACE_CD_BEL",
+          "display": true,
+          "edit": false,
+          "fieldLength": "10",
+          "fieldType": 0,
+          "key": false,
+          "label": "NACE Code",
+          "readOnly": false,
+          "required": false
+        },
+        {
+          "name": "MANAGER_TYPE",
+          "display": true,
+          "edit": false,
+          "fieldLength": "1",
+          "fieldType": 0,
+          "key": false,
+          "label": "Manager Type",
+          "readOnly": false,
+          "required": false
+        }
+      ],
+      "subCollections": [
+        {
+          "name": "DEPT_SUBCOM_BEL",
+          "recordTypeIdentifier": "1-1-0",
+          "fields": [
+            {
+              "name": "UNION_CD",
+              "display": true,
+              "edit": true,
+              "fieldLength": "3",
+              "fieldType": 0,
+              "key": true,
+              "label": "Union Code",
+              "readOnly": false,
+              "required": false
+            },
+            {
+              "name": "SUBCOMM_BEL",
+              "display": true,
+              "edit": true,
+              "fieldLength": "6",
+              "fieldType": 0,
+              "key": true,
+              "label": "Subcommittee",
+              "readOnly": false,
+              "required": false
+            }
+          ],
+          "subCollections": []
+        },
+        {
+          "name": "DEPT_TBL_CAN",
+          "recordTypeIdentifier": "1-2-0",
+          "fields": [
+            {
+              "name": "CAN_NAICS_CD",
+              "display": true,
+              "edit": false,
+              "fieldLength": "4",
+              "fieldType": 2,
+              "key": false,
+              "label": "NAICS Code",
+              "readOnly": false,
+              "required": false
+            }
+          ],
+          "subCollections": []
+        },
+        {
+          "name": "DEPT_TBL_FRA",
+          "recordTypeIdentifier": "1-3-0",
+          "fields": [
+            {
+              "name": "AT_SECTION",
+              "display": true,
+              "edit": false,
+              "fieldLength": "2",
+              "fieldType": 0,
+              "key": false,
+              "label": "AT SECTION",
+              "readOnly": false,
+              "required": false
+            }
+          ],
+          "subCollections": []
+        },
+        {
+          "name": "DEPT_TBL_MEX",
+          "recordTypeIdentifier": "1-4-0",
+          "fields": [
+            {
+              "name": "COST_CENTER_MEX",
+              "display": true,
+              "edit": false,
+              "fieldLength": "35",
+              "fieldType": 0,
+              "key": true,
+              "label": "Cost Center",
+              "readOnly": false,
+              "required": false
+            }
+          ],
+          "subCollections": []
+        },
+        {
+          "name": "DEPT_TBL_ARG",
+          "recordTypeIdentifier": "1-5-0",
+          "fields": [
+            {
+              "name": "COST_CENTER_ARG",
+              "display": true,
+              "edit": false,
+              "fieldLength": "35",
+              "fieldType": 0,
+              "key": true,
+              "label": "Cost Center",
+              "readOnly": false,
+              "required": false
+            }
+          ],
+          "subCollections": []
+        },
+        {
+          "name": "DEPT_TBL_BRA",
+          "recordTypeIdentifier": "1-6-0",
+          "fields": [
+            {
+              "name": "COST_CENTER_BRA",
+              "display": true,
+              "edit": false,
+              "fieldLength": "35",
+              "fieldType": 0,
+              "key": true,
+              "label": "Cost Center",
+              "readOnly": false,
+              "required": false
+            }
+          ],
+          "subCollections": []
+        },
+        {
+          "name": "DEPT_TBL_CHN",
+          "recordTypeIdentifier": "1-7-0",
+          "fields": [
+            {
+              "name": "PART_DEPTID_CHN",
+              "display": true,
+              "edit": true,
+              "fieldLength": "10",
+              "fieldType": 0,
+              "key": false,
+              "label": "Parent Department",
+              "readOnly": false,
+              "required": false
+            },
+            {
+              "name": "PART_DISP_FLAG_CHN",
+              "display": true,
+              "edit": false,
+              "fieldLength": "1",
+              "fieldType": 0,
+              "key": false,
+              "label": "Not Display on Fin Data Rpt",
+              "readOnly": false,
+              "required": false
+            },
+            {
+              "name": "ADMIN_RANK_CHN",
+              "display": true,
+              "edit": false,
+              "fieldLength": "100",
+              "fieldType": 0,
+              "key": false,
+              "label": "Administrative Rank",
+              "readOnly": false,
+              "required": false
+            },
+            {
+              "name": "INST_CLASS_CHN",
+              "display": true,
+              "edit": false,
+              "fieldLength": "100",
+              "fieldType": 0,
+              "key": false,
+              "label": "Institution Classification",
+              "readOnly": false,
+              "required": false
+            }
+          ],
+          "subCollections": []
+        }
+      ]
+    }
+  ]
+}

@@ -71,6 +71,7 @@ old_project_*
 deprecated/
 issues/
 SOAP_Guides/
+.playwright-mcp/
 
 # ===== MISC =====
 *.pem

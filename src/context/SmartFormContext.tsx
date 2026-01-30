@@ -27,8 +27,10 @@ import {
   INITIAL_SMARTFORM_STATE,
   INITIAL_MANAGER_WORKFLOW,
   INITIAL_OTHER_WORKFLOW,
+  INITIAL_PARSED_CI_DATA,
 } from '../types';
 import { generateMockRecords } from '../dev-data';
+import { parseCIDataFromRecords } from '../server/ci-definitions/parser';
 
 /**
  * Transform Oracle query rows to SmartFormRecord array.
@@ -48,19 +50,54 @@ function transformOracleRows(rows: QueryResultRow[]): SmartFormRecord[] {
  * Generate mock query results.
  * Used in development mode when VITE_APP_MODE !== 'production'.
  */
-function generateMockQueryResults(): SmartFormQueryResult {
+function generateMockQueryResults(): { results: SmartFormQueryResult; parsedCIData: ReturnType<typeof parseCIDataFromRecords> } {
   const records = generateMockRecords();
   // Filter by MGR_CUR: 1 = Manager, 0 = Other
   const managerCount = records.filter(r => r.MGR_CUR === 1).length;
   const otherCount = records.filter(r => r.MGR_CUR === 0).length;
 
-  return {
+  const results: SmartFormQueryResult = {
     totalCount: records.length,
     managerCount,
     otherCount,
     transactions: records,
     queriedAt: new Date(),
   };
+
+  // Parse CI data from mock records (same as production path)
+  const parsedCIData = parseCIDataFromRecords(records);
+
+  return { results, parsedCIData };
+}
+
+/**
+ * Auto-build PreparedSubmission arrays from manager records.
+ * Called after query execution to pre-populate submission tracking data.
+ */
+function buildPreparedSubmissions(
+  transactions: SmartFormRecord[]
+): { position: PreparedSubmission[]; job: PreparedSubmission[] } {
+  const managerRecords = transactions.filter(r => r.MGR_CUR === 1);
+
+  const position: PreparedSubmission[] = managerRecords.map(record => ({
+    id: `pos-${record.TRANSACTION_NBR}`,
+    emplid: record.EMPLID,
+    employeeName: record.EMPLOYEE_NAME,
+    ciType: 'CI_POSITION_DATA',
+    status: 'pending',
+    payload: JSON.stringify({ emplid: record.EMPLID, effdt: record.CUR_EFFDT }),
+  }));
+
+  const job: PreparedSubmission[] = managerRecords.map(record => ({
+    id: `job-${record.TRANSACTION_NBR}`,
+    emplid: record.EMPLID,
+    employeeName: record.EMPLOYEE_NAME,
+    ciType: 'CI_JOB_DATA',
+    status: 'pending',
+    payload: JSON.stringify({ emplid: record.EMPLID, effdt: record.CUR_EFFDT }),
+  }));
+
+  return { position, job };
 }
 
 /* ==============================================
@@ -95,6 +132,19 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   // Track if workflow is paused (from server polling)
   const [isWorkflowPaused, setIsWorkflowPaused] = useState(false);
 
+  // Per-tab transaction selection (all selected by default after query)
+  const [selectedByTab, setSelectedByTab] = useState<Record<SmartFormSubTab, Set<string>>>(() => ({
+    manager: new Set(),
+    other: new Set(),
+  }));
+
+  // Refs for stable callbacks that need current state without dependency churn
+  const activeSubTabRef = useRef(state.activeSubTab);
+  activeSubTabRef.current = state.activeSubTab;
+
+  const selectedByTabRef = useRef(selectedByTab);
+  selectedByTabRef.current = selectedByTab;
+
   /* ==============================================
      Query Actions
      ============================================== */
@@ -103,11 +153,14 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     setState(prev => ({ ...prev, isLoading: true }));
 
     let results: SmartFormQueryResult;
+    let parsedCIData = INITIAL_PARSED_CI_DATA;
 
     if (isDevelopment) {
       // Development mode: use mock data
       await new Promise(resolve => setTimeout(resolve, 800));
-      results = generateMockQueryResults();
+      const mock = generateMockQueryResults();
+      results = mock.results;
+      parsedCIData = mock.parsedCIData;
     } else {
       // Production mode: call Oracle API
       const response = await oracleApi.query.smartFormTransactions();
@@ -129,6 +182,9 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         transactions,
         queriedAt: new Date(),
       };
+
+      // Parse CI data from Oracle records
+      parsedCIData = parseCIDataFromRecords(transactions);
     }
 
     setState(prev => ({
@@ -136,14 +192,22 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       isLoading: false,
       hasQueried: true,
       queryResults: results,
+      parsedCIData,
       // Reset workflows on fresh query
       managerWorkflow: INITIAL_MANAGER_WORKFLOW,
       otherWorkflow: INITIAL_OTHER_WORKFLOW,
     }));
 
-    // Clear prepared data on new query
-    setPreparedPositionData([]);
-    setPreparedJobData([]);
+    // Auto-populate prepared submissions from manager records
+    const prepared = buildPreparedSubmissions(results.transactions);
+    setPreparedPositionData(prepared.position);
+    setPreparedJobData(prepared.job);
+
+    // Initialize transaction selections (all selected for both tabs)
+    setSelectedByTab({
+      manager: new Set(results.transactions.filter(r => r.MGR_CUR === 1).map(r => r.TRANSACTION_NBR)),
+      other: new Set(results.transactions.filter(r => r.MGR_CUR === 0).map(r => r.TRANSACTION_NBR)),
+    });
   }, []);
 
   const refreshQuery = useCallback(async () => {
@@ -151,11 +215,14 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     setState(prev => ({ ...prev, isLoading: true }));
 
     let results: SmartFormQueryResult;
+    let parsedCIData = INITIAL_PARSED_CI_DATA;
 
     if (isDevelopment) {
       // Development mode: use mock data
       await new Promise(resolve => setTimeout(resolve, 600));
-      results = generateMockQueryResults();
+      const mock = generateMockQueryResults();
+      results = mock.results;
+      parsedCIData = mock.parsedCIData;
     } else {
       // Production mode: call Oracle API
       const response = await oracleApi.query.smartFormTransactions();
@@ -176,13 +243,28 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         transactions,
         queriedAt: new Date(),
       };
+
+      // Parse CI data from Oracle records
+      parsedCIData = parseCIDataFromRecords(transactions);
     }
 
     setState(prev => ({
       ...prev,
       isLoading: false,
       queryResults: results,
+      parsedCIData,
     }));
+
+    // Auto-populate prepared submissions from refreshed data
+    const prepared = buildPreparedSubmissions(results.transactions);
+    setPreparedPositionData(prepared.position);
+    setPreparedJobData(prepared.job);
+
+    // Re-initialize transaction selections (all selected for both tabs)
+    setSelectedByTab({
+      manager: new Set(results.transactions.filter(r => r.MGR_CUR === 1).map(r => r.TRANSACTION_NBR)),
+      other: new Set(results.transactions.filter(r => r.MGR_CUR === 0).map(r => r.TRANSACTION_NBR)),
+    });
   }, []);
 
   /* ==============================================
@@ -193,6 +275,24 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     setState(prev => ({ ...prev, activeSubTab: tab }));
   }, []);
 
+  /**
+   * Toggle a single transaction's checked/unchecked state for the active sub-tab.
+   * Uses activeSubTabRef for a stable callback identity (no dependency on activeSubTab).
+   */
+  const setTransactionSelected = useCallback((txnNbr: string, selected: boolean) => {
+    setSelectedByTab(prev => {
+      const tab = activeSubTabRef.current;
+      const tabSet = prev[tab];
+      const next = new Set(tabSet);
+      if (selected) {
+        next.add(txnNbr);
+      } else {
+        next.delete(txnNbr);
+      }
+      return { ...prev, [tab]: next };
+    });
+  }, []);
+
   /* ==============================================
      Manager Workflow Actions
      ============================================== */
@@ -201,58 +301,15 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     setState(prev => ({ ...prev, managerWorkflow: workflow }));
   }, []);
 
-  const prepareSubmissions = useCallback(async () => {
-    setManagerWorkflow({ step: 'preparing', ciType: 'position' });
-
-    // Simulate preparation delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Generate prepared submissions from manager records (MGR_CUR = 1)
-    const managerRecords = state.queryResults?.transactions.filter(
-      r => r.MGR_CUR === 1
-    ) ?? [];
-
-    const positionSubs: PreparedSubmission[] = managerRecords.map(record => {
-      // EMPLOYEE_NAME is now a required field on SmartFormRecord
-      return {
-        id: `pos-${record.TRANSACTION_NBR}`,
-        emplid: record.EMPLID,
-        employeeName: record.EMPLOYEE_NAME,
-        ciType: 'CI_POSITION_DATA',
-        status: 'pending',
-        payload: JSON.stringify({ emplid: record.EMPLID, effdt: record.CUR_EFFDT }),
-      };
-    });
-
-    const jobSubs: PreparedSubmission[] = managerRecords.map(record => {
-      return {
-        id: `job-${record.TRANSACTION_NBR}`,
-        emplid: record.EMPLID,
-        employeeName: record.EMPLOYEE_NAME,
-        ciType: 'CI_JOB_DATA',
-        status: 'pending',
-        payload: JSON.stringify({ emplid: record.EMPLID, effdt: record.CUR_EFFDT }),
-      };
-    });
-
-    setPreparedPositionData(positionSubs);
-    setPreparedJobData(jobSubs);
-
-    setManagerWorkflow({
-      step: 'prepared',
-      positionData: positionSubs,
-      jobData: jobSubs,
-    });
-  }, [state.queryResults, setManagerWorkflow]);
-
   /**
    * Start the approval workflow via server API.
    * Browser lifecycle is handled internally by the server.
    */
   const startApprovals = useCallback(async () => {
-    // Filter by MGR_CUR = 1 for Manager queue
+    // Filter by MGR_CUR = 1 for Manager queue, excluding unchecked transactions
+    const managerSelected = selectedByTabRef.current.manager;
     const managerRecords = state.queryResults?.transactions.filter(
-      r => r.MGR_CUR === 1
+      r => r.MGR_CUR === 1 && managerSelected.has(r.TRANSACTION_NBR)
     ) ?? [];
 
     if (managerRecords.length === 0) {
@@ -345,12 +402,8 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
           stopPollingRef.current = null;
         }
       } else if (status.status === 'cancelled') {
-        // User cancelled - revert to prepared state
-        setManagerWorkflow({
-          step: 'prepared',
-          positionData: preparedPositionData,
-          jobData: preparedJobData,
-        });
+        // User cancelled - revert to idle
+        setManagerWorkflow({ step: 'idle' });
         setIsWorkflowPaused(false);
         if (stopPollingRef.current) {
           stopPollingRef.current();
@@ -358,7 +411,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         }
       }
     });
-  }, [state.queryResults, setManagerWorkflow, preparedPositionData, preparedJobData]);
+  }, [state.queryResults, setManagerWorkflow]);
 
   // Legacy aliases for backward compatibility with existing UI
   const openBrowser = startApprovals;
@@ -369,11 +422,26 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   }, []);
 
   const submitPositionData = useCallback(async () => {
-    const total = preparedPositionData.length;
-    const jobTotal = preparedJobData.length;
+    const managerSelected = selectedByTabRef.current.manager;
 
-    for (let i = 0; i < total; i++) {
-      setManagerWorkflow({ step: 'submitting-position', current: i + 1, total });
+    // Build indices of selected position submissions
+    const selectedIndices: number[] = [];
+    for (let i = 0; i < preparedPositionData.length; i++) {
+      const txnNbr = preparedPositionData[i].id.replace('pos-', '');
+      if (managerSelected.has(txnNbr)) {
+        selectedIndices.push(i);
+      }
+    }
+
+    const total = selectedIndices.length;
+    const jobTotal = preparedJobData.filter(sub =>
+      managerSelected.has(sub.id.replace('job-', ''))
+    ).length;
+
+    // Process only selected position submissions
+    for (let s = 0; s < total; s++) {
+      const i = selectedIndices[s];
+      setManagerWorkflow({ step: 'submitting-position', current: s + 1, total });
 
       // Update individual submission status
       setPreparedPositionData(prev =>
@@ -386,9 +454,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       await new Promise(resolve => setTimeout(resolve, 400));
 
       // For the last item, transition to next step BEFORE marking success
-      // This ensures both state updates are batched together, preventing
-      // a brief flash of the old button label
-      if (i === total - 1) {
+      if (s === total - 1) {
         setManagerWorkflow({ step: 'submitting-job', current: 0, total: jobTotal });
       }
 
@@ -399,13 +465,30 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         )
       );
     }
-  }, [preparedPositionData, preparedJobData.length, setManagerWorkflow]);
+
+    // If no position items selected, still transition to job step
+    if (total === 0) {
+      setManagerWorkflow({ step: 'submitting-job', current: 0, total: jobTotal });
+    }
+  }, [preparedPositionData, preparedJobData, setManagerWorkflow]);
 
   const submitJobData = useCallback(async () => {
-    const total = preparedJobData.length;
+    const managerSelected = selectedByTabRef.current.manager;
 
-    for (let i = 0; i < total; i++) {
-      setManagerWorkflow({ step: 'submitting-job', current: i + 1, total });
+    // Build indices of selected job submissions
+    const selectedIndices: number[] = [];
+    for (let i = 0; i < preparedJobData.length; i++) {
+      const txnNbr = preparedJobData[i].id.replace('job-', '');
+      if (managerSelected.has(txnNbr)) {
+        selectedIndices.push(i);
+      }
+    }
+
+    const total = selectedIndices.length;
+
+    for (let s = 0; s < total; s++) {
+      const i = selectedIndices[s];
+      setManagerWorkflow({ step: 'submitting-job', current: s + 1, total });
 
       setPreparedJobData(prev =>
         prev.map((sub, idx) =>
@@ -477,9 +560,10 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   }, []);
 
   const createPositionRecords = useCallback(async () => {
-    // Filter by MGR_CUR = 0 for Other queue
+    // Filter by MGR_CUR = 0 for Other queue, excluding unchecked transactions
+    const otherSelected = selectedByTabRef.current.other;
     const otherRecords = state.queryResults?.transactions.filter(
-      r => r.MGR_CUR === 0
+      r => r.MGR_CUR === 0 && otherSelected.has(r.TRANSACTION_NBR)
     ) ?? [];
 
     // Get distinct position numbers (POSITION_NBR is dynamic field)
@@ -503,9 +587,10 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   }, [state.queryResults, setOtherWorkflow, refreshQuery]);
 
   const processOtherApprovals = useCallback(async () => {
-    // Filter by MGR_CUR = 0 for Other queue
+    // Filter by MGR_CUR = 0 for Other queue, excluding unchecked transactions
+    const otherSelected = selectedByTabRef.current.other;
     const otherRecords = state.queryResults?.transactions.filter(
-      r => r.MGR_CUR === 0
+      r => r.MGR_CUR === 0 && otherSelected.has(r.TRANSACTION_NBR)
     ) ?? [];
 
     if (otherRecords.length === 0) {
@@ -589,7 +674,6 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       runQuery,
       refreshQuery,
       setActiveSubTab,
-      prepareSubmissions,
       openBrowser,
       processApprovals,
       pauseApprovals,
@@ -601,17 +685,19 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       createPositionRecords,
       processOtherApprovals,
       resetOtherWorkflow,
+      selectedByTab,
+      setTransactionSelected,
       filteredRecords,
       distinctPositionCount,
       preparedPositionData,
       preparedJobData,
+      parsedCIData: state.parsedCIData,
     }),
     [
       state,
       runQuery,
       refreshQuery,
       setActiveSubTab,
-      prepareSubmissions,
       openBrowser,
       processApprovals,
       pauseApprovals,
@@ -623,6 +709,8 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       createPositionRecords,
       processOtherApprovals,
       resetOtherWorkflow,
+      selectedByTab,
+      setTransactionSelected,
       filteredRecords,
       distinctPositionCount,
       preparedPositionData,

@@ -9,6 +9,11 @@ export { AppProviders } from './AppProviders';
 export { ConnectionProvider } from './ConnectionContext';
 export { useConnection } from './useConnection';
 
+// CI Labels context
+export { CILabelsProvider } from './CILabelsContext';
+export { useCILabels } from './useCILabels';
+export type { CILabelsContextType } from './ciLabelsContextDef';
+
 // SmartForm context
 export { SmartFormProvider } from './SmartFormContext';
 export { useSmartForm } from './useSmartForm';

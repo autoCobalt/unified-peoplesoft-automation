@@ -12,6 +12,7 @@ import type {
   SmartFormRecord,
   PreparedSubmission,
 } from '../types';
+import type { ParsedCIData } from '../server/ci-definitions/types';
 
 /* ==============================================
    Context Type Definition
@@ -29,7 +30,6 @@ export interface SmartFormContextType {
   setActiveSubTab: (tab: SmartFormSubTab) => void;
 
   // Manager Workflow Actions
-  prepareSubmissions: () => Promise<void>;
   openBrowser: () => Promise<void>;
   processApprovals: () => Promise<void>;
   pauseApprovals: () => Promise<void>;
@@ -46,6 +46,10 @@ export interface SmartFormContextType {
   processOtherApprovals: () => Promise<void>;
   resetOtherWorkflow: () => void;
 
+  // Transaction Selection (per sub-tab, default: all selected after query)
+  selectedByTab: Record<SmartFormSubTab, Set<string>>;
+  setTransactionSelected: (txnNbr: string, selected: boolean) => void;
+
   // Computed Values
   filteredRecords: SmartFormRecord[];
   distinctPositionCount: number;
@@ -53,6 +57,9 @@ export interface SmartFormContextType {
   // Prepared Submission Data (persists across workflow steps and tab switches)
   preparedPositionData: PreparedSubmission[];
   preparedJobData: PreparedSubmission[];
+
+  // Parsed CI Data (from pipe-delimited strings, populated on query execution)
+  parsedCIData: ParsedCIData;
 }
 
 /* ==============================================
