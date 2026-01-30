@@ -35,6 +35,9 @@ import {
   POSITION_CREATE_CI_TEMPLATE,
 } from '../../../../server/ci-definitions/templates/smartform';
 import { DataTable } from '../../../table';
+import { exportToExcel } from '../../../../utils';
+import type { ExcelColumn } from '../../../../utils';
+import { DownloadIcon } from '../../../icons';
 import './DataTableSection.css';
 
 /**
@@ -180,6 +183,47 @@ function buildCIPreviewColumns<T extends ParsedCIRecordBase>(
   return [txnColumn, ...fieldColumns];
 }
 
+/* ==============================================
+   Excel Export Helpers
+   ============================================== */
+
+/**
+ * Build Excel column definitions from a CI usage template.
+ * Includes TRANSACTION_NBR as the first column, followed by template fields.
+ */
+function buildCIExcelColumns(template: CIUsageTemplate): ExcelColumn[] {
+  return [
+    { header: 'TRANSACTION_NBR', accessor: 'transactionNbr' },
+    ...template.fields.map(f => ({ header: f.name, accessor: f.name })),
+  ];
+}
+
+/**
+ * Build Excel column definitions from a SmartForm record's visible keys.
+ * Excludes hidden fields (same set as the DataTable column builder).
+ */
+function buildResultsExcelColumns(firstRow: SmartFormRecord): ExcelColumn[] {
+  const hiddenSet = new Set<string>(HIDDEN_SMARTFORM_FIELDS);
+  return Object.keys(firstRow)
+    .filter(key => !hiddenSet.has(key))
+    .map(key => ({ header: key, accessor: key }));
+}
+
+/**
+ * Generate a timestamped filename for Excel downloads.
+ * Format: {prefix}_YYYYMMDD_HHMMSS
+ */
+function buildExcelFileName(prefix: string): string {
+  const now = new Date();
+  const yyyy = String(now.getFullYear());
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  return `${prefix}_${yyyy}${mm}${dd}_${hh}${min}${ss}`;
+}
+
 export function DataTableSection() {
   const {
     state,
@@ -314,7 +358,24 @@ export function DataTableSection() {
 
         return (
           <div key={dataKey} className="sf-ci-preview-container">
-            <h4 className="sf-ci-preview-title">{template.queryFieldName}</h4>
+            <h4 className="sf-ci-preview-title">
+              <button
+                type="button"
+                className="sf-download-btn"
+                title={`Download ${template.queryFieldName} as Excel`}
+                aria-label={`Download ${template.queryFieldName} as Excel`}
+                onClick={() => {
+                  exportToExcel(
+                    records as unknown as Record<string, unknown>[],
+                    buildCIExcelColumns(template),
+                    buildExcelFileName(template.queryFieldName),
+                  );
+                }}
+              >
+                <DownloadIcon />
+              </button>
+              {template.queryFieldName}
+            </h4>
             <DataTable
               className="sf-ci-preview-table"
               columns={ciColumns}
@@ -339,7 +400,26 @@ export function DataTableSection() {
             {queueLabel} Approval Queue
           </span>
         </div>
-        <h4 className="sf-results-title">Pending Transactions</h4>
+        <h4 className="sf-results-title">
+          <button
+            type="button"
+            className="sf-download-btn"
+            title="Download checked transactions as Excel"
+            aria-label="Download checked transactions as Excel"
+            onClick={() => {
+              const checked = filteredRecords.filter(r => selectedRows.has(r.TRANSACTION_NBR));
+              if (checked.length === 0) return;
+              exportToExcel(
+                checked as Record<string, unknown>[],
+                buildResultsExcelColumns(checked[0]),
+                buildExcelFileName('Pending_Transactions'),
+              );
+            }}
+          >
+            <DownloadIcon />
+          </button>
+          Pending Transactions
+        </h4>
         <DataTable
           className="sf-table"
           columns={columns}

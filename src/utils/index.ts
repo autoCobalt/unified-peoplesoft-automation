@@ -4,3 +4,4 @@
 
 export * from './workflow';
 export * from './formatConverters';
+export * from './exportToExcel';

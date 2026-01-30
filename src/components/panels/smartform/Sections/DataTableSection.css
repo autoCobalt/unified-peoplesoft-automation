@@ -141,6 +141,9 @@
 /* Title bar — shared layout between CI preview and results tables */
 .sf-ci-preview-title,
 .sf-results-title {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
   font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -219,6 +222,47 @@ tr.sf-cross-hover {
 /* Sticky columns need opaque backgrounds to cover scrolling content */
 tr.sf-cross-hover td.dt-sticky-col {
   background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-secondary));
+}
+
+/* ===== DOWNLOAD BUTTON ===== */
+
+/* Prominent icon button inside title bar — Excel-green accent */
+.sf-download-btn {
+  --excel-green: #217346;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--excel-green) 30%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--excel-green) 12%, transparent);
+  color: var(--excel-green);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.sf-download-btn:hover {
+  background: color-mix(in srgb, var(--excel-green) 22%, transparent);
+  border-color: color-mix(in srgb, var(--excel-green) 50%, transparent);
+  transform: scale(1.1);
+}
+
+.sf-download-btn:focus-visible {
+  outline: 2px solid var(--excel-green);
+  outline-offset: 1px;
+}
+
+.sf-download-btn:active {
+  transform: scale(0.95);
+  background: color-mix(in srgb, var(--excel-green) 30%, transparent);
+}
+
+.sf-download-btn svg {
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 /* === Responsive === */
