@@ -7,6 +7,7 @@
  * - Manager workflow state machine
  * - Other workflow state machine (3-step: dept-co → position-create → approvals)
  * - CI submission preparation and tracking
+ * - Per-transaction approval status updates (via server polling → record status mapping)
  *
  * Production SOAP submissions support two modes controlled by `isSoapBatchMode`:
  * - Sequential (default when batch mode disabled): one record per HTTP request

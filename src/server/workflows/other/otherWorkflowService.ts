@@ -118,12 +118,15 @@ export async function runApprovals(
   }
 
   // Initialize state (use 1-indexed for user-facing progress display)
+  // Clear results to prevent stale transactionResults from a previous run
+  // bleeding through on the first poll (before the loop overwrites them).
   abortController = new AbortController();
   updateState({
     status: 'running',
     currentStep: 'approving',
     error: null,
     progress: { current: 1, total: transactionIds.length, currentItem: transactionIds[0] },
+    results: {},
   });
 
   try {

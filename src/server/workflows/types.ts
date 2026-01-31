@@ -2,7 +2,8 @@
  * Server-Side Workflow Types
  *
  * Types for workflow state management on the server.
- * These are internal to the server and not exposed via the HTTP API.
+ * State types are internal; WorkflowStatusResponse (including results.transactionResults)
+ * is exposed via the HTTP status polling endpoint.
  */
 
 /* ==============================================

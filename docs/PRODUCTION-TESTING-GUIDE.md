@@ -342,6 +342,9 @@ Navigate to: `http://localhost:5173`
 - All columns are visible and properly formatted
 - TRANSACTION_NBR displays as clickable hyperlink
 - Dates display as MM/DD/YYYY
+- Status column shows "pending" for all records (between checkbox and TRANSACTION_NBR)
+- Row#, Checkbox, and Status column headers have plum/purple non-export tint
+- Table width shrinks to content (not full container width)
 
 > **IMPORTANT — Live CI Submissions**: In production mode, running the Manager or Other workflow submissions (Dept Co, Position, Job) will make **real SOAP calls to PeopleSoft** using the CI strings from the query results. These operations create, update, or modify live data via Component Interfaces. Only proceed with workflow submissions after verifying your query data is correct. See `docs/SOAP-SUBMISSION-WALKTHROUGH.md` for the full submission pipeline.
 
@@ -360,13 +363,30 @@ First Row Keys Extracted
        ↓
 Filter: Remove HIDDEN_SMARTFORM_FIELDS
        ↓
-Map: Apply special formatting
+Prepend: Checkbox column + Status column (approval tracking)
+       ↓
+Map: Apply special formatting to dynamic columns
   - MONOSPACE_SMARTFORM_FIELDS → monospace font
   - DATE_SMARTFORM_FIELDS → MM/DD/YYYY format
   - TRANSACTION_NBR → hyperlink using WEB_LINK
        ↓
 Render: Display in DataTable
+  - 4 sticky columns: Row# | Checkbox | Status | TRANSACTION_NBR
+  - Non-export header tint on Row#, Checkbox, Status
 ```
+
+### Approval Status Column
+
+The Status column shows real-time per-transaction approval outcomes during workflow processing:
+
+| Status | Badge Color | Meaning |
+|--------|-------------|---------|
+| `pending` | Orange/warning | Not yet processed |
+| `processing` | Blue | Currently being approved by Playwright |
+| `success` | Green | Approved successfully |
+| `error` | Red | Approval failed (non-fatal, workflow continues) |
+
+Status updates are driven by server polling (250ms interval). When a workflow is reset, all records in that queue revert to `pending`.
 
 ### Modifying Field Behavior
 

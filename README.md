@@ -123,8 +123,8 @@ async function fetchEmployeeData(employeeId: string) {
 |---------|--------|-------------|
 | Core UI Framework | 🟢 Complete | Tab-based navigation with 6 feature panels, type-safe routing |
 | SmartForm Panel | 🟢 Complete | Primary workflow panel with data tables, sub-tabs, and workflow sections |
-| Manager Workflow | 🟢 Complete | Approval processing via Playwright + real SOAP CI submissions (Dept Co, Position, Job) in production |
-| Other Workflow | 🟢 Complete | SOAP CI submissions (Dept Co, Position Create) + approval processing via Playwright in production |
+| Manager Workflow | 🟢 Complete | Approval processing via Playwright with real-time per-transaction status tracking + SOAP CI submissions (Dept Co, Position, Job) in production |
+| Other Workflow | 🟢 Complete | SOAP CI submissions (Dept Co, Position Create) + approval processing via Playwright with real-time per-transaction status tracking in production |
 | Oracle SQL Interface | 🟢 Complete | Full API: connect, disconnect, and query endpoints (`/api/oracle/*`) |
 | PeopleSoft SOAP Interface | 🟢 Complete | Full API with HTTPS enforcement in production (`/api/soap/*`) |
 | Mock Test Site | 🟢 Complete | Development-only PeopleSoft simulator for testing automation |

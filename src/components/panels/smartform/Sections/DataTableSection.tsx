@@ -6,18 +6,22 @@
  *
  * Features:
  * - CI preview tables with two-row headers (field name + label)
- * - Submission status column on manager-tab CI tables (pending → submitting → success/error)
+ * - Submission status column on CI preview tables (pending → submitting → success/error)
+ * - Approval status column on main results table (pending → processing → success/error)
+ *   Updated in real-time from server polling during approval workflows
  * - Row numbers column (first column, sticky, auto-generated)
- * - Row selection via checkbox column (second column, sticky)
+ * - Row selection via checkbox column (sticky)
+ * - Sticky columns: Row# | Checkbox | Status | TRANSACTION_NBR (4 total)
  * - TRANSACTION_NBR displayed as clickable hyperlink (uses WEB_LINK)
  * - Dynamic columns based on Oracle query results
  * - Date formatting (MM/DD/YYYY) for date columns
  * - Monospace font for ID columns
  * - Date cell highlighting when NEW_EFFDT === CUR_EFFDT
  * - Hidden fields (MGR_CUR, WEB_LINK) excluded from display
+ * - Non-export header coloring on Row#, Checkbox, and Status columns
  */
 
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import { useSmartForm, useCILabels } from '../../../../context';
 import type {
   SmartFormRecord,
@@ -39,7 +43,7 @@ import {
 import { DataTable } from '../../../table';
 import { exportToExcel, findCIDuplicates, filterCIDuplicates } from '../../../../utils';
 import type { ExcelColumn } from '../../../../utils';
-import { DownloadIcon } from '../../../icons';
+import { DownloadIcon, ChevronIcon } from '../../../icons';
 import './DataTableSection.css';
 
 /**
@@ -296,7 +300,7 @@ export function DataTableSection() {
     preparedOtherDeptCoData,
     preparedPositionCreateData,
   } = useSmartForm();
-  const { activeSubTab } = state;
+  const { activeSubTab, managerWorkflow, otherWorkflow } = state;
   const { ensureLabels, getLabel } = useCILabels();
 
   // Fetch labels for all CI shapes used by preview tables
@@ -350,6 +354,126 @@ export function DataTableSection() {
     return result;
   }, [parsedCIData, selectedRows, activeSubTab]);
 
+  // Compute "all eligible successful" per CI preview table.
+  // "Eligible" = selected (checked) records minus duplicates (beyond the first).
+  const ciTableAllSuccess = useMemo(() => {
+    const result = new Map<string, boolean>();
+    for (const { dataKey, tabFilter, checkDuplicates } of CI_PREVIEW_CONFIG) {
+      if (!tabFilter.some(t => t === activeSubTab)) continue;
+      const tableKey = `${activeSubTab}-${dataKey}`;
+      const allRecords = parsedCIData[dataKey] as ParsedCIRecordBase[];
+      const records = allRecords.filter(r => selectedRows.has(r.transactionNbr));
+      if (records.length === 0) { result.set(tableKey, false); continue; }
+
+      const duplicateSet = checkDuplicates
+        ? (ciDuplicateSets.get(dataKey) ?? new Set<string>())
+        : new Set<string>();
+      const dataStatusMap = statusMaps.get(dataKey);
+      if (!dataStatusMap) { result.set(tableKey, false); continue; }
+
+      const allSuccess = records
+        .filter(r => !duplicateSet.has(r.transactionNbr))
+        .every(r => dataStatusMap.get(r.transactionNbr) === 'success');
+      result.set(tableKey, allSuccess);
+    }
+    return result;
+  }, [activeSubTab, parsedCIData, selectedRows, ciDuplicateSets, statusMaps]);
+
+  // Compute "all successful" for main results table (approval status, not CI submission).
+  const mainTableAllSuccess = useMemo(() => {
+    const selected = filteredRecords.filter(r => selectedRows.has(r.TRANSACTION_NBR));
+    if (selected.length === 0) return false;
+    return selected.every(r => r.status === 'success');
+  }, [filteredRecords, selectedRows]);
+
+  // allTableSuccess drives auto-collapse for all collapsible tables.
+  // CI preview tables use their per-record statusMaps (clean batch signals).
+  // The main results table uses the workflow step machine ('complete') instead
+  // of mainTableAllSuccess — record statuses flicker during multi-step
+  // workflows, but the workflow step only transitions once at the very end.
+  // "Approvals done" gate for main results table auto-collapse.
+  // Manager: true once past the 'approving' step (approved, submitting-*, complete).
+  // Other: true once past the 'approving' step (approved, complete).
+  // Does NOT fire during Other's pre-approval CI submission steps.
+  const approvalsComplete = activeSubTab === 'manager'
+    ? managerWorkflow.step !== 'idle' && managerWorkflow.step !== 'approving' && managerWorkflow.step !== 'error'
+    : otherWorkflow.step === 'approved' || otherWorkflow.step === 'complete';
+
+  const allTableSuccess = useMemo(() => {
+    const result = new Map(ciTableAllSuccess);
+    result.set('results', approvalsComplete);
+    return result;
+  }, [ciTableAllSuccess, approvalsComplete]);
+
+  // Collapse/expand for all tables (CI previews + main results).
+  //
+  // Manual overrides are keyed by tableKey. When absent, allSuccess drives
+  // auto-collapse: allSuccess=true → collapsed, allSuccess=false → expanded.
+  // Overrides are cleared when allSuccess changes, restoring auto behavior.
+  //
+  // The previous allSuccess snapshot lets us detect transitions and clear stale
+  // overrides. Both are pure state — no refs read during render.
+  const [manualOverrides, setManualOverrides] = useState(() => new Map<string, boolean>());
+  const [prevAllSuccess, setPrevAllSuccess] = useState(() => new Map<string, boolean>());
+
+  // Detect allSuccess transitions → clear manual overrides so auto behavior resumes.
+  // React pattern: derive state from props/state during render (no effect needed).
+  // See https://react.dev/reference/react/useState#storing-information-from-previous-renders
+  let allSuccessChanged = false;
+  for (const [tableKey, allSuccess] of allTableSuccess) {
+    if ((prevAllSuccess.get(tableKey) ?? false) !== allSuccess) {
+      allSuccessChanged = true;
+      break;
+    }
+  }
+  if (!allSuccessChanged) {
+    // Check for keys that disappeared (table no longer rendered on current tab)
+    for (const tableKey of prevAllSuccess.keys()) {
+      if (!allTableSuccess.has(tableKey)) {
+        allSuccessChanged = true;
+        break;
+      }
+    }
+  }
+  if (allSuccessChanged) {
+    setPrevAllSuccess(new Map(allTableSuccess));
+    // Clear overrides for any key whose allSuccess value changed
+    setManualOverrides(prev => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const [tableKey, allSuccess] of allTableSuccess) {
+        if ((prevAllSuccess.get(tableKey) ?? false) !== allSuccess && next.has(tableKey)) {
+          next.delete(tableKey);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }
+
+  // Determine effective collapse: manual override wins, else allSuccess auto-collapses.
+  const isTableCollapsed = useCallback((tableKey: string): boolean => {
+    const manual = manualOverrides.get(tableKey);
+    if (manual !== undefined) return manual;
+    return allTableSuccess.get(tableKey) ?? false;
+  }, [manualOverrides, allTableSuccess]);
+
+  // Toggle: sets the opposite of current effective state as a manual override.
+  const toggleCollapse = useCallback((tableKey: string) => {
+    setManualOverrides(prev => {
+      const next = new Map(prev);
+      const currentlyCollapsed = next.get(tableKey) ?? (allTableSuccess.get(tableKey) ?? false);
+      next.set(tableKey, !currentlyCollapsed);
+      return next;
+    });
+  }, [allTableSuccess]);
+
+  // Disable checkboxes once the workflow leaves 'idle'. Changing selections
+  // mid-workflow could orphan CI records that have already been approved/submitted.
+  const workflowProcessing = activeSubTab === 'manager'
+    ? managerWorkflow.step !== 'idle'
+    : otherWorkflow.step !== 'idle';
+
   // Build columns dynamically from the first row's keys
   // Checkbox and status columns are prepended to the dynamic columns
   const columns = useMemo(() => {
@@ -365,22 +489,35 @@ export function DataTableSection() {
       onCheckedChange: (row, checked) => {
         setTransactionSelected(row.TRANSACTION_NBR, checked);
       },
+      checkboxDisabled: workflowProcessing,
     };
 
-    // Approval status column (between checkbox and dynamic Oracle columns)
+    // Approval status column (between checkbox and dynamic Oracle columns).
+    // Unchecked rows display "skipped" with a neutral gray style instead of
+    // their actual status, to reinforce that they won't be processed.
+    const statusClassMap: Record<string, string> = {
+      pending: 'pending',
+      processing: 'processing',
+      success: 'success',
+      error: 'error',
+      skipped: 'skipped',
+    };
+
     const statusColumn: ColumnDef<SmartFormRecord> = {
       id: '__approval_status',
       header: 'Status',
       headerClassName: 'sf-ci-header--non-export',
-      accessor: 'status',
-      type: 'status',
-      width: '85px',
+      width: '90px',
       align: 'center',
-      statusClassMap: {
-        pending: 'pending',
-        processing: 'processing',
-        success: 'success',
-        error: 'error',
+      render: (_value, row) => {
+        const isSelected = selectedRows.has(row.TRANSACTION_NBR);
+        const displayStatus = isSelected ? row.status : 'skipped';
+        const cssClass = statusClassMap[displayStatus] ?? displayStatus;
+        return (
+          <span className={`dt-status dt-status--${cssClass}`}>
+            {displayStatus}
+          </span>
+        );
       },
     };
 
@@ -395,7 +532,7 @@ export function DataTableSection() {
     }
 
     return [checkboxColumn, statusColumn, ...buildDynamicColumns(filteredRecords[0])];
-  }, [filteredRecords, selectedRows, setTransactionSelected]);
+  }, [filteredRecords, selectedRows, setTransactionSelected, workflowProcessing]);
 
   const queueLabel = activeSubTab === 'manager' ? 'Manager' : 'Other';
   const rowCount = filteredRecords.length;
@@ -467,9 +604,77 @@ export function DataTableSection() {
     };
   }, []);
 
+  // Main Results Section — extracted so it can be positioned above or below CI tables
+  const resultsSection = (
+    <div className="sf-results-container">
+      <div className="sf-results-toolbar">
+        <span className="sf-table-row-count">
+          {rowCount} row{rowCount !== 1 ? 's' : ''}
+        </span>
+        <span className="sf-table-queue-label">
+          {queueLabel} Approval Queue
+        </span>
+      </div>
+      <h4 className={`sf-results-title${mainTableAllSuccess ? ' sf-title--success' : ''}`}>
+        <button
+          type="button"
+          className="sf-collapse-btn"
+          title={isTableCollapsed('results') ? 'Expand table' : 'Collapse table'}
+          aria-label={isTableCollapsed('results') ? 'Expand Pending Transactions' : 'Collapse Pending Transactions'}
+          aria-expanded={!isTableCollapsed('results')}
+          onClick={() => { toggleCollapse('results'); }}
+        >
+          <ChevronIcon className={`sf-collapse-chevron${isTableCollapsed('results') ? '' : ' sf-collapse-chevron--expanded'}`} />
+        </button>
+        <button
+          type="button"
+          className="sf-download-btn"
+          title="Download checked transactions as Excel"
+          aria-label="Download checked transactions as Excel"
+          onClick={() => {
+            const checked = filteredRecords.filter(r => selectedRows.has(r.TRANSACTION_NBR));
+            if (checked.length === 0) return;
+            exportToExcel(
+              checked as Record<string, unknown>[],
+              buildResultsExcelColumns(checked[0]),
+              buildExcelFileName('Pending_Transactions'),
+            );
+          }}
+        >
+          <DownloadIcon />
+        </button>
+        Pending Transactions
+      </h4>
+      {!isTableCollapsed('results') && (
+        <DataTable
+          className="sf-table"
+          columns={columns}
+          data={filteredRecords}
+          keyAccessor="TRANSACTION_NBR"
+          showRowNumbers={true}
+          stickyColumns={4}
+          staggerRows={true}
+          emptyMessage="No transactions in this queue"
+          rowConfig={{
+            className: (row) =>
+              selectedRows.has(row.TRANSACTION_NBR) ? '' : 'sf-table-row--unchecked',
+          }}
+          tabPanel={{
+            id: `sf-tabpanel-${activeSubTab}`,
+            labelledBy: `sf-tab-${activeSubTab}`,
+          }}
+          ariaLabel={`${queueLabel} approval transactions`}
+        />
+      )}
+    </div>
+  );
+
   return (
     <div ref={crossHoverRef} className="sf-tables-wrapper">
-      {/* CI Preview Tables (above the main results table) */}
+      {/* Manager tab: results table appears ABOVE CI preview tables */}
+      {activeSubTab === 'manager' && resultsSection}
+
+      {/* CI Preview Tables */}
       {CI_PREVIEW_CONFIG.map(({ template, dataKey, tabFilter, checkDuplicates }) => {
         // Only show table on its designated sub-tab(s)
         if (!tabFilter.some(t => t === activeSubTab)) return null;
@@ -497,9 +702,23 @@ export function DataTableSection() {
           ? filterCIDuplicates(records, template.fields)
           : records;
 
+        const tableKey = `${activeSubTab}-${dataKey}`;
+        const isCollapsed = isTableCollapsed(tableKey);
+        const allSuccess = ciTableAllSuccess.get(tableKey) ?? false;
+
         return (
           <div key={dataKey} className="sf-ci-preview-container">
-            <h4 className="sf-ci-preview-title">
+            <h4 className={`sf-ci-preview-title${allSuccess ? ' sf-title--success' : ''}`}>
+              <button
+                type="button"
+                className="sf-collapse-btn"
+                title={isCollapsed ? 'Expand table' : 'Collapse table'}
+                aria-label={isCollapsed ? `Expand ${template.queryFieldName}` : `Collapse ${template.queryFieldName}`}
+                aria-expanded={!isCollapsed}
+                onClick={() => { toggleCollapse(tableKey); }}
+              >
+                <ChevronIcon className={`sf-collapse-chevron${isCollapsed ? '' : ' sf-collapse-chevron--expanded'}`} />
+              </button>
               <button
                 type="button"
                 className="sf-download-btn"
@@ -525,76 +744,30 @@ export function DataTableSection() {
                 </span>
               )}
             </h4>
-            <DataTable
-              className="sf-ci-preview-table"
-              columns={finalColumns}
-              data={records}
-              keyAccessor="transactionNbr"
-              showRowNumbers={true}
-              stickyColumns={showStatusColumn ? 3 : 2}
-              emptyMessage="No records"
-              ariaLabel={`${template.queryFieldName} preview`}
-              rowConfig={duplicateCount > 0 ? {
-                className: (row) =>
-                  duplicateSet.has(row.transactionNbr)
-                    ? 'sf-ci-row--duplicate'
-                    : '',
-              } : undefined}
-            />
+            {!isCollapsed && (
+              <DataTable
+                className="sf-ci-preview-table"
+                columns={finalColumns}
+                data={records}
+                keyAccessor="transactionNbr"
+                showRowNumbers={true}
+                stickyColumns={showStatusColumn ? 3 : 2}
+                emptyMessage="No records"
+                ariaLabel={`${template.queryFieldName} preview`}
+                rowConfig={duplicateCount > 0 ? {
+                  className: (row) =>
+                    duplicateSet.has(row.transactionNbr)
+                      ? 'sf-ci-row--duplicate'
+                      : '',
+                } : undefined}
+              />
+            )}
           </div>
         );
       })}
 
-      {/* Main Results Section: Toolbar → Title Bar → DataTable */}
-      <div className="sf-results-container">
-        <div className="sf-results-toolbar">
-          <span className="sf-table-row-count">
-            {rowCount} row{rowCount !== 1 ? 's' : ''}
-          </span>
-          <span className="sf-table-queue-label">
-            {queueLabel} Approval Queue
-          </span>
-        </div>
-        <h4 className="sf-results-title">
-          <button
-            type="button"
-            className="sf-download-btn"
-            title="Download checked transactions as Excel"
-            aria-label="Download checked transactions as Excel"
-            onClick={() => {
-              const checked = filteredRecords.filter(r => selectedRows.has(r.TRANSACTION_NBR));
-              if (checked.length === 0) return;
-              exportToExcel(
-                checked as Record<string, unknown>[],
-                buildResultsExcelColumns(checked[0]),
-                buildExcelFileName('Pending_Transactions'),
-              );
-            }}
-          >
-            <DownloadIcon />
-          </button>
-          Pending Transactions
-        </h4>
-        <DataTable
-          className="sf-table"
-          columns={columns}
-          data={filteredRecords}
-          keyAccessor="TRANSACTION_NBR"
-          showRowNumbers={true}
-          stickyColumns={4}
-          staggerRows={true}
-          emptyMessage="No transactions in this queue"
-          rowConfig={{
-            className: (row) =>
-              selectedRows.has(row.TRANSACTION_NBR) ? '' : 'sf-table-row--unchecked',
-          }}
-          tabPanel={{
-            id: `sf-tabpanel-${activeSubTab}`,
-            labelledBy: `sf-tab-${activeSubTab}`,
-          }}
-          ariaLabel={`${queueLabel} approval transactions`}
-        />
-      </div>
+      {/* Other tab: results table appears BELOW CI preview tables */}
+      {activeSubTab !== 'manager' && resultsSection}
     </div>
   );
 }

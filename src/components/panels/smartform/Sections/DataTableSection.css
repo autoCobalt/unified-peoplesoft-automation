@@ -116,6 +116,7 @@
   max-width: 100%;
   min-width: 0;
   align-self: start;
+  margin-bottom: 20px;
 }
 
 /* Manual toolbar (row count | queue label) rendered above the title bar */
@@ -155,20 +156,33 @@
   border-radius: 0 4px 4px 0;
 }
 
-/* CI preview: technical feel (mono font, blue accent) */
+/* CI preview: technical feel (mono font, warning accent = pending) */
 .sf-ci-preview-title {
   font-family: var(--font-mono);
   color: var(--text-secondary);
-  background: color-mix(in srgb, var(--accent-primary, #60a5fa) 8%, transparent);
-  border-left: 3px solid var(--accent-primary, #60a5fa);
+  background: color-mix(in srgb, var(--status-warning) 8%, transparent);
+  border-left: 3px solid var(--status-warning);
+  transition: border-color 0.3s ease, background 0.3s ease;
 }
 
-/* Main results: approachable feel (body font, neutral accent) */
+/* Main results: approachable feel (body font, warning accent = pending) */
 .sf-results-title {
   font-family: var(--font-body);
   color: var(--text-primary);
-  background: color-mix(in srgb, var(--text-secondary) 10%, transparent);
-  border-left: 3px solid var(--text-secondary);
+  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+  border-left: 3px solid var(--status-warning);
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+/* Success state: border transitions to green when all eligible records succeed */
+.sf-ci-preview-title.sf-title--success {
+  border-left-color: var(--status-success);
+  background: color-mix(in srgb, var(--status-success) 8%, transparent);
+}
+
+.sf-results-title.sf-title--success {
+  border-left-color: var(--status-success);
+  background: color-mix(in srgb, var(--status-success) 10%, transparent);
 }
 
 /* Non-export column headers (Row # and STATUS) — subtle tint to visually
@@ -311,5 +325,52 @@ tr.sf-cross-hover td.dt-sticky-col {
 .sf-download-btn svg {
   width: 14px;
   height: 14px;
+}
+
+/* ===== COLLAPSE/EXPAND BUTTON ===== */
+
+/* Bordered icon button — opaque background so it stands out from the
+ * title bar's warning/success tinted background */
+.sf-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--text-tertiary) 50%, transparent);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.sf-collapse-btn:hover {
+  background: var(--bg-primary);
+  border-color: var(--text-tertiary);
+  transform: scale(1.1);
+}
+
+.sf-collapse-btn:focus-visible {
+  outline: 2px solid var(--accent-primary, #60a5fa);
+  outline-offset: 1px;
+}
+
+.sf-collapse-btn:active {
+  transform: scale(0.95);
+}
+
+/* Chevron: collapsed = right (-90deg), expanded = down (0deg) */
+.sf-collapse-chevron {
+  width: 14px;
+  height: 14px;
+  transform: rotate(-90deg);
+  transition: transform 0.2s ease;
+}
+
+.sf-collapse-chevron--expanded {
+  transform: rotate(0deg);
 }
 

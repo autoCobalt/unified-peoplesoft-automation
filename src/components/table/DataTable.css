@@ -255,6 +255,11 @@
   background: var(--dt-status-warning-bg);
 }
 
+.dt-status--skipped {
+  color: var(--text-tertiary);
+  background: color-mix(in srgb, var(--text-tertiary) 12%, transparent);
+}
+
 /* === Button === */
 .dt-button {
   display: inline-flex;
