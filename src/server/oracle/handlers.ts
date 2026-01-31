@@ -8,9 +8,9 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { QueryParameters } from '../../types/oracle.js';
 import { oracleService } from './oracleService.js';
-import { isValidQueryId, getAvailableQueryIds } from '../sql/index.js';
+import { isValidQueryId, getAvailableQueryIds, getQueryConfig } from '../sql/index.js';
 import { sessionService } from '../auth/index.js';
-import { parseBody, sendJson, sendInternalError } from '../utils/index.js';
+import { parseBody, sendJson, sendInternalError, isRedirectEnabled, captureOracleQuery, loadSqlText, getStoredOracleConnectionInfo } from '../utils/index.js';
 
 /** Raw request body before validation */
 interface RawQueryRequest {
@@ -179,6 +179,29 @@ export async function handleQuery(
         },
       });
       return;
+    }
+
+    // Redirect mode: capture to JSON instead of executing
+    if (isRedirectEnabled()) {
+      const queryConfig = getQueryConfig(queryId);
+      if (queryConfig) {
+        const sqlText = loadSqlText(queryConfig.filename);
+        const connectionInfo = getStoredOracleConnectionInfo();
+
+        captureOracleQuery({
+          queryId,
+          queryConfig,
+          sqlText,
+          bindParameters: body.parameters,
+          connectionInfo,
+        });
+
+        sendJson(res, 200, {
+          success: true,
+          data: { rows: [], rowCount: 0, columns: [], executionTimeMs: 0 },
+        });
+        return;
+      }
     }
 
     // Execute query - queryId is now typed as OracleQueryId

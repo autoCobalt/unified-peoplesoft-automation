@@ -37,15 +37,20 @@ buildSOAPPayload()                ← src/server/ci-definitions/parser.ts
   ▼
 soapApi.ci.submit()               ← src/services/soap/soapApi.ts
   │  (POST /api/soap/submit with JSON body)
+  │  data: single payload OR array of payloads (based on isSoapBatchMode)
   ▼
 handleSubmit()                    ← src/server/soap/handlers.ts
-  │  (validates request, routes to soapService)
+  │  (validates request, routes based on Array.isArray(body.data))
+  │  ├── single record → soapService.submitData()
+  │  └── array of records → soapService.submitBatch()
   ▼
-soapService.submitData()          ← src/server/soap/soapService.ts
+soapService.submitData()          ← src/server/soap/soapService.ts  (single)
+soapService.submitBatch()         ← src/server/soap/soapService.ts  (batch)
   │  (builds XML, sends to PeopleSoft with retry logic)
   ▼
-buildSubmitRequest()              ← src/server/soap/xmlBuilder.ts
-  │  (constructs SOAP XML envelope)
+buildSubmitRequest()              ← src/server/soap/xmlBuilder.ts  (single)
+buildMultiRecordSubmitRequest()   ← src/server/soap/xmlBuilder.ts  (batch)
+  │  (constructs SOAP XML envelope — one record or multiple)
   ▼
 PeopleSoft IScript_SOAPToCI       ← HTTPS endpoint on PeopleSoft server
   │  (processes CI operation, returns XML response)
@@ -501,36 +506,62 @@ POSITION_CREATE_CI: 'CREATE|CI_POSITION_DATA|POSITION_NBR:00000000|EFFDT:15-JAN-
 
 ## Dev vs. Production Branching
 
-The `SmartFormContext` submission functions use `isDevelopment` (from `src/config.ts`) to branch:
+The `SmartFormContext` submission functions use a three-way branch based on `isDevelopment` and `isSoapBatchMode` (both from `src/config/appMode.ts`):
+
+```
+Development mode         → simulated 400ms delay (no SOAP call)
+Production + batch       → chunk records by action/batchSize, submit arrays
+Production + sequential  → one-at-a-time (VITE_SOAP_BATCH_MODE=false)
+```
 
 ```typescript
-if (isDevelopment) {
-  // Simulate a 400ms delay — no real SOAP call
-  await new Promise(resolve => setTimeout(resolve, 400));
+if (isSoapBatchMode && !isDevelopment && total > 0) {
+  // --- Batch production path ---
+  // Group records by action (required: submitBatch takes a single action)
+  // Chunk each action group into arrays of soapBatchSize
+  // Submit each chunk as an array via soapApi.ci.submit()
+  // Progress jumps by chunk size (e.g., 5/20, 10/20, ...)
+  // Error handling is all-or-nothing per chunk
 } else {
-  // Real SOAP submission path
-  const ciRecord = parsedCIDataRef.current.deptCoUpdate.find(...);
-  if (ciRecord) {
-    const payload = buildSOAPPayload(ciRecord, TEMPLATE.fields);
-    const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
-    // ... error checking ...
+  // --- Sequential path (development + non-batch production) ---
+  if (isDevelopment) {
+    await new Promise(resolve => setTimeout(resolve, 400));
+  } else {
+    // Single-record SOAP submission
   }
 }
 ```
 
-This mirrors the branching already used by `runQuery` and `refreshQuery` in the same file.
+### Batch Mode Configuration
+
+Two compile-time constants in `src/config/appMode.ts` control batch behavior:
+
+| Constant | Env Var | Default | Purpose |
+|----------|---------|---------|---------|
+| `isSoapBatchMode` | `VITE_SOAP_BATCH_MODE` | `true` | Enable/disable batch submission |
+| `soapBatchSize` | `VITE_SOAP_BATCH_SIZE` | `5` | Records per HTTP request |
+
+### Action Grouping
+
+Records are grouped by SOAP action before chunking because `submitBatch()` takes a single `action` parameter — all records in a batch share the same SOAP action root tag. This is automatic for most templates (fixed action), but `POSITION_UPDATE_CI` has `actionIsFixed: false` and can produce `UPDATE` or `UPDATEDATA` records that must be sent in separate batches.
+
+### Batch Error Handling
+
+Error handling in batch mode is **all-or-nothing per chunk**: if the batch HTTP request fails or PeopleSoft returns an error, all records in that chunk are marked as `'error'`. Per-record error mapping from PeopleSoft batch responses is a future enhancement.
 
 **Development mode** (`VITE_APP_MODE !== 'production'`):
 - Mock data from `src/dev-data/smartFormMockData.ts`
 - CI strings are parsed identically (same parser path)
 - Submissions are simulated with `setTimeout(400)` — always succeed
 - No SOAP calls are made
+- Batch mode is **always ignored** in development
 
 **Production mode** (`VITE_APP_MODE === 'production'`):
 - Real Oracle query results
 - CI strings parsed from Oracle data
 - Real SOAP calls via `soapApi.ci.submit()`
 - Two-level error checking (network + PeopleSoft CI)
+- Batch or sequential mode based on `isSoapBatchMode`
 
 ---
 
@@ -572,7 +603,8 @@ Some `PreparedSubmission` entries have no matching parsed CI record (the Oracle 
 
 | File | Role |
 |------|------|
-| `src/context/SmartFormContext.tsx` | Submission orchestration (5 functions) |
+| `src/config/appMode.ts` | Batch mode config (`isSoapBatchMode`, `soapBatchSize`) |
+| `src/context/SmartFormContext.tsx` | Submission orchestration (5 functions, batch + sequential paths) |
 | `src/server/ci-definitions/parser.ts` | CI string parsing + `buildSOAPPayload` |
 | `src/server/ci-definitions/types.ts` | Typed record interfaces |
 | `src/server/ci-definitions/templates/smartform/` | Template definitions (field lists) |

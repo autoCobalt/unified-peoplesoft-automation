@@ -14,15 +14,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 0;
-  gap: 1rem;
+  padding: 8px 0;
+  gap: 16px;
 }
 
 .dt-toolbar-left,
 .dt-toolbar-right {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 /* === Scroll Wrapper (for shadow indicators) === */
@@ -39,7 +39,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: 48px;
+  width: 85px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -209,7 +209,7 @@
 .dt-table td.dt-empty {
   text-align: center;
   color: var(--dt-text-muted);
-  padding: 2rem var(--dt-cell-padding-x);
+  padding: 32px var(--dt-cell-padding-x);
   font-style: italic;
 }
 
@@ -217,12 +217,12 @@
 .dt-status {
   display: inline-flex;
   align-items: center;
-  padding: 0.125rem 0.375rem;
-  font-size: 0.625rem;
+  padding: 2px 6px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  border-radius: 0.25rem;
+  border-radius: 4px;
   white-space: nowrap;
 }
 
@@ -266,7 +266,7 @@
   color: var(--dt-button-color);
   background: var(--dt-button-bg);
   border: none;
-  border-radius: 0.25rem;
+  border-radius: 4px;
   cursor: pointer;
   transition: filter 0.15s ease;
   white-space: nowrap;
@@ -283,8 +283,8 @@
 
 /* === Checkbox === */
 .dt-checkbox {
-  width: 1rem;
-  height: 1rem;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
   accent-color: var(--accent-primary);
 }

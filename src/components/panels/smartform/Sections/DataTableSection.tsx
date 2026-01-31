@@ -169,6 +169,20 @@ function buildCIPreviewColumns<T extends ParsedCIRecordBase>(
     ),
     accessor: 'transactionNbr' as keyof T,
     type: 'mono',
+    width: '134px',
+  };
+
+  const ciActionColumn: ColumnDef<T> = {
+    id: 'action',
+    header: (
+      <>
+        <span className="sf-ci-header-name">CI_ACTION</span>
+        <span className="sf-ci-header-label">CI Action</span>
+      </>
+    ),
+    accessor: 'action' as keyof T,
+    type: 'mono',
+    width: '110px',
   };
 
   const fieldColumns: ColumnDef<T>[] = template.fields.map(field => ({
@@ -183,7 +197,9 @@ function buildCIPreviewColumns<T extends ParsedCIRecordBase>(
     type: 'text' as const,
   }));
 
-  return [txnColumn, ...fieldColumns];
+  return !template.actionIsFixed
+    ? [txnColumn, ciActionColumn, ...fieldColumns]
+    : [txnColumn, ...fieldColumns];
 }
 
 /**
@@ -208,7 +224,8 @@ function buildStatusColumn<T extends ParsedCIRecordBase>(
         <span className="sf-ci-header-label">Submission</span>
       </>
     ),
-    width: '5.5rem',
+    headerClassName: 'sf-ci-header--non-export',
+    width: '88px',
     align: 'center',
     render: (_value, row) => {
       const status = statusMap.get(row.transactionNbr) ?? 'pending';
@@ -231,10 +248,13 @@ function buildStatusColumn<T extends ParsedCIRecordBase>(
  * Includes TRANSACTION_NBR as the first column, followed by template fields.
  */
 function buildCIExcelColumns(template: CIUsageTemplate): ExcelColumn[] {
-  return [
+  const base: ExcelColumn[] = [
     { header: 'TRANSACTION_NBR', accessor: 'transactionNbr' },
-    ...template.fields.map(f => ({ header: f.name, accessor: f.name })),
   ];
+  if (!template.actionIsFixed) {
+    base.push({ header: 'CI_ACTION', accessor: 'action' });
+  }
+  return [...base, ...template.fields.map(f => ({ header: f.name, accessor: f.name }))];
 }
 
 /**
@@ -477,6 +497,9 @@ export function DataTableSection() {
                 <DownloadIcon />
               </button>
               {template.queryFieldName}
+              <span className="sf-ci-submit-count">
+                {exportRecords.length} submission{exportRecords.length !== 1 ? 's' : ''}
+              </span>
               {duplicateCount > 0 && (
                 <span className="sf-ci-duplicate-count">
                   {duplicateCount} duplicate{duplicateCount !== 1 ? 's' : ''} excluded

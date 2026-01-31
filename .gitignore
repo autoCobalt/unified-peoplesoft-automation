@@ -73,6 +73,10 @@ issues/
 SOAP_Guides/
 .playwright-mcp/
 
+# ===== SUBMISSION REDIRECT CAPTURES =====
+submission-captures/*
+!submission-captures/.gitkeep
+
 # ===== MISC =====
 *.pem
 .vercel

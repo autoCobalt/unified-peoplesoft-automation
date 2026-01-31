@@ -157,7 +157,7 @@ export function DataTable<TData>({
 
     for (let i = 0; i < stickyColumns && i < cells.length; i++) {
       offsets.push(cumulativeLeft);
-      cumulativeLeft += cells[i].getBoundingClientRect().width;
+      cumulativeLeft += Math.round(cells[i].getBoundingClientRect().width);
     }
 
     setStickyOffsets(offsets);
@@ -213,7 +213,7 @@ export function DataTable<TData>({
           id: '__rowNumber',
           header: '#',
           align: 'center',
-          width: '2rem',
+          width: '20px',
           render: (_value, _row, index) => index + 1,
         },
         ...columns,
@@ -273,7 +273,10 @@ export function DataTable<TData>({
             ${isNullValue ? 'dt-cell--null' : ''}
             ${cellClass}
           `.trim()}
-          style={stickyLeft !== undefined ? { left: stickyLeft } : undefined}
+          style={{
+            ...(stickyLeft !== undefined && { left: stickyLeft }),
+            ...(isSticky && column.width && { width: column.width, minWidth: column.width, maxWidth: column.width }),
+          }}
         >
           {renderCell({ column, row, value, index })}
         </td>
@@ -396,7 +399,10 @@ export function DataTable<TData>({
                         ${colIndex === stickyColumns - 1 ? 'dt-sticky-col-last' : ''}
                       `.trim()}
                       style={{
-                        ...(column.width && { width: column.width }),
+                        ...(column.width && {
+                          width: column.width,
+                          ...(isSticky && { minWidth: column.width, maxWidth: column.width }),
+                        }),
                         ...(stickyLeft !== undefined && { left: stickyLeft }),
                       }}
                     >

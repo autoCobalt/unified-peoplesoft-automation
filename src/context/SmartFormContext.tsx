@@ -7,11 +7,17 @@
  * - Manager workflow state machine
  * - Other workflow state machine (3-step: dept-co → position-create → approvals)
  * - CI submission preparation and tracking
+ *
+ * Production SOAP submissions support two modes controlled by `isSoapBatchMode`:
+ * - Sequential (default when batch mode disabled): one record per HTTP request
+ * - Batch (default when batch mode enabled): records grouped by action, then
+ *   chunked into arrays of `soapBatchSize` per HTTP request
+ * Development mode always uses sequential submission with simulated delays.
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { SmartFormContext, type SmartFormContextType } from './smartFormContextDef';
-import { isDevelopment } from '../config';
+import { isDevelopment, isSoapBatchMode, soapBatchSize } from '../config';
 import { workflowApi, oracleApi, soapApi } from '../services';
 import type {
   SmartFormState,
@@ -51,6 +57,15 @@ function transformOracleRows(rows: QueryResultRow[]): SmartFormRecord[] {
     ...(row as Record<string, unknown>),
     status: 'pending' as const,
   })) as SmartFormRecord[];
+}
+
+/** Split an array into chunks of at most `size` elements. */
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
 }
 
 /**
@@ -510,61 +525,146 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       managerSelected.has(sub.id.replace('pos-', ''))
     ).length;
 
-    // Process selected dept co submissions
-    for (let s = 0; s < total; s++) {
-      const i = selectedIndices[s];
-      setManagerWorkflow({ step: 'submitting-dept-co', current: s + 1, total });
-
-      setPreparedDeptCoData(prev =>
-        prev.map((sub, idx) =>
-          idx === i ? { ...sub, status: 'submitting' } : sub
-        )
-      );
-
-      let submitFailed = false;
-      let errorMsg = '';
-
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 400));
-      } else {
+    if (isSoapBatchMode && !isDevelopment && total > 0) {
+      // --- Batch production path ---
+      const resolvedRecords = selectedIndices.map(i => {
         const txnNbr = preparedDeptCoData[i].id.replace('deptco-', '');
         const ciRecord = parsedCIDataRef.current.deptCoUpdate.find(
           r => r.transactionNbr === txnNbr
         );
+        return { index: i, ciRecord };
+      });
 
-        if (ciRecord) {
-          try {
-            const payload = buildSOAPPayload(ciRecord, DEPT_CO_UPDATE_CI_TEMPLATE.fields);
-            const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+      // Group by action (required: submitBatch takes a single action)
+      const byAction = new Map<string, typeof resolvedRecords>();
+      for (const entry of resolvedRecords) {
+        if (!entry.ciRecord) continue;
+        const key = entry.ciRecord.action;
+        const group = byAction.get(key) ?? [];
+        group.push(entry);
+        byAction.set(key, group);
+      }
 
-            if (!result.success) {
+      let processed = 0;
+      for (const [, group] of byAction) {
+        const chunks = chunkArray(group, soapBatchSize);
+        for (const chunk of chunks) {
+          const chunkIndices = new Set(chunk.map(c => c.index));
+
+          setManagerWorkflow({
+            step: 'submitting-dept-co',
+            current: Math.min(processed + chunk.length, total),
+            total,
+          });
+
+          setPreparedDeptCoData(prev =>
+            prev.map((sub, idx) =>
+              chunkIndices.has(idx) ? { ...sub, status: 'submitting' } : sub
+            )
+          );
+
+          let submitFailed = false;
+          let errorMsg = '';
+          const ciRecords = chunk
+            .map(c => c.ciRecord)
+            .filter((r): r is NonNullable<typeof r> => r != null);
+
+          if (ciRecords.length > 0) {
+            try {
+              const payloads = ciRecords.map(r =>
+                buildSOAPPayload(r, DEPT_CO_UPDATE_CI_TEMPLATE.fields)
+              );
+              const result = await soapApi.ci.submit(
+                ciRecords[0].ciName, ciRecords[0].action, payloads
+              );
+
+              if (!result.success) {
+                submitFailed = true;
+                errorMsg = result.error.message;
+              } else if (!result.data.success) {
+                submitFailed = true;
+                errorMsg = result.data.errors.length > 0
+                  ? result.data.errors.map(e => e.message).join('; ')
+                  : 'SOAP batch submission failed';
+              }
+            } catch (err) {
               submitFailed = true;
-              errorMsg = result.error.message;
-            } else if (!result.data.success) {
-              submitFailed = true;
-              errorMsg = result.data.errors.length > 0
-                ? result.data.errors.map(e => e.message).join('; ')
-                : 'SOAP submission failed';
+              errorMsg = err instanceof Error ? err.message : 'Unknown error';
             }
-          } catch (err) {
-            submitFailed = true;
-            errorMsg = err instanceof Error ? err.message : 'Unknown error';
           }
+
+          processed += chunk.length;
+
+          if (processed >= total) {
+            setManagerWorkflow({ step: 'submitting-position', current: 0, total: posTotal });
+          }
+
+          setPreparedDeptCoData(prev =>
+            prev.map((sub, idx) =>
+              chunkIndices.has(idx)
+                ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+                : sub
+            )
+          );
         }
       }
+    } else {
+      // --- Sequential path (development + non-batch production) ---
+      for (let s = 0; s < total; s++) {
+        const i = selectedIndices[s];
+        setManagerWorkflow({ step: 'submitting-dept-co', current: s + 1, total });
 
-      // For the last item, transition to next step BEFORE marking status
-      if (s === total - 1) {
-        setManagerWorkflow({ step: 'submitting-position', current: 0, total: posTotal });
+        setPreparedDeptCoData(prev =>
+          prev.map((sub, idx) =>
+            idx === i ? { ...sub, status: 'submitting' } : sub
+          )
+        );
+
+        let submitFailed = false;
+        let errorMsg = '';
+
+        if (isDevelopment) {
+          await new Promise(resolve => setTimeout(resolve, 400));
+        } else {
+          const txnNbr = preparedDeptCoData[i].id.replace('deptco-', '');
+          const ciRecord = parsedCIDataRef.current.deptCoUpdate.find(
+            r => r.transactionNbr === txnNbr
+          );
+
+          if (ciRecord) {
+            try {
+              const payload = buildSOAPPayload(ciRecord, DEPT_CO_UPDATE_CI_TEMPLATE.fields);
+              const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+
+              if (!result.success) {
+                submitFailed = true;
+                errorMsg = result.error.message;
+              } else if (!result.data.success) {
+                submitFailed = true;
+                errorMsg = result.data.errors.length > 0
+                  ? result.data.errors.map(e => e.message).join('; ')
+                  : 'SOAP submission failed';
+              }
+            } catch (err) {
+              submitFailed = true;
+              errorMsg = err instanceof Error ? err.message : 'Unknown error';
+            }
+          }
+        }
+
+        // For the last item, transition to next step BEFORE marking status
+        if (s === total - 1) {
+          setManagerWorkflow({ step: 'submitting-position', current: 0, total: posTotal });
+        }
+
+        setPreparedDeptCoData(prev =>
+          prev.map((sub, idx) =>
+            idx === i
+              ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+              : sub
+          )
+        );
       }
-
-      setPreparedDeptCoData(prev =>
-        prev.map((sub, idx) =>
-          idx === i
-            ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
-            : sub
-        )
-      );
     }
 
     // If no dept co items, still transition to position step
@@ -595,62 +695,146 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       managerSelected.has(sub.id.replace('job-', ''))
     ).length;
 
-    // Process only selected position submissions
-    for (let s = 0; s < total; s++) {
-      const i = selectedIndices[s];
-      setManagerWorkflow({ step: 'submitting-position', current: s + 1, total });
-
-      // Update individual submission status
-      setPreparedPositionData(prev =>
-        prev.map((sub, idx) =>
-          idx === i ? { ...sub, status: 'submitting' } : sub
-        )
-      );
-
-      let submitFailed = false;
-      let errorMsg = '';
-
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 400));
-      } else {
+    if (isSoapBatchMode && !isDevelopment && total > 0) {
+      // --- Batch production path ---
+      const resolvedRecords = selectedIndices.map(i => {
         const txnNbr = preparedPositionData[i].id.replace('pos-', '');
         const ciRecord = parsedCIDataRef.current.positionUpdate.find(
           r => r.transactionNbr === txnNbr
         );
+        return { index: i, ciRecord };
+      });
 
-        if (ciRecord) {
-          try {
-            const payload = buildSOAPPayload(ciRecord, POSITION_UPDATE_CI_TEMPLATE.fields);
-            const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+      // Group by action (POSITION_UPDATE_CI has actionIsFixed: false — can be UPDATE or UPDATEDATA)
+      const byAction = new Map<string, typeof resolvedRecords>();
+      for (const entry of resolvedRecords) {
+        if (!entry.ciRecord) continue;
+        const key = entry.ciRecord.action;
+        const group = byAction.get(key) ?? [];
+        group.push(entry);
+        byAction.set(key, group);
+      }
 
-            if (!result.success) {
+      let processed = 0;
+      for (const [, group] of byAction) {
+        const chunks = chunkArray(group, soapBatchSize);
+        for (const chunk of chunks) {
+          const chunkIndices = new Set(chunk.map(c => c.index));
+
+          setManagerWorkflow({
+            step: 'submitting-position',
+            current: Math.min(processed + chunk.length, total),
+            total,
+          });
+
+          setPreparedPositionData(prev =>
+            prev.map((sub, idx) =>
+              chunkIndices.has(idx) ? { ...sub, status: 'submitting' } : sub
+            )
+          );
+
+          let submitFailed = false;
+          let errorMsg = '';
+          const ciRecords = chunk
+            .map(c => c.ciRecord)
+            .filter((r): r is NonNullable<typeof r> => r != null);
+
+          if (ciRecords.length > 0) {
+            try {
+              const payloads = ciRecords.map(r =>
+                buildSOAPPayload(r, POSITION_UPDATE_CI_TEMPLATE.fields)
+              );
+              const result = await soapApi.ci.submit(
+                ciRecords[0].ciName, ciRecords[0].action, payloads
+              );
+
+              if (!result.success) {
+                submitFailed = true;
+                errorMsg = result.error.message;
+              } else if (!result.data.success) {
+                submitFailed = true;
+                errorMsg = result.data.errors.length > 0
+                  ? result.data.errors.map(e => e.message).join('; ')
+                  : 'SOAP batch submission failed';
+              }
+            } catch (err) {
               submitFailed = true;
-              errorMsg = result.error.message;
-            } else if (!result.data.success) {
-              submitFailed = true;
-              errorMsg = result.data.errors.length > 0
-                ? result.data.errors.map(e => e.message).join('; ')
-                : 'SOAP submission failed';
+              errorMsg = err instanceof Error ? err.message : 'Unknown error';
             }
-          } catch (err) {
-            submitFailed = true;
-            errorMsg = err instanceof Error ? err.message : 'Unknown error';
           }
+
+          processed += chunk.length;
+
+          if (processed >= total) {
+            setManagerWorkflow({ step: 'submitting-job', current: 0, total: jobTotal });
+          }
+
+          setPreparedPositionData(prev =>
+            prev.map((sub, idx) =>
+              chunkIndices.has(idx)
+                ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+                : sub
+            )
+          );
         }
       }
+    } else {
+      // --- Sequential path (development + non-batch production) ---
+      for (let s = 0; s < total; s++) {
+        const i = selectedIndices[s];
+        setManagerWorkflow({ step: 'submitting-position', current: s + 1, total });
 
-      // For the last item, transition to next step BEFORE marking status
-      if (s === total - 1) {
-        setManagerWorkflow({ step: 'submitting-job', current: 0, total: jobTotal });
+        setPreparedPositionData(prev =>
+          prev.map((sub, idx) =>
+            idx === i ? { ...sub, status: 'submitting' } : sub
+          )
+        );
+
+        let submitFailed = false;
+        let errorMsg = '';
+
+        if (isDevelopment) {
+          await new Promise(resolve => setTimeout(resolve, 400));
+        } else {
+          const txnNbr = preparedPositionData[i].id.replace('pos-', '');
+          const ciRecord = parsedCIDataRef.current.positionUpdate.find(
+            r => r.transactionNbr === txnNbr
+          );
+
+          if (ciRecord) {
+            try {
+              const payload = buildSOAPPayload(ciRecord, POSITION_UPDATE_CI_TEMPLATE.fields);
+              const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+
+              if (!result.success) {
+                submitFailed = true;
+                errorMsg = result.error.message;
+              } else if (!result.data.success) {
+                submitFailed = true;
+                errorMsg = result.data.errors.length > 0
+                  ? result.data.errors.map(e => e.message).join('; ')
+                  : 'SOAP submission failed';
+              }
+            } catch (err) {
+              submitFailed = true;
+              errorMsg = err instanceof Error ? err.message : 'Unknown error';
+            }
+          }
+        }
+
+        // For the last item, transition to next step BEFORE marking status
+        if (s === total - 1) {
+          setManagerWorkflow({ step: 'submitting-job', current: 0, total: jobTotal });
+        }
+
+        setPreparedPositionData(prev =>
+          prev.map((sub, idx) =>
+            idx === i
+              ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+              : sub
+          )
+        );
       }
-
-      setPreparedPositionData(prev =>
-        prev.map((sub, idx) =>
-          idx === i
-            ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
-            : sub
-        )
-      );
     }
 
     // If no position items selected, still transition to job step
@@ -673,55 +857,136 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
 
     const total = selectedIndices.length;
 
-    for (let s = 0; s < total; s++) {
-      const i = selectedIndices[s];
-      setManagerWorkflow({ step: 'submitting-job', current: s + 1, total });
-
-      setPreparedJobData(prev =>
-        prev.map((sub, idx) =>
-          idx === i ? { ...sub, status: 'submitting' } : sub
-        )
-      );
-
-      let submitFailed = false;
-      let errorMsg = '';
-
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 400));
-      } else {
+    if (isSoapBatchMode && !isDevelopment && total > 0) {
+      // --- Batch production path ---
+      const resolvedRecords = selectedIndices.map(i => {
         const txnNbr = preparedJobData[i].id.replace('job-', '');
         const ciRecord = parsedCIDataRef.current.jobUpdate.find(
           r => r.transactionNbr === txnNbr
         );
+        return { index: i, ciRecord };
+      });
 
-        if (ciRecord) {
-          try {
-            const payload = buildSOAPPayload(ciRecord, JOB_UPDATE_CI_TEMPLATE.fields);
-            const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
-
-            if (!result.success) {
-              submitFailed = true;
-              errorMsg = result.error.message;
-            } else if (!result.data.success) {
-              submitFailed = true;
-              errorMsg = result.data.errors.length > 0
-                ? result.data.errors.map(e => e.message).join('; ')
-                : 'SOAP submission failed';
-            }
-          } catch (err) {
-            submitFailed = true;
-            errorMsg = err instanceof Error ? err.message : 'Unknown error';
-          }
-        }
+      const byAction = new Map<string, typeof resolvedRecords>();
+      for (const entry of resolvedRecords) {
+        if (!entry.ciRecord) continue;
+        const key = entry.ciRecord.action;
+        const group = byAction.get(key) ?? [];
+        group.push(entry);
+        byAction.set(key, group);
       }
 
-      setPreparedJobData(prev =>
-        prev.map((sub, idx) =>
-          idx === i
-            ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
-            : sub
-        )
-      );
+      let processed = 0;
+      for (const [, group] of byAction) {
+        const chunks = chunkArray(group, soapBatchSize);
+        for (const chunk of chunks) {
+          const chunkIndices = new Set(chunk.map(c => c.index));
+
+          setManagerWorkflow({
+            step: 'submitting-job',
+            current: Math.min(processed + chunk.length, total),
+            total,
+          });
+
+          setPreparedJobData(prev =>
+            prev.map((sub, idx) =>
+              chunkIndices.has(idx) ? { ...sub, status: 'submitting' } : sub
+            )
+          );
+
+          let submitFailed = false;
+          let errorMsg = '';
+          const ciRecords = chunk
+            .map(c => c.ciRecord)
+            .filter((r): r is NonNullable<typeof r> => r != null);
+
+          if (ciRecords.length > 0) {
+            try {
+              const payloads = ciRecords.map(r =>
+                buildSOAPPayload(r, JOB_UPDATE_CI_TEMPLATE.fields)
+              );
+              const result = await soapApi.ci.submit(
+                ciRecords[0].ciName, ciRecords[0].action, payloads
+              );
+
+              if (!result.success) {
+                submitFailed = true;
+                errorMsg = result.error.message;
+              } else if (!result.data.success) {
+                submitFailed = true;
+                errorMsg = result.data.errors.length > 0
+                  ? result.data.errors.map(e => e.message).join('; ')
+                  : 'SOAP batch submission failed';
+              }
+            } catch (err) {
+              submitFailed = true;
+              errorMsg = err instanceof Error ? err.message : 'Unknown error';
+            }
+          }
+
+          processed += chunk.length;
+
+          setPreparedJobData(prev =>
+            prev.map((sub, idx) =>
+              chunkIndices.has(idx)
+                ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+                : sub
+            )
+          );
+        }
+      }
+    } else {
+      // --- Sequential path (development + non-batch production) ---
+      for (let s = 0; s < total; s++) {
+        const i = selectedIndices[s];
+        setManagerWorkflow({ step: 'submitting-job', current: s + 1, total });
+
+        setPreparedJobData(prev =>
+          prev.map((sub, idx) =>
+            idx === i ? { ...sub, status: 'submitting' } : sub
+          )
+        );
+
+        let submitFailed = false;
+        let errorMsg = '';
+
+        if (isDevelopment) {
+          await new Promise(resolve => setTimeout(resolve, 400));
+        } else {
+          const txnNbr = preparedJobData[i].id.replace('job-', '');
+          const ciRecord = parsedCIDataRef.current.jobUpdate.find(
+            r => r.transactionNbr === txnNbr
+          );
+
+          if (ciRecord) {
+            try {
+              const payload = buildSOAPPayload(ciRecord, JOB_UPDATE_CI_TEMPLATE.fields);
+              const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+
+              if (!result.success) {
+                submitFailed = true;
+                errorMsg = result.error.message;
+              } else if (!result.data.success) {
+                submitFailed = true;
+                errorMsg = result.data.errors.length > 0
+                  ? result.data.errors.map(e => e.message).join('; ')
+                  : 'SOAP submission failed';
+              }
+            } catch (err) {
+              submitFailed = true;
+              errorMsg = err instanceof Error ? err.message : 'Unknown error';
+            }
+          }
+        }
+
+        setPreparedJobData(prev =>
+          prev.map((sub, idx) =>
+            idx === i
+              ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+              : sub
+          )
+        );
+      }
     }
 
     setManagerWorkflow({ step: 'complete' });
@@ -807,61 +1072,145 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       otherSelected.has(sub.id.replace('poscreate-', ''))
     ).length;
 
-    // Process selected dept co submissions
-    for (let s = 0; s < total; s++) {
-      const i = selectedIndices[s];
-      setOtherWorkflow({ step: 'submitting-dept-co', current: s + 1, total });
-
-      setPreparedOtherDeptCoData(prev =>
-        prev.map((sub, idx) =>
-          idx === i ? { ...sub, status: 'submitting' } : sub
-        )
-      );
-
-      let submitFailed = false;
-      let errorMsg = '';
-
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 400));
-      } else {
+    if (isSoapBatchMode && !isDevelopment && total > 0) {
+      // --- Batch production path ---
+      const resolvedRecords = selectedIndices.map(i => {
         const txnNbr = preparedOtherDeptCoData[i].id.replace('other-deptco-', '');
         const ciRecord = parsedCIDataRef.current.deptCoUpdate.find(
           r => r.transactionNbr === txnNbr
         );
+        return { index: i, ciRecord };
+      });
 
-        if (ciRecord) {
-          try {
-            const payload = buildSOAPPayload(ciRecord, DEPT_CO_UPDATE_CI_TEMPLATE.fields);
-            const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+      const byAction = new Map<string, typeof resolvedRecords>();
+      for (const entry of resolvedRecords) {
+        if (!entry.ciRecord) continue;
+        const key = entry.ciRecord.action;
+        const group = byAction.get(key) ?? [];
+        group.push(entry);
+        byAction.set(key, group);
+      }
 
-            if (!result.success) {
+      let processed = 0;
+      for (const [, group] of byAction) {
+        const chunks = chunkArray(group, soapBatchSize);
+        for (const chunk of chunks) {
+          const chunkIndices = new Set(chunk.map(c => c.index));
+
+          setOtherWorkflow({
+            step: 'submitting-dept-co',
+            current: Math.min(processed + chunk.length, total),
+            total,
+          });
+
+          setPreparedOtherDeptCoData(prev =>
+            prev.map((sub, idx) =>
+              chunkIndices.has(idx) ? { ...sub, status: 'submitting' } : sub
+            )
+          );
+
+          let submitFailed = false;
+          let errorMsg = '';
+          const ciRecords = chunk
+            .map(c => c.ciRecord)
+            .filter((r): r is NonNullable<typeof r> => r != null);
+
+          if (ciRecords.length > 0) {
+            try {
+              const payloads = ciRecords.map(r =>
+                buildSOAPPayload(r, DEPT_CO_UPDATE_CI_TEMPLATE.fields)
+              );
+              const result = await soapApi.ci.submit(
+                ciRecords[0].ciName, ciRecords[0].action, payloads
+              );
+
+              if (!result.success) {
+                submitFailed = true;
+                errorMsg = result.error.message;
+              } else if (!result.data.success) {
+                submitFailed = true;
+                errorMsg = result.data.errors.length > 0
+                  ? result.data.errors.map(e => e.message).join('; ')
+                  : 'SOAP batch submission failed';
+              }
+            } catch (err) {
               submitFailed = true;
-              errorMsg = result.error.message;
-            } else if (!result.data.success) {
-              submitFailed = true;
-              errorMsg = result.data.errors.length > 0
-                ? result.data.errors.map(e => e.message).join('; ')
-                : 'SOAP submission failed';
+              errorMsg = err instanceof Error ? err.message : 'Unknown error';
             }
-          } catch (err) {
-            submitFailed = true;
-            errorMsg = err instanceof Error ? err.message : 'Unknown error';
           }
+
+          processed += chunk.length;
+
+          if (processed >= total) {
+            setOtherWorkflow({ step: 'submitting-position-create', current: 0, total: posCreateTotal });
+          }
+
+          setPreparedOtherDeptCoData(prev =>
+            prev.map((sub, idx) =>
+              chunkIndices.has(idx)
+                ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+                : sub
+            )
+          );
         }
       }
+    } else {
+      // --- Sequential path (development + non-batch production) ---
+      for (let s = 0; s < total; s++) {
+        const i = selectedIndices[s];
+        setOtherWorkflow({ step: 'submitting-dept-co', current: s + 1, total });
 
-      // For the last item, transition to next step BEFORE marking status
-      if (s === total - 1) {
-        setOtherWorkflow({ step: 'submitting-position-create', current: 0, total: posCreateTotal });
+        setPreparedOtherDeptCoData(prev =>
+          prev.map((sub, idx) =>
+            idx === i ? { ...sub, status: 'submitting' } : sub
+          )
+        );
+
+        let submitFailed = false;
+        let errorMsg = '';
+
+        if (isDevelopment) {
+          await new Promise(resolve => setTimeout(resolve, 400));
+        } else {
+          const txnNbr = preparedOtherDeptCoData[i].id.replace('other-deptco-', '');
+          const ciRecord = parsedCIDataRef.current.deptCoUpdate.find(
+            r => r.transactionNbr === txnNbr
+          );
+
+          if (ciRecord) {
+            try {
+              const payload = buildSOAPPayload(ciRecord, DEPT_CO_UPDATE_CI_TEMPLATE.fields);
+              const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+
+              if (!result.success) {
+                submitFailed = true;
+                errorMsg = result.error.message;
+              } else if (!result.data.success) {
+                submitFailed = true;
+                errorMsg = result.data.errors.length > 0
+                  ? result.data.errors.map(e => e.message).join('; ')
+                  : 'SOAP submission failed';
+              }
+            } catch (err) {
+              submitFailed = true;
+              errorMsg = err instanceof Error ? err.message : 'Unknown error';
+            }
+          }
+        }
+
+        // For the last item, transition to next step BEFORE marking status
+        if (s === total - 1) {
+          setOtherWorkflow({ step: 'submitting-position-create', current: 0, total: posCreateTotal });
+        }
+
+        setPreparedOtherDeptCoData(prev =>
+          prev.map((sub, idx) =>
+            idx === i
+              ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+              : sub
+          )
+        );
       }
-
-      setPreparedOtherDeptCoData(prev =>
-        prev.map((sub, idx) =>
-          idx === i
-            ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
-            : sub
-        )
-      );
     }
 
     // If no dept co items, still transition to position create step
@@ -893,56 +1242,136 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
 
     const total = selectedIndices.length;
 
-    // Process selected position create submissions
-    for (let s = 0; s < total; s++) {
-      const i = selectedIndices[s];
-      setOtherWorkflow({ step: 'submitting-position-create', current: s + 1, total });
-
-      setPreparedPositionCreateData(prev =>
-        prev.map((sub, idx) =>
-          idx === i ? { ...sub, status: 'submitting' } : sub
-        )
-      );
-
-      let submitFailed = false;
-      let errorMsg = '';
-
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 400));
-      } else {
+    if (isSoapBatchMode && !isDevelopment && total > 0) {
+      // --- Batch production path ---
+      const resolvedRecords = selectedIndices.map(i => {
         const txnNbr = preparedPositionCreateData[i].id.replace('poscreate-', '');
         const ciRecord = parsedCIDataRef.current.positionCreate.find(
           r => r.transactionNbr === txnNbr
         );
+        return { index: i, ciRecord };
+      });
 
-        if (ciRecord) {
-          try {
-            const payload = buildSOAPPayload(ciRecord, POSITION_CREATE_CI_TEMPLATE.fields);
-            const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
-
-            if (!result.success) {
-              submitFailed = true;
-              errorMsg = result.error.message;
-            } else if (!result.data.success) {
-              submitFailed = true;
-              errorMsg = result.data.errors.length > 0
-                ? result.data.errors.map(e => e.message).join('; ')
-                : 'SOAP submission failed';
-            }
-          } catch (err) {
-            submitFailed = true;
-            errorMsg = err instanceof Error ? err.message : 'Unknown error';
-          }
-        }
+      const byAction = new Map<string, typeof resolvedRecords>();
+      for (const entry of resolvedRecords) {
+        if (!entry.ciRecord) continue;
+        const key = entry.ciRecord.action;
+        const group = byAction.get(key) ?? [];
+        group.push(entry);
+        byAction.set(key, group);
       }
 
-      setPreparedPositionCreateData(prev =>
-        prev.map((sub, idx) =>
-          idx === i
-            ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
-            : sub
-        )
-      );
+      let processed = 0;
+      for (const [, group] of byAction) {
+        const chunks = chunkArray(group, soapBatchSize);
+        for (const chunk of chunks) {
+          const chunkIndices = new Set(chunk.map(c => c.index));
+
+          setOtherWorkflow({
+            step: 'submitting-position-create',
+            current: Math.min(processed + chunk.length, total),
+            total,
+          });
+
+          setPreparedPositionCreateData(prev =>
+            prev.map((sub, idx) =>
+              chunkIndices.has(idx) ? { ...sub, status: 'submitting' } : sub
+            )
+          );
+
+          let submitFailed = false;
+          let errorMsg = '';
+          const ciRecords = chunk
+            .map(c => c.ciRecord)
+            .filter((r): r is NonNullable<typeof r> => r != null);
+
+          if (ciRecords.length > 0) {
+            try {
+              const payloads = ciRecords.map(r =>
+                buildSOAPPayload(r, POSITION_CREATE_CI_TEMPLATE.fields)
+              );
+              const result = await soapApi.ci.submit(
+                ciRecords[0].ciName, ciRecords[0].action, payloads
+              );
+
+              if (!result.success) {
+                submitFailed = true;
+                errorMsg = result.error.message;
+              } else if (!result.data.success) {
+                submitFailed = true;
+                errorMsg = result.data.errors.length > 0
+                  ? result.data.errors.map(e => e.message).join('; ')
+                  : 'SOAP batch submission failed';
+              }
+            } catch (err) {
+              submitFailed = true;
+              errorMsg = err instanceof Error ? err.message : 'Unknown error';
+            }
+          }
+
+          processed += chunk.length;
+
+          setPreparedPositionCreateData(prev =>
+            prev.map((sub, idx) =>
+              chunkIndices.has(idx)
+                ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+                : sub
+            )
+          );
+        }
+      }
+    } else {
+      // --- Sequential path (development + non-batch production) ---
+      for (let s = 0; s < total; s++) {
+        const i = selectedIndices[s];
+        setOtherWorkflow({ step: 'submitting-position-create', current: s + 1, total });
+
+        setPreparedPositionCreateData(prev =>
+          prev.map((sub, idx) =>
+            idx === i ? { ...sub, status: 'submitting' } : sub
+          )
+        );
+
+        let submitFailed = false;
+        let errorMsg = '';
+
+        if (isDevelopment) {
+          await new Promise(resolve => setTimeout(resolve, 400));
+        } else {
+          const txnNbr = preparedPositionCreateData[i].id.replace('poscreate-', '');
+          const ciRecord = parsedCIDataRef.current.positionCreate.find(
+            r => r.transactionNbr === txnNbr
+          );
+
+          if (ciRecord) {
+            try {
+              const payload = buildSOAPPayload(ciRecord, POSITION_CREATE_CI_TEMPLATE.fields);
+              const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+
+              if (!result.success) {
+                submitFailed = true;
+                errorMsg = result.error.message;
+              } else if (!result.data.success) {
+                submitFailed = true;
+                errorMsg = result.data.errors.length > 0
+                  ? result.data.errors.map(e => e.message).join('; ')
+                  : 'SOAP submission failed';
+              }
+            } catch (err) {
+              submitFailed = true;
+              errorMsg = err instanceof Error ? err.message : 'Unknown error';
+            }
+          }
+        }
+
+        setPreparedPositionCreateData(prev =>
+          prev.map((sub, idx) =>
+            idx === i
+              ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+              : sub
+          )
+        );
+      }
     }
 
     setOtherWorkflow({ step: 'submissions-complete' });

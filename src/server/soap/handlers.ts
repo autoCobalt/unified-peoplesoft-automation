@@ -10,7 +10,7 @@ import type { ActionType } from '../../types/soap.js';
 import type { SoapCredentials } from '../../types/connection.js';
 import { soapService } from './soapService.js';
 import { sessionService } from '../auth/index.js';
-import { parseBody, sendJson, sendInternalError } from '../utils/index.js';
+import { parseBody, sendJson, sendInternalError, isRedirectEnabled, captureSoapSubmit } from '../utils/index.js';
 
 /* ==============================================
    Route Handlers
@@ -224,6 +224,30 @@ export async function handleSubmit(
     }
 
     const action = body.action as ActionType;
+
+    // Redirect mode: capture to JSON instead of submitting
+    if (isRedirectEnabled()) {
+      const isBatch = Array.isArray(body.data);
+
+      captureSoapSubmit({
+        ciName: body.ciName,
+        action,
+        isBatch,
+        data: body.data,
+      });
+
+      sendJson(res, 200, {
+        success: true,
+        data: {
+          success: true,
+          notification: '1',
+          transactions: [],
+          errors: [],
+          warnings: [],
+        },
+      });
+      return;
+    }
 
     // Handle single or batch submission
     let result;

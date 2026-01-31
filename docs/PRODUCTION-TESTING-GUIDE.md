@@ -68,6 +68,8 @@ All configuration is done in the `.env` file at the project root. This file is g
 | `VITE_SOAP_BLOCKING_FACTOR` | `40` | Records per batch for bulk operations |
 | `VITE_ENABLE_DEBUG_LOGGING` | `false` | Verbose console logging |
 | `VITE_ENABLE_AUDIT_TRAIL` | `false` | Audit logging for data modifications |
+| `VITE_SOAP_BATCH_MODE` | `true` | Send SOAP submissions in batches instead of one-at-a-time |
+| `VITE_SOAP_BATCH_SIZE` | `5` | Number of records per batch request (requires batch mode) |
 | `VITE_ALLOWED_ORIGINS` | - | CORS origins for production (comma-separated) |
 
 ---
@@ -464,6 +466,12 @@ VITE_PS_NODE=PT_LOCAL
 # ===========================================
 VITE_ENABLE_DEBUG_LOGGING=true
 VITE_ENABLE_AUDIT_TRAIL=false
+
+# ===========================================
+# SOAP BATCH SUBMISSION
+# ===========================================
+VITE_SOAP_BATCH_MODE=true
+VITE_SOAP_BATCH_SIZE=5
 
 # For local production testing (npm run dev with VITE_APP_MODE=production)
 VITE_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173

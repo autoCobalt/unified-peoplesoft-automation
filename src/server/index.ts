@@ -21,7 +21,7 @@ import { workflowRoutes, createSqlRoutes } from './workflows/index.js';
 import { handleTestSiteRequest } from './test-site/index.js';
 import { soapService, buildSoapConfig } from './soap/index.js';
 import { sessionService } from './auth/index.js';
-import { initializeSecureLogger, logInfo, logDebug, logWarn, logError, parseBody, sendInternalError } from './utils/index.js';
+import { initializeSecureLogger, initializeRedirectCapture, logInfo, logDebug, logWarn, logError, parseBody, sendInternalError } from './utils/index.js';
 import { runSqlMetadataTest } from './sql/devTest.js';
 
 /**
@@ -208,6 +208,9 @@ export function configureWorkflowMiddleware(
 
   // Initialize secure logger first - controls redaction of sensitive info in logs
   initializeSecureLogger(isDevelopment);
+
+  // Initialize redirect capture - captures Oracle/SOAP requests to JSON when enabled
+  initializeRedirectCapture(env);
 
   // Build allowed CORS origins list
   // In development, allow localhost variants for flexibility

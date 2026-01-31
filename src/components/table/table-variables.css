@@ -12,6 +12,7 @@
 :root {
   /* Colors */
   --dt-header-bg: var(--bg-tertiary);
+  --dt-header-non-export-bg: color-mix(in srgb, #512650 82%, var(--text-tertiary));
   --dt-header-color: var(--text-tertiary);
   --dt-row-bg: transparent;
   --dt-row-bg-alt: var(--bg-secondary);
@@ -34,20 +35,20 @@
   --dt-status-warning-color: var(--status-warning, #f59e0b);
 
   /* Typography */
-  --dt-font-size: 0.8125rem;
-  --dt-font-size-header: 0.6875rem;
+  --dt-font-size: 13px;
+  --dt-font-size-header: 11px;
   --dt-font-mono: var(--font-mono, ui-monospace, monospace);
 
   /* Spacing */
-  --dt-cell-padding-y: 0.25rem;
-  --dt-cell-padding-x: 0.375rem;
-  --dt-border-radius: 0.375rem;
+  --dt-cell-padding-y: 4px;
+  --dt-cell-padding-x: 6px;
+  --dt-border-radius: 6px;
 
   /* Button */
   --dt-button-bg: var(--accent-primary);
   --dt-button-color: var(--text-inverse, #fff);
-  --dt-button-padding-y: 0.25rem;
-  --dt-button-padding-x: 0.5rem;
+  --dt-button-padding-y: 4px;
+  --dt-button-padding-x: 8px;
 
   /* Sticky column highlight (when scrolled) */
   --dt-sticky-highlight-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
