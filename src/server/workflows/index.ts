@@ -15,6 +15,14 @@ import {
   handleResume as managerResume,
 } from './manager/index.js';
 import {
+  handleGetStatus as otherGetStatus,
+  handleApprove as otherApprove,
+  handleStop as otherStop,
+  handleReset as otherReset,
+  handlePause as otherPause,
+  handleResume as otherResume,
+} from './other/index.js';
+import {
   handleGetStatus as oracleGetStatus,
   handleGetQueries as oracleGetQueries,
   handleConnect as oracleConnect,
@@ -137,9 +145,41 @@ export const workflowRoutes: Record<string, RouteConfig> = {
     auth: 'authenticated',
   },
 
-  // Other Workflow routes will be added here
-  // '/api/workflows/other/status': { ... },
-  // '/api/workflows/other/approve': { ... },
+  // ============================================
+  // Other Workflow Routes (all authenticated)
+  // ============================================
+  // These routes control browser automation for the Other approval queue.
+  // Must be protected to prevent unauthorized workflow execution.
+  '/api/workflows/other/status': {
+    method: 'GET',
+    handler: otherGetStatus,
+    auth: 'authenticated',
+  },
+  '/api/workflows/other/approve': {
+    method: 'POST',
+    handler: otherApprove,
+    auth: 'authenticated',
+  },
+  '/api/workflows/other/stop': {
+    method: 'POST',
+    handler: otherStop,
+    auth: 'authenticated',
+  },
+  '/api/workflows/other/reset': {
+    method: 'POST',
+    handler: otherReset,
+    auth: 'authenticated',
+  },
+  '/api/workflows/other/pause': {
+    method: 'POST',
+    handler: otherPause,
+    auth: 'authenticated',
+  },
+  '/api/workflows/other/resume': {
+    method: 'POST',
+    handler: otherResume,
+    auth: 'authenticated',
+  },
 
   // ============================================
   // Oracle Routes
@@ -323,5 +363,6 @@ export function createSqlRoutes(env: Record<string, string>): Record<string, Rou
 
 export type { ManagerWorkflowState, OtherWorkflowState } from './types.js';
 export { managerWorkflowService } from './manager/index.js';
+export { otherWorkflowService } from './other/index.js';
 export { oracleService } from '../oracle/index.js';
 export { soapService } from '../soap/index.js';

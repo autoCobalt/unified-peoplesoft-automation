@@ -83,6 +83,7 @@ The application operates in two distinct modes controlled by the `VITE_APP_MODE`
 
 - Connects to real PeopleSoft Component Interface via SOAP requests
 - Executes actual Oracle SQL queries against configured servers
+- **Workflow CI submissions** make real SOAP calls to create/update PeopleSoft records
 - Requires valid server credentials and endpoints in `.env` file
 - **Use with caution** — actions affect live systems
 
@@ -122,7 +123,8 @@ async function fetchEmployeeData(employeeId: string) {
 |---------|--------|-------------|
 | Core UI Framework | 🟢 Complete | Tab-based navigation with 6 feature panels, type-safe routing |
 | SmartForm Panel | 🟢 Complete | Primary workflow panel with data tables, sub-tabs, and workflow sections |
-| Manager Workflow | 🟢 Complete | Automated PeopleSoft approval processing via Playwright browser control |
+| Manager Workflow | 🟢 Complete | Approval processing via Playwright + real SOAP CI submissions (Dept Co, Position, Job) in production |
+| Other Workflow | 🟢 Complete | SOAP CI submissions (Dept Co, Position Create) + approval processing via Playwright in production |
 | Oracle SQL Interface | 🟢 Complete | Full API: connect, disconnect, and query endpoints (`/api/oracle/*`) |
 | PeopleSoft SOAP Interface | 🟢 Complete | Full API with HTTPS enforcement in production (`/api/soap/*`) |
 | Mock Test Site | 🟢 Complete | Development-only PeopleSoft simulator for testing automation |

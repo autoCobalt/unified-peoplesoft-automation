@@ -60,11 +60,12 @@ export const INITIAL_MANAGER_STATE: ManagerWorkflowState = {
 /** Server-side Other workflow state */
 export interface OtherWorkflowState {
   status: WorkflowStatus;
-  currentStep: 'idle' | 'creating-positions' | 'approving' | 'completed';
+  currentStep: 'idle' | 'approving' | 'completed';
   progress: RawWorkflowProgress | null;
   error: string | null;
+  /** Whether the workflow is currently paused (pauses between transactions) */
+  isPaused: boolean;
   results: {
-    positionsCreated?: number;
     approvedCount?: number;
   };
 }
@@ -75,6 +76,7 @@ export const INITIAL_OTHER_STATE: OtherWorkflowState = {
   currentStep: 'idle',
   progress: null,
   error: null,
+  isPaused: false,
   results: {},
 };
 

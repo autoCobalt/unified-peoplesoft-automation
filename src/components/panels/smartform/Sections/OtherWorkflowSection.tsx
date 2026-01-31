@@ -1,25 +1,27 @@
 /**
  * OtherWorkflowSection Component
  *
- * Displays the Other approval workflow:
- * Phase 1: Position creation
- * Phase 2: Approval processing (if positions remain after refresh)
+ * Displays the 3-task Other approval workflow:
+ * 1. Submit DEPARTMENT_TBL (auto-skipped if no records)
+ * 2. Submit POSITION_CREATE_CI
+ * 3. Process Approvals (browser automation with pause/resume)
  *
- * Features:
- * - Single-line layout with action button and count display
- * - Auto-refresh after position creation
- * - Transitions to approval workflow when needed
+ * CI data is auto-parsed during query execution — no manual prepare step.
+ * Submission status is displayed in the CI preview tables (DataTableSection).
+ * Uses shared workflow components for the checklist, button, and status messages.
  *
- * Uses shared workflow components for the button and status messages.
- * Uses the new definition-driven workflow system from src/workflows/.
+ * Uses the definition-driven workflow system from src/workflows/.
  */
 
-import { useSmartForm } from '../../../../context';
+import { useEffect, useMemo } from 'react';
+import { useSmartForm, useConnection } from '../../../../context';
+import type { ChecklistTask } from '../../../../types';
 import { useWorkflowDefinition } from '../../../../hooks';
+import type { ActionMap, RequirementStatus } from '../../../../workflows';
 import { otherWorkflowDefinition } from '../../../../workflows';
-import { FadeIn } from '../../../motion';
 import {
   WorkflowActionButton,
+  WorkflowChecklist,
   WorkflowStatusMessage,
 } from '../../../workflow';
 import './OtherWorkflowSection.css';
@@ -27,13 +29,35 @@ import './OtherWorkflowSection.css';
 export function OtherWorkflowSection() {
   const {
     state,
-    distinctPositionCount,
-    createPositionRecords,
-    processOtherApprovals,
+    submitOtherDeptCoData,
+    submitPositionCreateData,
+    openOtherBrowser,
+    pauseOtherApprovals,
+    resumeOtherApprovals,
+    preparedOtherDeptCoData,
+    isOtherWorkflowPaused,
   } = useSmartForm();
+
+  const {
+    soapState,
+    setOracleHintActive,
+    setSoapHintActive,
+  } = useConnection();
 
   const { otherWorkflow, queryResults } = state;
   const otherCount = queryResults?.otherCount ?? 0;
+
+  // Action map connects task IDs to context-provided actions
+  const actionMap: ActionMap = useMemo(() => ({
+    'other-dept-co': submitOtherDeptCoData,
+    'other-position-create': submitPositionCreateData,
+    'other-approvals': openOtherBrowser,
+  }), [submitOtherDeptCoData, submitPositionCreateData, openOtherBrowser]);
+
+  // Build requirement status from connection states
+  const requirementStatus: RequirementStatus = useMemo(() => ({
+    soap: soapState.isConnected,
+  }), [soapState.isConnected]);
 
   // Use definition-driven workflow hook
   const {
@@ -43,42 +67,64 @@ export function OtherWorkflowSection() {
     isError,
     errorMessage,
     progress,
+    tasksWithStatus,
+    activeTask,
+    canProceed,
+    missingRequirements,
   } = useWorkflowDefinition({
     definition: otherWorkflowDefinition,
     workflowStep: otherWorkflow,
+    requirementStatus,
   });
 
-  // Determine what action to show
-  const getActionConfig = (): { label: string; action: () => Promise<void> } | null => {
-    // If no other records, no action needed
-    if (otherCount === 0 && stepName === 'idle') return null;
+  // Convert tasks to checklist format
+  const checklistTasks: ChecklistTask[] = tasksWithStatus.map(t => ({
+    id: t.id,
+    label: t.label,
+    status: t.status,
+  }));
 
-    // Phase 1: Position creation
-    if (stepName === 'idle' && distinctPositionCount > 0) {
-      return {
-        label: 'Create Position Records',
-        action: createPositionRecords,
-      };
+  // Get action for the active task
+  const activeAction = activeTask ? actionMap[activeTask.id] : undefined;
+
+  // Format missing requirements for display
+  const requirementLabels: Record<string, string> = {
+    soap: 'PeopleSoft SOAP',
+    oracle: 'Oracle Database',
+    browser: 'Browser',
+  };
+  const missingRequirementsText = missingRequirements
+    .map(req => requirementLabels[req] ?? req)
+    .join(', ');
+
+  // Hint handlers - activate hints for missing connection requirements
+  const handlePointerEnter = () => {
+    if (!canProceed && missingRequirements.length > 0) {
+      if (missingRequirements.includes('oracle')) {
+        setOracleHintActive(true);
+      }
+      if (missingRequirements.includes('soap')) {
+        setSoapHintActive(true);
+      }
     }
-
-    // Phase 2: Approval processing (after positions created or if no positions to create)
-    if (stepName === 'positions-created' ||
-        (stepName === 'idle' && distinctPositionCount === 0 && otherCount > 0)) {
-      return {
-        label: 'Process Approvals',
-        action: processOtherApprovals,
-      };
-    }
-
-    return null;
   };
 
-  const actionConfig = getActionConfig();
+  const handlePointerLeave = () => {
+    setOracleHintActive(false);
+    setSoapHintActive(false);
+  };
+
+  // Auto-skip dept co step when no Other queue dept co records exist
+  useEffect(() => {
+    if (stepName === 'idle' && state.hasQueried && preparedOtherDeptCoData.length === 0) {
+      void submitOtherDeptCoData();
+    }
+  }, [stepName, state.hasQueried, preparedOtherDeptCoData.length, submitOtherDeptCoData]);
 
   // Don't render if no other records and workflow is idle
   if (otherCount === 0 && stepName === 'idle') {
     return (
-      <section className="sf-other-container">
+      <section className="sf-workflow-container">
         <WorkflowStatusMessage
           type="empty"
           message="No Other transactions pending"
@@ -88,54 +134,74 @@ export function OtherWorkflowSection() {
   }
 
   return (
-    <section className="sf-other-container">
-      <div className="sf-other-content">
-        {/* Action Button */}
-        {actionConfig && !isComplete && !isError && (
+    <section className="sf-workflow-container">
+      {/* Action Button */}
+      {activeTask && activeAction && !isComplete && !isError && (
+        <div className="sf-workflow-action-container">
           <WorkflowActionButton
-            label={actionConfig.label}
+            label={activeTask.buttonLabel}
             isProcessing={isProcessing}
+            isPaused={isOtherWorkflowPaused}
             progress={progress}
-            onAction={() => { void actionConfig.action(); }}
+            onAction={() => { void activeAction(); }}
+            disabled={!canProceed}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
           />
-        )}
+          {/* Missing requirements message */}
+          {!canProceed && missingRequirementsText && (
+            <p className="sf-workflow-requirements-warning">
+              Requires {missingRequirementsText} connection
+            </p>
+          )}
+          {/* Pause/Resume controls - visible during approval processing */}
+          {stepName === 'approving' && (
+            <div className="sf-workflow-pause-controls">
+              {!isOtherWorkflowPaused ? (
+                <button
+                  type="button"
+                  className="sf-workflow-pause-btn"
+                  onClick={() => { void pauseOtherApprovals(); }}
+                  title="Pause workflow between transactions"
+                >
+                  ⏸ Pause
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="sf-workflow-resume-btn"
+                  onClick={() => { void resumeOtherApprovals(); }}
+                >
+                  ▶ Resume
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
-        {/* Position Count Display */}
-        {stepName === 'idle' && distinctPositionCount > 0 && (
-          <span className="sf-other-count">
-            {distinctPositionCount} distinct position number{distinctPositionCount !== 1 ? 's' : ''}
-          </span>
-        )}
+      <h3 className="sf-workflow-title">
+        Other Approval Workflow
+      </h3>
 
-        {/* Positions Created Message */}
-        {stepName === 'positions-created' && (
-          <FadeIn
-            as="span"
-            className="sf-other-status sf-other-status--success"
-          >
-            <svg viewBox="0 0 24 24" fill="none" className="sf-other-status-icon" aria-hidden="true">
-              <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {otherWorkflow.step === 'positions-created' ? otherWorkflow.count : 0} position{(otherWorkflow.step === 'positions-created' ? otherWorkflow.count : 0) !== 1 ? 's' : ''} created
-          </FadeIn>
-        )}
+      {/* Task Checklist */}
+      <WorkflowChecklist tasks={checklistTasks} />
 
-        {/* Completion Message */}
-        {isComplete && (
-          <WorkflowStatusMessage
-            type="complete"
-            message="Other Workflow Complete"
-          />
-        )}
+      {/* Completion Message */}
+      {isComplete && (
+        <WorkflowStatusMessage
+          type="complete"
+          message="Workflow Complete"
+        />
+      )}
 
-        {/* Error Message */}
-        {isError && errorMessage && (
-          <WorkflowStatusMessage
-            type="error"
-            message={errorMessage}
-          />
-        )}
-      </div>
+      {/* Error Message */}
+      {isError && errorMessage && (
+        <WorkflowStatusMessage
+          type="error"
+          message={errorMessage}
+        />
+      )}
     </section>
   );
 }

@@ -5,14 +5,14 @@
  * - Query execution and results
  * - Sub-tab navigation
  * - Manager workflow state machine
- * - Other workflow state machine
+ * - Other workflow state machine (3-step: dept-co → position-create → approvals)
  * - CI submission preparation and tracking
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { SmartFormContext, type SmartFormContextType } from './smartFormContextDef';
 import { isDevelopment } from '../config';
-import { workflowApi, oracleApi } from '../services';
+import { workflowApi, oracleApi, soapApi } from '../services';
 import type {
   SmartFormState,
   SmartFormSubTab,
@@ -30,11 +30,12 @@ import {
   INITIAL_PARSED_CI_DATA,
 } from '../types';
 import { generateMockRecords } from '../dev-data';
-import { parseCIDataFromRecords } from '../server/ci-definitions/parser';
+import { parseCIDataFromRecords, buildSOAPPayload } from '../server/ci-definitions/parser';
 import { findCIDuplicates } from '../utils';
 import {
   POSITION_UPDATE_CI_TEMPLATE,
   POSITION_CREATE_CI_TEMPLATE,
+  JOB_UPDATE_CI_TEMPLATE,
   DEPT_CO_UPDATE_CI_TEMPLATE,
 } from '../server/ci-definitions/templates/smartform';
 
@@ -77,13 +78,23 @@ function generateMockQueryResults(): { results: SmartFormQueryResult; parsedCIDa
 }
 
 /**
- * Auto-build PreparedSubmission arrays from manager records.
+ * Auto-build PreparedSubmission arrays from query records.
  * Called after query execution to pre-populate submission tracking data.
+ *
+ * Manager records (MGR_CUR=1): position update, job update, dept co update
+ * Other records (MGR_CUR=0): position create, dept co update
  */
 function buildPreparedSubmissions(
   transactions: SmartFormRecord[]
-): { position: PreparedSubmission[]; job: PreparedSubmission[]; deptCo: PreparedSubmission[] } {
+): {
+  position: PreparedSubmission[];
+  job: PreparedSubmission[];
+  deptCo: PreparedSubmission[];
+  otherDeptCo: PreparedSubmission[];
+  positionCreate: PreparedSubmission[];
+} {
   const managerRecords = transactions.filter(r => r.MGR_CUR === 1);
+  const otherRecords = transactions.filter(r => r.MGR_CUR === 0);
 
   const position: PreparedSubmission[] = managerRecords.map(record => ({
     id: `pos-${record.TRANSACTION_NBR}`,
@@ -114,7 +125,29 @@ function buildPreparedSubmissions(
       payload: JSON.stringify({ deptid: record.DEPTID }),
     }));
 
-  return { position, job, deptCo };
+  const otherDeptCo: PreparedSubmission[] = otherRecords
+    .filter(record => record.DEPT_CO_UPDATE_CI != null)
+    .map(record => ({
+      id: `other-deptco-${record.TRANSACTION_NBR}`,
+      emplid: record.EMPLID,
+      employeeName: record.EMPLOYEE_NAME,
+      ciType: 'DEPARTMENT_TBL' as const,
+      status: 'pending' as const,
+      payload: JSON.stringify({ deptid: record.DEPTID }),
+    }));
+
+  const positionCreate: PreparedSubmission[] = otherRecords
+    .filter(record => record.POSITION_CREATE_CI != null)
+    .map(record => ({
+      id: `poscreate-${record.TRANSACTION_NBR}`,
+      emplid: record.EMPLID,
+      employeeName: record.EMPLOYEE_NAME,
+      ciType: 'CI_POSITION_DATA' as const,
+      status: 'pending' as const,
+      payload: JSON.stringify({ emplid: record.EMPLID }),
+    }));
+
+  return { position, job, deptCo, otherDeptCo, positionCreate };
 }
 
 /* ==============================================
@@ -133,22 +166,27 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   // Core state
   const [state, setState] = useState<SmartFormState>(INITIAL_SMARTFORM_STATE);
 
-  // Polling cleanup ref
+  // Polling cleanup refs (one per workflow)
   const stopPollingRef = useRef<(() => void) | null>(null);
+  const stopOtherPollingRef = useRef<(() => void) | null>(null);
 
   // Track mount status to prevent race conditions in async operations
   const isMountedRef = useRef(true);
 
   // Prevent rapid-fire pause/resume calls that could cause race conditions
   const isPauseActionInFlightRef = useRef(false);
+  const isOtherPauseActionInFlightRef = useRef(false);
 
   // Prepared submission storage (separate from workflow state for cleaner updates)
   const [preparedDeptCoData, setPreparedDeptCoData] = useState<PreparedSubmission[]>([]);
   const [preparedPositionData, setPreparedPositionData] = useState<PreparedSubmission[]>([]);
   const [preparedJobData, setPreparedJobData] = useState<PreparedSubmission[]>([]);
+  const [preparedOtherDeptCoData, setPreparedOtherDeptCoData] = useState<PreparedSubmission[]>([]);
+  const [preparedPositionCreateData, setPreparedPositionCreateData] = useState<PreparedSubmission[]>([]);
 
-  // Track if workflow is paused (from server polling)
+  // Track if workflows are paused (from server polling)
   const [isWorkflowPaused, setIsWorkflowPaused] = useState(false);
+  const [isOtherWorkflowPaused, setIsOtherWorkflowPaused] = useState(false);
 
   // Per-tab transaction selection (all selected by default after query)
   const [selectedByTab, setSelectedByTab] = useState<Record<SmartFormSubTab, Set<string>>>(() => ({
@@ -219,11 +257,13 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       otherWorkflow: INITIAL_OTHER_WORKFLOW,
     }));
 
-    // Auto-populate prepared submissions from manager records
+    // Auto-populate prepared submissions from all records
     const prepared = buildPreparedSubmissions(results.transactions);
     setPreparedDeptCoData(prepared.deptCo);
     setPreparedPositionData(prepared.position);
     setPreparedJobData(prepared.job);
+    setPreparedOtherDeptCoData(prepared.otherDeptCo);
+    setPreparedPositionCreateData(prepared.positionCreate);
 
     // Initialize transaction selections (all selected for both tabs)
     setSelectedByTab({
@@ -282,6 +322,8 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     setPreparedDeptCoData(prepared.deptCo);
     setPreparedPositionData(prepared.position);
     setPreparedJobData(prepared.job);
+    setPreparedOtherDeptCoData(prepared.otherDeptCo);
+    setPreparedPositionCreateData(prepared.positionCreate);
 
     // Re-initialize transaction selections (all selected for both tabs)
     setSelectedByTab({
@@ -479,17 +521,48 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         )
       );
 
-      // Simulate CI submission (real implementation will call SOAP API)
-      await new Promise(resolve => setTimeout(resolve, 400));
+      let submitFailed = false;
+      let errorMsg = '';
 
-      // For the last item, transition to next step BEFORE marking success
+      if (isDevelopment) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+      } else {
+        const txnNbr = preparedDeptCoData[i].id.replace('deptco-', '');
+        const ciRecord = parsedCIDataRef.current.deptCoUpdate.find(
+          r => r.transactionNbr === txnNbr
+        );
+
+        if (ciRecord) {
+          try {
+            const payload = buildSOAPPayload(ciRecord, DEPT_CO_UPDATE_CI_TEMPLATE.fields);
+            const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+
+            if (!result.success) {
+              submitFailed = true;
+              errorMsg = result.error.message;
+            } else if (!result.data.success) {
+              submitFailed = true;
+              errorMsg = result.data.errors.length > 0
+                ? result.data.errors.map(e => e.message).join('; ')
+                : 'SOAP submission failed';
+            }
+          } catch (err) {
+            submitFailed = true;
+            errorMsg = err instanceof Error ? err.message : 'Unknown error';
+          }
+        }
+      }
+
+      // For the last item, transition to next step BEFORE marking status
       if (s === total - 1) {
         setManagerWorkflow({ step: 'submitting-position', current: 0, total: posTotal });
       }
 
       setPreparedDeptCoData(prev =>
         prev.map((sub, idx) =>
-          idx === i ? { ...sub, status: 'success' } : sub
+          idx === i
+            ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+            : sub
         )
       );
     }
@@ -534,18 +607,48 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         )
       );
 
-      // Simulate CI submission
-      await new Promise(resolve => setTimeout(resolve, 400));
+      let submitFailed = false;
+      let errorMsg = '';
 
-      // For the last item, transition to next step BEFORE marking success
+      if (isDevelopment) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+      } else {
+        const txnNbr = preparedPositionData[i].id.replace('pos-', '');
+        const ciRecord = parsedCIDataRef.current.positionUpdate.find(
+          r => r.transactionNbr === txnNbr
+        );
+
+        if (ciRecord) {
+          try {
+            const payload = buildSOAPPayload(ciRecord, POSITION_UPDATE_CI_TEMPLATE.fields);
+            const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+
+            if (!result.success) {
+              submitFailed = true;
+              errorMsg = result.error.message;
+            } else if (!result.data.success) {
+              submitFailed = true;
+              errorMsg = result.data.errors.length > 0
+                ? result.data.errors.map(e => e.message).join('; ')
+                : 'SOAP submission failed';
+            }
+          } catch (err) {
+            submitFailed = true;
+            errorMsg = err instanceof Error ? err.message : 'Unknown error';
+          }
+        }
+      }
+
+      // For the last item, transition to next step BEFORE marking status
       if (s === total - 1) {
         setManagerWorkflow({ step: 'submitting-job', current: 0, total: jobTotal });
       }
 
-      // Mark as success (or error in real implementation)
       setPreparedPositionData(prev =>
         prev.map((sub, idx) =>
-          idx === i ? { ...sub, status: 'success' } : sub
+          idx === i
+            ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+            : sub
         )
       );
     }
@@ -580,11 +683,43 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         )
       );
 
-      await new Promise(resolve => setTimeout(resolve, 400));
+      let submitFailed = false;
+      let errorMsg = '';
+
+      if (isDevelopment) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+      } else {
+        const txnNbr = preparedJobData[i].id.replace('job-', '');
+        const ciRecord = parsedCIDataRef.current.jobUpdate.find(
+          r => r.transactionNbr === txnNbr
+        );
+
+        if (ciRecord) {
+          try {
+            const payload = buildSOAPPayload(ciRecord, JOB_UPDATE_CI_TEMPLATE.fields);
+            const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+
+            if (!result.success) {
+              submitFailed = true;
+              errorMsg = result.error.message;
+            } else if (!result.data.success) {
+              submitFailed = true;
+              errorMsg = result.data.errors.length > 0
+                ? result.data.errors.map(e => e.message).join('; ')
+                : 'SOAP submission failed';
+            }
+          } catch (err) {
+            submitFailed = true;
+            errorMsg = err instanceof Error ? err.message : 'Unknown error';
+          }
+        }
+      }
 
       setPreparedJobData(prev =>
         prev.map((sub, idx) =>
-          idx === i ? { ...sub, status: 'success' } : sub
+          idx === i
+            ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+            : sub
         )
       );
     }
@@ -644,44 +779,180 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     setState(prev => ({ ...prev, otherWorkflow: workflow }));
   }, []);
 
-  const createPositionRecords = useCallback(async () => {
-    // Filter by MGR_CUR = 0 for Other queue, excluding unchecked transactions
+  /**
+   * Submit DEPARTMENT_TBL records for the Other queue.
+   * Auto-skips (transitions to submitting-position-create) if no records.
+   */
+  const submitOtherDeptCoData = useCallback(async () => {
     const otherSelected = selectedByTabRef.current.other;
-    const otherRecords = state.queryResults?.transactions.filter(
-      r => r.MGR_CUR === 0 && otherSelected.has(r.TRANSACTION_NBR)
-    ) ?? [];
+
+    // Compute dept co CI duplicates from selected Other records
+    const deptCoRecords = parsedCIDataRef.current.deptCoUpdate
+      .filter(r => otherSelected.has(r.transactionNbr));
+    const deptCoDuplicates = findCIDuplicates(deptCoRecords, DEPT_CO_UPDATE_CI_TEMPLATE.fields);
+
+    // Build indices of selected Other dept co submissions (excluding duplicates)
+    const selectedIndices: number[] = [];
+    for (let i = 0; i < preparedOtherDeptCoData.length; i++) {
+      const txnNbr = preparedOtherDeptCoData[i].id.replace('other-deptco-', '');
+      if (otherSelected.has(txnNbr) && !deptCoDuplicates.has(txnNbr)) {
+        selectedIndices.push(i);
+      }
+    }
+
+    const total = selectedIndices.length;
+
+    // Calculate totals for subsequent step (position create)
+    const posCreateTotal = preparedPositionCreateData.filter(sub =>
+      otherSelected.has(sub.id.replace('poscreate-', ''))
+    ).length;
+
+    // Process selected dept co submissions
+    for (let s = 0; s < total; s++) {
+      const i = selectedIndices[s];
+      setOtherWorkflow({ step: 'submitting-dept-co', current: s + 1, total });
+
+      setPreparedOtherDeptCoData(prev =>
+        prev.map((sub, idx) =>
+          idx === i ? { ...sub, status: 'submitting' } : sub
+        )
+      );
+
+      let submitFailed = false;
+      let errorMsg = '';
+
+      if (isDevelopment) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+      } else {
+        const txnNbr = preparedOtherDeptCoData[i].id.replace('other-deptco-', '');
+        const ciRecord = parsedCIDataRef.current.deptCoUpdate.find(
+          r => r.transactionNbr === txnNbr
+        );
+
+        if (ciRecord) {
+          try {
+            const payload = buildSOAPPayload(ciRecord, DEPT_CO_UPDATE_CI_TEMPLATE.fields);
+            const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+
+            if (!result.success) {
+              submitFailed = true;
+              errorMsg = result.error.message;
+            } else if (!result.data.success) {
+              submitFailed = true;
+              errorMsg = result.data.errors.length > 0
+                ? result.data.errors.map(e => e.message).join('; ')
+                : 'SOAP submission failed';
+            }
+          } catch (err) {
+            submitFailed = true;
+            errorMsg = err instanceof Error ? err.message : 'Unknown error';
+          }
+        }
+      }
+
+      // For the last item, transition to next step BEFORE marking status
+      if (s === total - 1) {
+        setOtherWorkflow({ step: 'submitting-position-create', current: 0, total: posCreateTotal });
+      }
+
+      setPreparedOtherDeptCoData(prev =>
+        prev.map((sub, idx) =>
+          idx === i
+            ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+            : sub
+        )
+      );
+    }
+
+    // If no dept co items, still transition to position create step
+    if (total === 0) {
+      setOtherWorkflow({ step: 'submitting-position-create', current: 0, total: posCreateTotal });
+    }
+  }, [preparedOtherDeptCoData, preparedPositionCreateData, setOtherWorkflow]);
+
+  /**
+   * Submit POSITION_CREATE_CI records for the Other queue.
+   * Transitions to submissions-complete when done.
+   */
+  const submitPositionCreateData = useCallback(async () => {
+    const otherSelected = selectedByTabRef.current.other;
 
     // Compute position create CI duplicates from selected records
     const posCreateRecords = parsedCIDataRef.current.positionCreate
       .filter(r => otherSelected.has(r.transactionNbr));
     const posCreateDuplicates = findCIDuplicates(posCreateRecords, POSITION_CREATE_CI_TEMPLATE.fields);
 
-    // Exclude transactions with duplicate CI data
-    const nonDuplicateRecords = otherRecords.filter(
-      r => !posCreateDuplicates.has(r.TRANSACTION_NBR)
-    );
-
-    // Get distinct position numbers (POSITION_NBR is dynamic field)
-    const distinctPositions = [...new Set(
-      nonDuplicateRecords
-        .map(r => r.POSITION_NBR as string | null | undefined)
-        .filter((p): p is string => Boolean(p))
-    )];
-    const total = distinctPositions.length;
-
-    for (let i = 0; i < total; i++) {
-      setOtherWorkflow({ step: 'creating-positions', current: i + 1, total });
-      // Simulate position creation
-      await new Promise(resolve => setTimeout(resolve, 500));
+    // Build indices of selected position create submissions (excluding duplicates)
+    const selectedIndices: number[] = [];
+    for (let i = 0; i < preparedPositionCreateData.length; i++) {
+      const txnNbr = preparedPositionCreateData[i].id.replace('poscreate-', '');
+      if (otherSelected.has(txnNbr) && !posCreateDuplicates.has(txnNbr)) {
+        selectedIndices.push(i);
+      }
     }
 
-    setOtherWorkflow({ step: 'positions-created', count: total });
+    const total = selectedIndices.length;
 
-    // Auto-refresh query after position creation
-    await refreshQuery();
-  }, [state.queryResults, setOtherWorkflow, refreshQuery]);
+    // Process selected position create submissions
+    for (let s = 0; s < total; s++) {
+      const i = selectedIndices[s];
+      setOtherWorkflow({ step: 'submitting-position-create', current: s + 1, total });
 
-  const processOtherApprovals = useCallback(async () => {
+      setPreparedPositionCreateData(prev =>
+        prev.map((sub, idx) =>
+          idx === i ? { ...sub, status: 'submitting' } : sub
+        )
+      );
+
+      let submitFailed = false;
+      let errorMsg = '';
+
+      if (isDevelopment) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+      } else {
+        const txnNbr = preparedPositionCreateData[i].id.replace('poscreate-', '');
+        const ciRecord = parsedCIDataRef.current.positionCreate.find(
+          r => r.transactionNbr === txnNbr
+        );
+
+        if (ciRecord) {
+          try {
+            const payload = buildSOAPPayload(ciRecord, POSITION_CREATE_CI_TEMPLATE.fields);
+            const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
+
+            if (!result.success) {
+              submitFailed = true;
+              errorMsg = result.error.message;
+            } else if (!result.data.success) {
+              submitFailed = true;
+              errorMsg = result.data.errors.length > 0
+                ? result.data.errors.map(e => e.message).join('; ')
+                : 'SOAP submission failed';
+            }
+          } catch (err) {
+            submitFailed = true;
+            errorMsg = err instanceof Error ? err.message : 'Unknown error';
+          }
+        }
+      }
+
+      setPreparedPositionCreateData(prev =>
+        prev.map((sub, idx) =>
+          idx === i
+            ? { ...sub, status: submitFailed ? 'error' : 'success', ...(submitFailed && { errorMessage: errorMsg }) }
+            : sub
+        )
+      );
+    }
+
+    setOtherWorkflow({ step: 'submissions-complete' });
+  }, [preparedPositionCreateData, setOtherWorkflow]);
+
+  /**
+   * Start the Other approval workflow via server API.
+   * Browser lifecycle is handled internally by the server.
+   */
+  const openOtherBrowser = useCallback(async () => {
     // Filter by MGR_CUR = 0 for Other queue, excluding unchecked transactions
     const otherSelected = selectedByTabRef.current.other;
     const otherRecords = state.queryResults?.transactions.filter(
@@ -689,25 +960,127 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     ) ?? [];
 
     if (otherRecords.length === 0) {
-      setOtherWorkflow({ step: 'complete' });
+      setOtherWorkflow({ step: 'error', message: 'No transactions to approve' });
       return;
     }
 
-    // TODO: Implement Other workflow using workflowApi when Other endpoints are added
-    // For now, simulate the workflow locally (browser lifecycle will be handled server-side)
-    const total = otherRecords.length;
+    const transactionIds = otherRecords.map(r => r.TRANSACTION_NBR);
+    const firstTransactionId = transactionIds[0];
 
     // Go directly to approving state
+    setOtherWorkflow({
+      step: 'approving',
+      current: 1,
+      total: otherRecords.length,
+      currentItem: firstTransactionId,
+    });
 
-    for (let i = 0; i < total; i++) {
-      setOtherWorkflow({ step: 'approving', current: i + 1, total });
-      await new Promise(resolve => setTimeout(resolve, 300));
+    // Get test site URL for development
+    const testSiteUrl = isDevelopment
+      ? `${window.location.origin}/test-site`
+      : undefined;
+
+    const response = await workflowApi.other.startApprovals(transactionIds, testSiteUrl);
+
+    if (!isMountedRef.current) {
+      return;
     }
 
-    setOtherWorkflow({ step: 'approved' });
-    await new Promise(resolve => setTimeout(resolve, 300));
-    setOtherWorkflow({ step: 'complete' });
+    if (!response.success) {
+      setOtherWorkflow({
+        step: 'error',
+        message: response.error.message,
+      });
+      return;
+    }
+
+    // Stop any existing Other polling first
+    if (stopOtherPollingRef.current) {
+      stopOtherPollingRef.current();
+    }
+
+    // Start polling for Other workflow status
+    stopOtherPollingRef.current = workflowApi.other.pollStatus((status, error) => {
+      if (error) {
+        setOtherWorkflow({ step: 'error', message: error });
+        setIsOtherWorkflowPaused(false);
+        return;
+      }
+
+      if (!status) return;
+
+      if (status.status === 'running' && status.progress) {
+        setOtherWorkflow({
+          step: 'approving',
+          current: status.progress.current,
+          total: status.progress.total,
+          currentItem: status.progress.currentItem,
+        });
+        setIsOtherWorkflowPaused(false);
+      } else if (status.status === 'paused' && status.progress) {
+        setOtherWorkflow({
+          step: 'approving',
+          current: status.progress.current,
+          total: status.progress.total,
+          currentItem: status.progress.currentItem,
+        });
+        setIsOtherWorkflowPaused(true);
+      } else if (status.status === 'completed') {
+        setOtherWorkflow({ step: 'approved' });
+        setIsOtherWorkflowPaused(false);
+        if (stopOtherPollingRef.current) {
+          stopOtherPollingRef.current();
+          stopOtherPollingRef.current = null;
+        }
+        // Auto-transition to complete after approved
+        setTimeout(() => {
+          setOtherWorkflow({ step: 'complete' });
+        }, 300);
+      } else if (status.status === 'error') {
+        setOtherWorkflow({ step: 'error', message: status.error ?? 'Unknown error' });
+        setIsOtherWorkflowPaused(false);
+        if (stopOtherPollingRef.current) {
+          stopOtherPollingRef.current();
+          stopOtherPollingRef.current = null;
+        }
+      } else if (status.status === 'cancelled') {
+        setOtherWorkflow({ step: 'idle' });
+        setIsOtherWorkflowPaused(false);
+        if (stopOtherPollingRef.current) {
+          stopOtherPollingRef.current();
+          stopOtherPollingRef.current = null;
+        }
+      }
+    });
   }, [state.queryResults, setOtherWorkflow]);
+
+  /**
+   * Pause the Other approval workflow
+   * Guarded against rapid-fire calls to prevent race conditions
+   */
+  const pauseOtherApprovals = useCallback(async () => {
+    if (isOtherPauseActionInFlightRef.current) return;
+    isOtherPauseActionInFlightRef.current = true;
+    try {
+      await workflowApi.other.pause();
+    } finally {
+      isOtherPauseActionInFlightRef.current = false;
+    }
+  }, []);
+
+  /**
+   * Resume a paused Other approval workflow
+   * Guarded against rapid-fire calls to prevent race conditions
+   */
+  const resumeOtherApprovals = useCallback(async () => {
+    if (isOtherPauseActionInFlightRef.current) return;
+    isOtherPauseActionInFlightRef.current = true;
+    try {
+      await workflowApi.other.resume();
+    } finally {
+      isOtherPauseActionInFlightRef.current = false;
+    }
+  }, []);
 
   // Track mount state and cleanup polling on unmount
   // Note: Explicitly setting isMountedRef in useEffect (not just useRef initializer)
@@ -719,11 +1092,22 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       if (stopPollingRef.current) {
         stopPollingRef.current();
       }
+      if (stopOtherPollingRef.current) {
+        stopOtherPollingRef.current();
+      }
     };
   }, []);
 
   const resetOtherWorkflow = useCallback(() => {
+    if (stopOtherPollingRef.current) {
+      stopOtherPollingRef.current();
+      stopOtherPollingRef.current = null;
+    }
+    void workflowApi.other.stop();
     setOtherWorkflow(INITIAL_OTHER_WORKFLOW);
+    setPreparedOtherDeptCoData([]);
+    setPreparedPositionCreateData([]);
+    setIsOtherWorkflowPaused(false);
   }, [setOtherWorkflow]);
 
   /* ==============================================
@@ -744,21 +1128,6 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       });
   }, [state.queryResults, state.activeSubTab]);
 
-
-  const distinctPositionCount = useMemo(() => {
-    if (!state.queryResults) return 0;
-    // Filter by MGR_CUR = 0 for Other queue
-    const otherRecords = state.queryResults.transactions.filter(
-      r => r.MGR_CUR === 0
-    );
-    const distinctPositions = new Set(
-      otherRecords
-        .map(r => r.POSITION_NBR as string | null | undefined)
-        .filter((p): p is string => Boolean(p))
-    );
-    return distinctPositions.size;
-  }, [state.queryResults]);
-
   /* ==============================================
      Context Value
      ============================================== */
@@ -778,16 +1147,21 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       submitJobData,
       resetManagerWorkflow,
       isWorkflowPaused,
-      createPositionRecords,
-      processOtherApprovals,
+      submitOtherDeptCoData,
+      submitPositionCreateData,
+      openOtherBrowser,
+      pauseOtherApprovals,
+      resumeOtherApprovals,
       resetOtherWorkflow,
+      isOtherWorkflowPaused,
       selectedByTab,
       setTransactionSelected,
       filteredRecords,
-      distinctPositionCount,
       preparedDeptCoData,
       preparedPositionData,
       preparedJobData,
+      preparedOtherDeptCoData,
+      preparedPositionCreateData,
       parsedCIData: state.parsedCIData,
     }),
     [
@@ -804,16 +1178,21 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       submitJobData,
       resetManagerWorkflow,
       isWorkflowPaused,
-      createPositionRecords,
-      processOtherApprovals,
+      submitOtherDeptCoData,
+      submitPositionCreateData,
+      openOtherBrowser,
+      pauseOtherApprovals,
+      resumeOtherApprovals,
       resetOtherWorkflow,
+      isOtherWorkflowPaused,
       selectedByTab,
       setTransactionSelected,
       filteredRecords,
-      distinctPositionCount,
       preparedDeptCoData,
       preparedPositionData,
       preparedJobData,
+      preparedOtherDeptCoData,
+      preparedPositionCreateData,
     ]
   );
 

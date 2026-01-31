@@ -273,6 +273,8 @@ export function DataTableSection() {
     preparedDeptCoData,
     preparedPositionData,
     preparedJobData,
+    preparedOtherDeptCoData,
+    preparedPositionCreateData,
   } = useSmartForm();
   const { activeSubTab } = state;
   const { ensureLabels, getLabel } = useCILabels();
@@ -285,7 +287,7 @@ export function DataTableSection() {
   }, [ensureLabels]);
 
   // Build status lookup: dataKey → Map<transactionNbr, status>
-  // Used to inject a STATUS column into manager-tab CI preview tables
+  // Tab-dependent: Manager tab shows manager CI statuses, Other tab shows other CI statuses
   const statusMaps = useMemo(() => {
     const buildMap = (submissions: { id: string; status: PreparedSubmissionStatus }[], prefix: string) => {
       const map = new Map<string, PreparedSubmissionStatus>();
@@ -295,12 +297,19 @@ export function DataTableSection() {
       return map;
     };
 
-    return new Map<string, Map<string, PreparedSubmissionStatus>>([
-      ['deptCoUpdate', buildMap(preparedDeptCoData, 'deptco-')],
-      ['positionUpdate', buildMap(preparedPositionData, 'pos-')],
-      ['jobUpdate', buildMap(preparedJobData, 'job-')],
-    ]);
-  }, [preparedDeptCoData, preparedPositionData, preparedJobData]);
+    if (activeSubTab === 'manager') {
+      return new Map<string, Map<string, PreparedSubmissionStatus>>([
+        ['deptCoUpdate', buildMap(preparedDeptCoData, 'deptco-')],
+        ['positionUpdate', buildMap(preparedPositionData, 'pos-')],
+        ['jobUpdate', buildMap(preparedJobData, 'job-')],
+      ]);
+    } else {
+      return new Map<string, Map<string, PreparedSubmissionStatus>>([
+        ['deptCoUpdate', buildMap(preparedOtherDeptCoData, 'other-deptco-')],
+        ['positionCreate', buildMap(preparedPositionCreateData, 'poscreate-')],
+      ]);
+    }
+  }, [activeSubTab, preparedDeptCoData, preparedPositionData, preparedJobData, preparedOtherDeptCoData, preparedPositionCreateData]);
 
   // Selection for the active sub-tab (from context, persists across tab switches)
   const selectedRows = selectedByTab[activeSubTab];
@@ -431,7 +440,7 @@ export function DataTableSection() {
         if (records.length === 0) return null;
 
         const ciColumns = buildCIPreviewColumns(template, getLabel);
-        const showStatusColumn = activeSubTab === 'manager' && statusMaps.has(dataKey);
+        const showStatusColumn = statusMaps.has(dataKey);
         const dataStatusMap = showStatusColumn
           ? (statusMaps.get(dataKey) ?? new Map<string, PreparedSubmissionStatus>())
           : null;

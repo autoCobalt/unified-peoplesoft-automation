@@ -301,13 +301,14 @@ export function parseCIDataFromRecords(records: SmartFormRecordLike[]): ParsedCI
  * @returns Record suitable for SOAP XML submission
  */
 export function buildSOAPPayload(
-  record: Record<string, unknown>,
+  record: object,
   templateFields: readonly { name: string }[]
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {};
+  const source = record as Record<string, unknown>;
 
   for (const field of templateFields) {
-    const value = record[field.name];
+    const value = source[field.name];
     if (value !== null && value !== undefined) {
       payload[field.name] = value;
     }

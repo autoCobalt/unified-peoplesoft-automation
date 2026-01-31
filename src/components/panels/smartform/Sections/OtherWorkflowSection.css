@@ -1,43 +1,8 @@
 /* ===== OTHER WORKFLOW SECTION =====
  *
- * Feature-specific styles for the Other workflow.
- * Generic workflow styles (button, status) are in
- * src/components/workflow/ and imported by those components.
+ * The Other workflow now uses the same layout as the Manager workflow.
+ * All styles come from the shared .sf-workflow-* classes defined in
+ * ManagerWorkflowSection.css (they're global).
+ *
+ * This file is kept for feature-specific overrides if needed.
  */
-
-/* Container */
-.sf-other-container {
-  padding: 1rem 0;
-  border-top: 1px solid var(--border-secondary);
-  margin-top: 0.5rem;
-}
-
-.sf-other-content {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-/* Position Count (Feature-specific) */
-.sf-other-count {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-/* Positions Created Status (Feature-specific) */
-.sf-other-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.875rem;
-}
-
-.sf-other-status--success {
-  color: var(--status-success);
-}
-
-.sf-other-status-icon {
-  width: 1rem;
-  height: 1rem;
-}

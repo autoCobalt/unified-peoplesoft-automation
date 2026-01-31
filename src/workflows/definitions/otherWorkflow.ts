@@ -1,13 +1,14 @@
 /**
  * Other Workflow Definition
  *
- * The Other approval workflow handles a 2-phase process:
- * Phase 1: Position creation (if distinct positions exist)
- * Phase 2: Approval processing (if positions remain after refresh)
+ * The Other approval workflow handles a 3-step process:
+ * 1. Submit dept company clearing (SOAP) — auto-skip if no records
+ * 2. Submit position create data (SOAP)
+ * 3. Process approvals (browser automation) — with pause/resume
  *
- * This workflow is simpler than Manager and doesn't use a checklist UI,
- * but still benefits from the definition-driven approach for processing
- * state calculation.
+ * Uses the same definition-driven approach as the Manager workflow,
+ * including a checklist UI, requirements checking, and shared workflow
+ * components.
  */
 
 import type { OtherWorkflowStepName } from '../../types';
@@ -21,28 +22,34 @@ import type { WorkflowDefinition, StepConfig, TaskConfig } from '../types';
  * Other workflow step configurations.
  *
  * Processing behaviors:
- * - 'never': idle, positions-created, approved, complete (waiting/terminal)
- * - 'progress-until-done': creating-positions (client-controlled loop)
- * - 'server-controlled': approving (server determines completion)
+ * - 'never': idle, submissions-complete, approved, complete, error (waiting/terminal)
+ * - 'transitional': submitting-dept-co, submitting-position-create (SOAP loops — transition when done)
+ * - 'server-controlled': approving (browser automation via server)
  */
 export const OTHER_STEPS: readonly StepConfig<OtherWorkflowStepName>[] = [
   {
     name: 'idle',
     processingBehavior: 'never',
     label: 'Ready to start',
-    validTransitions: ['creating-positions', 'approving', 'error'],
+    validTransitions: ['submitting-dept-co', 'submitting-position-create', 'error'],
   },
   {
-    name: 'creating-positions',
-    processingBehavior: 'progress-until-done',
-    label: 'Creating position records',
-    validTransitions: ['positions-created', 'error'],
+    name: 'submitting-dept-co',
+    processingBehavior: 'transitional',
+    label: 'Submitting DEPARTMENT_TBL',
+    validTransitions: ['submitting-position-create', 'error'],
   },
   {
-    name: 'positions-created',
+    name: 'submitting-position-create',
+    processingBehavior: 'transitional',
+    label: 'Submitting POSITION_CREATE_CI',
+    validTransitions: ['submissions-complete', 'error'],
+  },
+  {
+    name: 'submissions-complete',
     processingBehavior: 'never',
-    label: 'Positions created',
-    validTransitions: ['approving', 'complete', 'error'],
+    label: 'Submissions complete',
+    validTransitions: ['approving', 'error'],
   },
   {
     name: 'approving',
@@ -77,21 +84,31 @@ export const OTHER_STEPS: readonly StepConfig<OtherWorkflowStepName>[] = [
 /**
  * Other workflow task configurations.
  *
- * Note: The Other workflow uses dynamic action selection based on
- * context (distinct position count, etc.) rather than a fixed checklist.
- * Tasks are still defined for potential future checklist UI.
+ * Three tasks in order:
+ * 1. Submit DEPARTMENT_TBL (auto-skipped if no dept co records)
+ * 2. Submit POSITION_CREATE_CI
+ * 3. Process Approvals (browser automation)
  */
 export const OTHER_TASKS: readonly TaskConfig<OtherWorkflowStepName>[] = [
   {
-    id: 'create-positions',
+    id: 'other-dept-co',
     triggerStep: 'idle',
-    completionStep: 'positions-created',
-    label: 'Create position records',
-    buttonLabel: 'Create Position Records',
+    completionStep: 'submitting-position-create',
+    label: 'Submit DEPARTMENT_TBL',
+    buttonLabel: 'Submit DEPARTMENT_TBL',
+    requires: ['soap'],
   },
   {
-    id: 'approvals',
-    triggerStep: 'positions-created',
+    id: 'other-position-create',
+    triggerStep: 'submitting-position-create',
+    completionStep: 'submissions-complete',
+    label: 'Submit POSITION_CREATE_CI',
+    buttonLabel: 'Submit POSITION_CREATE_CI',
+    requires: ['soap'],
+  },
+  {
+    id: 'other-approvals',
+    triggerStep: 'submissions-complete',
     completionStep: 'approved',
     label: 'Process approvals',
     buttonLabel: 'Process Approvals',
@@ -110,6 +127,7 @@ export const OTHER_TASKS: readonly TaskConfig<OtherWorkflowStepName>[] = [
  * const { isProcessing, stepConfig, ... } = useWorkflowDefinition({
  *   definition: otherWorkflowDefinition,
  *   workflowStep: state.otherWorkflow,
+ *   requirementStatus,
  * });
  * ```
  */

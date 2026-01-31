@@ -194,6 +194,117 @@ export function pollManagerStatus(
 }
 
 /* ==============================================
+   Other Workflow API
+   ============================================== */
+
+/** Other workflow state from API */
+export interface OtherWorkflowApiState {
+  status: WorkflowStatus;
+  step: string;
+  progress: RawWorkflowProgress | null;
+  error: string | null;
+  results: { approvedCount?: number };
+}
+
+/**
+ * Get current Other workflow status
+ */
+export async function getOtherStatus(): Promise<ApiResponse<OtherWorkflowApiState>> {
+  return apiRequest<OtherWorkflowApiState>('/other/status', { method: 'GET' });
+}
+
+/**
+ * Start the Other approval workflow
+ *
+ * @param transactionIds - List of transaction IDs to approve
+ * @param testSiteUrl - Optional test site URL for development
+ */
+export async function startOtherApprovals(
+  transactionIds: string[],
+  testSiteUrl?: string
+): Promise<ApiResponse<{ message: string; transactionCount: number }>> {
+  return apiRequest('/other/approve', {
+    method: 'POST',
+    body: JSON.stringify({ transactionIds, testSiteUrl }),
+  });
+}
+
+/**
+ * Stop the current Other workflow
+ */
+export async function stopOtherWorkflow(): Promise<ApiResponse<{ message: string }>> {
+  return apiRequest('/other/stop', { method: 'POST' });
+}
+
+/**
+ * Reset the Other workflow to initial state
+ */
+export async function resetOtherWorkflow(): Promise<ApiResponse<{ message: string }>> {
+  return apiRequest('/other/reset', { method: 'POST' });
+}
+
+/**
+ * Pause the Other workflow (pauses between transactions)
+ */
+export async function pauseOtherWorkflow(): Promise<ApiResponse<{ message: string }>> {
+  return apiRequest('/other/pause', { method: 'POST' });
+}
+
+/**
+ * Resume a paused Other workflow
+ */
+export async function resumeOtherWorkflow(): Promise<ApiResponse<{ message: string }>> {
+  return apiRequest('/other/resume', { method: 'POST' });
+}
+
+/**
+ * Poll Other workflow status at regular intervals
+ * Returns a cleanup function to stop polling
+ */
+export function pollOtherStatus(
+  callback: (state: OtherWorkflowApiState | null, error: string | null) => void,
+  intervalMs = 250
+): () => void {
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const isAborted = (): boolean => controller.signal.aborted;
+
+  const doPoll = async () => {
+    if (isAborted()) {
+      return;
+    }
+
+    const response = await getOtherStatus();
+
+    if (isAborted()) {
+      return;
+    }
+
+    if (response.success) {
+      callback(response.data, null);
+    } else {
+      callback(null, response.error.message);
+    }
+
+    if (!isAborted()) {
+      timeoutId = setTimeout(() => {
+        void doPoll();
+      }, intervalMs);
+    }
+  };
+
+  void doPoll();
+
+  return () => {
+    controller.abort();
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+  };
+}
+
+/* ==============================================
    Export as Service Object
    ============================================== */
 
@@ -207,5 +318,13 @@ export const workflowApi = {
     resume: resumeManagerWorkflow,
     pollStatus: pollManagerStatus,
   },
-  // other: { ... } will be added later
+  other: {
+    getStatus: getOtherStatus,
+    startApprovals: startOtherApprovals,
+    stop: stopOtherWorkflow,
+    reset: resetOtherWorkflow,
+    pause: pauseOtherWorkflow,
+    resume: resumeOtherWorkflow,
+    pollStatus: pollOtherStatus,
+  },
 };

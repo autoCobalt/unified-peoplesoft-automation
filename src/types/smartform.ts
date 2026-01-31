@@ -169,20 +169,23 @@ export type ManagerWorkflowStepName = ManagerWorkflowStep['step'];
 /**
  * Other workflow step - discriminated union
  *
- * The Other workflow has two phases:
- * Phase 1: Position creation
- * 1. idle → creating-positions (Create position records)
- * 2. positions-created
+ * The Other workflow follows these steps:
+ * 1. idle → submitting-dept-co (Submit DEPARTMENT_TBL — auto-skipped if none)
+ * 2. submitting-position-create (Submit POSITION_CREATE_CI)
+ * 3. submissions-complete (waiting for approval trigger)
+ * 4. approving (Process approvals via browser automation)
+ * 5. approved
+ * 6. complete
  *
- * Phase 2: Approval processing (if positions remain after refresh)
- * 3. approving (browser opens automatically)
- * 4. complete
+ * CI data is auto-parsed on query execution — no manual prepare step needed.
+ * Can transition to 'error' from any step.
  */
 export type OtherWorkflowStep =
   | { step: 'idle' }
-  | { step: 'creating-positions'; current: number; total: number }
-  | { step: 'positions-created'; count: number }
-  | { step: 'approving'; current: number; total: number }
+  | { step: 'submitting-dept-co'; current: number; total: number }
+  | { step: 'submitting-position-create'; current: number; total: number }
+  | { step: 'submissions-complete' }
+  | { step: 'approving'; current: number; total: number; currentItem?: string }
   | { step: 'approved' }
   | { step: 'complete' }
   | { step: 'error'; message: string };

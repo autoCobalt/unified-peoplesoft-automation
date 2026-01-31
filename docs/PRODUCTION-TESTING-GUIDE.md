@@ -213,10 +213,10 @@ Your SQL query **must** return these columns (used by the type system):
 | `CUR_EFFDT` | DATE | Formatted as MM/DD/YYYY |
 | `CUR_POS` | VARCHAR | Monospace font |
 | `EMPL_RCD` | NUMBER | Standard text |
-| `POSITION_CREATE_CI` | VARCHAR | Standard text (nullable) |
-| `POSITION_UPDATE_CI` | VARCHAR | Standard text (nullable) |
-| `JOB_UPDATE_CI` | VARCHAR | Standard text (nullable) |
-| `DEPT_CO_UPDATE_CI` | VARCHAR | Standard text (nullable) |
+| `POSITION_CREATE_CI` | VARCHAR | Hidden — pipe-delimited CI string for SOAP submission (nullable) |
+| `POSITION_UPDATE_CI` | VARCHAR | Hidden — pipe-delimited CI string for SOAP submission (nullable) |
+| `JOB_UPDATE_CI` | VARCHAR | Hidden — pipe-delimited CI string for SOAP submission (nullable) |
+| `DEPT_CO_UPDATE_CI` | VARCHAR | Hidden — pipe-delimited CI string for SOAP submission (nullable) |
 | `FIELD_DIFFERENCES` | VARCHAR | Standard text (nullable) |
 
 ### Adding Custom Columns
@@ -340,6 +340,8 @@ Navigate to: `http://localhost:5173`
 - All columns are visible and properly formatted
 - TRANSACTION_NBR displays as clickable hyperlink
 - Dates display as MM/DD/YYYY
+
+> **IMPORTANT — Live CI Submissions**: In production mode, running the Manager or Other workflow submissions (Dept Co, Position, Job) will make **real SOAP calls to PeopleSoft** using the CI strings from the query results. These operations create, update, or modify live data via Component Interfaces. Only proceed with workflow submissions after verifying your query data is correct. See `docs/SOAP-SUBMISSION-WALKTHROUGH.md` for the full submission pipeline.
 
 ---
 
