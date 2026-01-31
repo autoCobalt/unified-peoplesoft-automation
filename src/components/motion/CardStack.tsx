@@ -26,6 +26,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import type { Variants, Transition } from 'framer-motion';
+import { useCallback } from 'react';
 import type { ElementType, Key } from 'react';
 import type {
   PolymorphicMotionProps,
@@ -122,6 +123,13 @@ export function CardStack<T extends ElementType = 'div'>({
 }: CardStackProps<T>) {
   const prefersReducedMotion = useReducedMotion();
 
+  // Notify descendants (e.g., DataTable) when the enter animation settles.
+  // Sticky column measurements taken during animation are inaccurate because
+  // perspective/transform on ancestors shift the coordinate space.
+  const handleAnimationComplete = useCallback(() => {
+    window.dispatchEvent(new Event('cardstack:animationcomplete'));
+  }, []);
+
   // Use type assertion for polymorphic component
   const Component = motion[
     (as || 'div') as keyof typeof motion
@@ -145,6 +153,7 @@ export function CardStack<T extends ElementType = 'div'>({
         animate="center"
         exit="exit"
         transition={transition}
+        onAnimationComplete={handleAnimationComplete}
         {...rest}
       >
         {children}

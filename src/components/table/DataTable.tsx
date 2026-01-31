@@ -189,8 +189,23 @@ export function DataTable<TData>({
     // Observe the thead element - this triggers an initial callback
     observer.observe(theadRef.current);
 
+    // Re-measure when an ancestor animation completes (e.g., CardStack tab transition).
+    // During mount, Framer Motion animates transform/perspective on ancestors, which
+    // creates a temporary containing block that shifts sticky offset calculations.
+    // CardStack dispatches 'cardstack:animationcomplete' when its animation settles.
+    // The 50ms buffer allows one paint cycle for the browser to finalize layout.
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    const handleAnimationComplete = () => {
+      timerId = setTimeout(() => {
+        measureStickyOffsets();
+      }, 50);
+    };
+    window.addEventListener('cardstack:animationcomplete', handleAnimationComplete);
+
     return () => {
       observer.disconnect();
+      window.removeEventListener('cardstack:animationcomplete', handleAnimationComplete);
+      if (timerId !== null) clearTimeout(timerId);
     };
   }, [measureStickyOffsets, stickyColumns]);
 
