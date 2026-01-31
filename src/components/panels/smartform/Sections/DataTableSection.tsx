@@ -351,12 +351,13 @@ export function DataTableSection() {
   }, [parsedCIData, selectedRows, activeSubTab]);
 
   // Build columns dynamically from the first row's keys
-  // Checkbox column is prepended to the dynamic columns
+  // Checkbox and status columns are prepended to the dynamic columns
   const columns = useMemo(() => {
     // Checkbox column definition (will be second after row number)
     const checkboxColumn: ColumnDef<SmartFormRecord> = {
       id: '__selected',
       header: '',
+      headerClassName: 'sf-ci-header--non-export',
       type: 'checkbox',
       align: 'center',
       width: '36px',
@@ -366,16 +367,34 @@ export function DataTableSection() {
       },
     };
 
+    // Approval status column (between checkbox and dynamic Oracle columns)
+    const statusColumn: ColumnDef<SmartFormRecord> = {
+      id: '__approval_status',
+      header: 'Status',
+      headerClassName: 'sf-ci-header--non-export',
+      accessor: 'status',
+      type: 'status',
+      width: '85px',
+      align: 'center',
+      statusClassMap: {
+        pending: 'pending',
+        processing: 'processing',
+        success: 'success',
+        error: 'error',
+      },
+    };
+
     if (filteredRecords.length === 0) {
-      // Fallback: checkbox + minimal columns when no data
+      // Fallback: checkbox + status + minimal columns when no data
       return [
         checkboxColumn,
+        statusColumn,
         { id: 'TRANSACTION_NBR', header: 'TRANSACTION_NBR', accessor: 'TRANSACTION_NBR' as const, type: 'mono' as const },
         { id: 'EMPLID', header: 'EMPLID', accessor: 'EMPLID' as const, type: 'mono' as const },
       ];
     }
 
-    return [checkboxColumn, ...buildDynamicColumns(filteredRecords[0])];
+    return [checkboxColumn, statusColumn, ...buildDynamicColumns(filteredRecords[0])];
   }, [filteredRecords, selectedRows, setTransactionSelected]);
 
   const queueLabel = activeSubTab === 'manager' ? 'Manager' : 'Other';
@@ -562,7 +581,7 @@ export function DataTableSection() {
           data={filteredRecords}
           keyAccessor="TRANSACTION_NBR"
           showRowNumbers={true}
-          stickyColumns={3}
+          stickyColumns={4}
           staggerRows={true}
           emptyMessage="No transactions in this queue"
           rowConfig={{

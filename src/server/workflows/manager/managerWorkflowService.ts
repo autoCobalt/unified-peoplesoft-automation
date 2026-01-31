@@ -135,6 +135,7 @@ export async function runApprovals(
 
     const page = browserResult.page;
     let approvedCount = 0;
+    const transactionResults: Record<string, 'approved' | 'error'> = {};
 
     for (let i = 0; i < transactionIds.length; i++) {
       // Check for cancellation (use variable to satisfy TS control flow analysis)
@@ -193,6 +194,7 @@ export async function runApprovals(
         });
 
         approvedCount++;
+        transactionResults[transactionId] = 'approved';
       } catch (pageError) {
         const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
         console.error(`[Manager Workflow] Error approving ${transactionId}:`, errorMessage);
@@ -208,7 +210,13 @@ export async function runApprovals(
 
         // Non-fatal error - log and continue with next transaction
         console.log(`[Manager Workflow] Continuing to next transaction after non-fatal error`);
+        transactionResults[transactionId] = 'error';
       }
+
+      // Update results in real-time for polling (spreads for immutable snapshot)
+      updateState({
+        results: { ...workflowState.results, approvedCount, transactionResults: { ...transactionResults } },
+      });
 
       // Add configurable delay between transactions (skip after last item)
       if (i < transactionIds.length - 1) {

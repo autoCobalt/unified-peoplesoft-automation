@@ -244,6 +244,25 @@ export interface UseWorkflowDefinitionOptions<
    * }
    */
   requirementStatus?: RequirementStatus;
+
+  /**
+   * Optional map of task IDs to force-completion status.
+   * When a task ID maps to `true`, the task is marked as 'completed'
+   * in the checklist even if the workflow hasn't reached that step.
+   * Only applies to tasks that would otherwise be 'pending' — tasks
+   * that are 'active' or already 'completed' by step progression
+   * are not affected.
+   *
+   * Use case: Pre-mark tasks as done when their CI data table is empty
+   * (no records to process).
+   *
+   * @example
+   * taskCompletionOverrides: {
+   *   'dept-co': preparedDeptCoData.length === 0,
+   *   'position': preparedPositionData.length === 0,
+   * }
+   */
+  taskCompletionOverrides?: Record<string, boolean>;
 }
 
 /**

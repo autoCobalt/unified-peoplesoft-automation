@@ -40,6 +40,7 @@ export interface ManagerWorkflowState {
     preparedCount?: number;
     approvedCount?: number;
     submittedCount?: number;
+    transactionResults?: Record<string, 'approved' | 'error'>;
   };
 }
 
@@ -67,6 +68,7 @@ export interface OtherWorkflowState {
   isPaused: boolean;
   results: {
     approvedCount?: number;
+    transactionResults?: Record<string, 'approved' | 'error'>;
   };
 }
 
@@ -90,6 +92,10 @@ export interface WorkflowStatusResponse {
   step: string;
   progress: RawWorkflowProgress | null;
   error: string | null;
+  results?: {
+    transactionResults?: Record<string, 'approved' | 'error'>;
+    [key: string]: unknown;
+  };
 }
 
 /** Response from workflow action endpoints */

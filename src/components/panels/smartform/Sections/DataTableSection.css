@@ -110,9 +110,12 @@
 
 /* ===== MAIN RESULTS TABLE ===== */
 
-/* Wrapper for toolbar + title + DataTable so they stretch together */
+/* Wrapper for toolbar + title + DataTable — shrink-to-content instead of full width.
+ * Mirrors the .sf-ci-preview-container pattern for consistent sizing. */
 .sf-results-container {
-  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  align-self: start;
 }
 
 /* Manual toolbar (row count | queue label) rendered above the title bar */
@@ -170,9 +173,12 @@
 
 /* Non-export column headers (Row # and STATUS) — subtle tint to visually
  * separate columns excluded from the Excel download.
- * Row # is always :first-child; STATUS uses .sf-ci-header--non-export. */
+ * Row # is always :first-child; STATUS uses .sf-ci-header--non-export.
+ * Applied to both CI preview tables and the main results table. */
 .sf-ci-preview-table .dt-table th:first-child,
-.sf-ci-preview-table .dt-table th.sf-ci-header--non-export {
+.sf-ci-preview-table .dt-table th.sf-ci-header--non-export,
+.sf-table .dt-table th:first-child,
+.sf-table .dt-table th.sf-ci-header--non-export {
   background: var(--dt-header-non-export-bg);
 }
 
@@ -307,14 +313,3 @@ tr.sf-cross-hover td.dt-sticky-col {
   height: 14px;
 }
 
-/* === Responsive === */
-@media (max-width: 768px) {
-  .sf-table .dt-table {
-    font-size: 12px;
-  }
-
-  .sf-table .dt-table th,
-  .sf-table .dt-table td {
-    padding: 8px;
-  }
-}

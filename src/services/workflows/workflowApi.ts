@@ -29,6 +29,7 @@ export interface ManagerWorkflowState {
     preparedCount?: number;
     approvedCount?: number;
     submittedCount?: number;
+    transactionResults?: Record<string, 'approved' | 'error'>;
   };
 }
 
@@ -203,7 +204,10 @@ export interface OtherWorkflowApiState {
   step: string;
   progress: RawWorkflowProgress | null;
   error: string | null;
-  results: { approvedCount?: number };
+  results: {
+    approvedCount?: number;
+    transactionResults?: Record<string, 'approved' | 'error'>;
+  };
 }
 
 /**

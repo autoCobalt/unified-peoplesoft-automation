@@ -14,6 +14,24 @@ import type {
 } from '../types';
 import type { ParsedCIData } from '../server/ci-definitions/types';
 
+/**
+ * Pre-computed counts of records that will actually be submitted:
+ * selected AND non-duplicate. Used by task completion overrides
+ * and submit function look-ahead totals.
+ */
+export interface EffectiveRecordCounts {
+  /** Manager: DEPT_CO_UPDATE_CI records */
+  deptCo: number;
+  /** Manager: POSITION_UPDATE_CI records */
+  positionUpdate: number;
+  /** Manager: JOB_UPDATE_CI records */
+  jobUpdate: number;
+  /** Other: DEPT_CO_UPDATE_CI records */
+  otherDeptCo: number;
+  /** Other: POSITION_CREATE_CI records */
+  positionCreate: number;
+}
+
 /* ==============================================
    Context Type Definition
    ============================================== */
@@ -69,6 +87,9 @@ export interface SmartFormContextType {
 
   // Parsed CI Data (from pipe-delimited strings, populated on query execution)
   parsedCIData: ParsedCIData;
+
+  // Effective record counts (selected ∩ non-duplicate) for overrides and look-ahead totals
+  effectiveRecordCounts: EffectiveRecordCounts;
 }
 
 /* ==============================================

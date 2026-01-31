@@ -16,7 +16,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
-import { SmartFormContext, type SmartFormContextType } from './smartFormContextDef';
+import { SmartFormContext, type SmartFormContextType, type EffectiveRecordCounts } from './smartFormContextDef';
 import { isDevelopment, isSoapBatchMode, soapBatchSize } from '../config';
 import { workflowApi, oracleApi, soapApi } from '../services';
 import type {
@@ -24,6 +24,7 @@ import type {
   SmartFormSubTab,
   SmartFormQueryResult,
   SmartFormRecord,
+  SmartFormRecordStatus,
   ManagerWorkflowStep,
   OtherWorkflowStep,
   PreparedSubmission,
@@ -382,6 +383,44 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   }, []);
 
   /**
+   * Update SmartFormRecord statuses from server-reported transaction results.
+   * Called from polling callbacks during approval workflows.
+   */
+  const updateRecordStatuses = useCallback((
+    transactionResults: Record<string, 'approved' | 'error'> | undefined,
+    currentItem: string | undefined,
+  ) => {
+    if (!transactionResults && !currentItem) return;
+
+    setState(prev => {
+      if (!prev.queryResults) return prev;
+      const prevTransactions = prev.queryResults.transactions;
+      const transactions = prevTransactions.map(txn => {
+        const result = transactionResults?.[txn.TRANSACTION_NBR];
+        let newStatus: SmartFormRecordStatus;
+
+        if (result === 'approved') {
+          newStatus = 'success';
+        } else if (result === 'error') {
+          newStatus = 'error';
+        } else if (txn.TRANSACTION_NBR === currentItem) {
+          newStatus = 'processing';
+        } else {
+          return txn;
+        }
+
+        if (txn.status !== newStatus) {
+          return { ...txn, status: newStatus };
+        }
+        return txn;
+      });
+      // Bail out if no records actually changed (reference equality check)
+      if (transactions.every((txn, i) => txn === prevTransactions[i])) return prev;
+      return { ...prev, queryResults: { ...prev.queryResults, transactions } };
+    });
+  }, []);
+
+  /**
    * Start the approval workflow via server API.
    * Browser lifecycle is handled internally by the server.
    */
@@ -456,6 +495,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
           currentItem: status.progress.currentItem,
         });
         setIsWorkflowPaused(false);
+        updateRecordStatuses(status.results.transactionResults, status.progress.currentItem);
       } else if (status.status === 'paused' && status.progress) {
         // Workflow is paused - keep showing progress but mark as paused
         setManagerWorkflow({
@@ -465,10 +505,12 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
           currentItem: status.progress.currentItem,
         });
         setIsWorkflowPaused(true);
+        updateRecordStatuses(status.results.transactionResults, status.progress.currentItem);
         // Keep polling - user might resume
       } else if (status.status === 'completed') {
         setManagerWorkflow({ step: 'approved' });
         setIsWorkflowPaused(false);
+        updateRecordStatuses(status.results.transactionResults, undefined);
         // Stop polling when complete
         if (stopPollingRef.current) {
           stopPollingRef.current();
@@ -491,7 +533,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         }
       }
     });
-  }, [state.queryResults, setManagerWorkflow]);
+  }, [state.queryResults, setManagerWorkflow, updateRecordStatuses]);
 
   // Legacy aliases for backward compatibility with existing UI
   const openBrowser = startApprovals;
@@ -520,10 +562,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
 
     const total = selectedIndices.length;
 
-    // Calculate totals for subsequent step (position)
-    const posTotal = preparedPositionData.filter(sub =>
-      managerSelected.has(sub.id.replace('pos-', ''))
-    ).length;
+    const posTotal = effectiveRecordCountsRef.current.positionUpdate;
 
     if (isSoapBatchMode && !isDevelopment && total > 0) {
       // --- Batch production path ---
@@ -671,7 +710,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     if (total === 0) {
       setManagerWorkflow({ step: 'submitting-position', current: 0, total: posTotal });
     }
-  }, [preparedDeptCoData, preparedPositionData, setManagerWorkflow]);
+  }, [preparedDeptCoData, setManagerWorkflow]);
 
   const submitPositionData = useCallback(async () => {
     const managerSelected = selectedByTabRef.current.manager;
@@ -681,19 +720,21 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       .filter(r => managerSelected.has(r.transactionNbr));
     const posUpdateDuplicates = findCIDuplicates(posUpdateRecords, POSITION_UPDATE_CI_TEMPLATE.fields);
 
-    // Build indices of selected position submissions (excluding duplicates)
+    // Lookup of transaction numbers that actually have position update CI data.
+    // preparedPositionData includes ALL manager records, but not all have CI data.
+    const posUpdateTxnNbrs = new Set(posUpdateRecords.map(r => r.transactionNbr));
+
+    // Build indices of selected position submissions (with CI data, excluding duplicates)
     const selectedIndices: number[] = [];
     for (let i = 0; i < preparedPositionData.length; i++) {
       const txnNbr = preparedPositionData[i].id.replace('pos-', '');
-      if (managerSelected.has(txnNbr) && !posUpdateDuplicates.has(txnNbr)) {
+      if (managerSelected.has(txnNbr) && posUpdateTxnNbrs.has(txnNbr) && !posUpdateDuplicates.has(txnNbr)) {
         selectedIndices.push(i);
       }
     }
 
     const total = selectedIndices.length;
-    const jobTotal = preparedJobData.filter(sub =>
-      managerSelected.has(sub.id.replace('job-', ''))
-    ).length;
+    const jobTotal = effectiveRecordCountsRef.current.jobUpdate;
 
     if (isSoapBatchMode && !isDevelopment && total > 0) {
       // --- Batch production path ---
@@ -841,16 +882,25 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     if (total === 0) {
       setManagerWorkflow({ step: 'submitting-job', current: 0, total: jobTotal });
     }
-  }, [preparedPositionData, preparedJobData, setManagerWorkflow]);
+  }, [preparedPositionData, setManagerWorkflow]);
 
   const submitJobData = useCallback(async () => {
     const managerSelected = selectedByTabRef.current.manager;
 
-    // Build indices of selected job submissions
+    // Compute job update CI duplicates from selected records
+    const jobUpdateRecords = parsedCIDataRef.current.jobUpdate
+      .filter(r => managerSelected.has(r.transactionNbr));
+    const jobUpdateDuplicates = findCIDuplicates(jobUpdateRecords, JOB_UPDATE_CI_TEMPLATE.fields);
+
+    // Lookup of transaction numbers that actually have job update CI data.
+    // preparedJobData includes ALL manager records, but not all have CI data.
+    const jobUpdateTxnNbrs = new Set(jobUpdateRecords.map(r => r.transactionNbr));
+
+    // Build indices of selected job submissions (with CI data, excluding duplicates)
     const selectedIndices: number[] = [];
     for (let i = 0; i < preparedJobData.length; i++) {
       const txnNbr = preparedJobData[i].id.replace('job-', '');
-      if (managerSelected.has(txnNbr)) {
+      if (managerSelected.has(txnNbr) && jobUpdateTxnNbrs.has(txnNbr) && !jobUpdateDuplicates.has(txnNbr)) {
         selectedIndices.push(i);
       }
     }
@@ -1006,6 +1056,16 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     setPreparedPositionData([]);
     setPreparedJobData([]);
     setIsWorkflowPaused(false);
+    // Reset manager record statuses to 'pending'
+    setState(prev => {
+      if (!prev.queryResults) return prev;
+      const transactions = prev.queryResults.transactions.map(txn =>
+        txn.MGR_CUR === 1 && txn.status !== 'pending'
+          ? { ...txn, status: 'pending' as const }
+          : txn
+      );
+      return { ...prev, queryResults: { ...prev.queryResults, transactions } };
+    });
   }, [setManagerWorkflow]);
 
   /**
@@ -1067,10 +1127,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
 
     const total = selectedIndices.length;
 
-    // Calculate totals for subsequent step (position create)
-    const posCreateTotal = preparedPositionCreateData.filter(sub =>
-      otherSelected.has(sub.id.replace('poscreate-', ''))
-    ).length;
+    const posCreateTotal = effectiveRecordCountsRef.current.positionCreate;
 
     if (isSoapBatchMode && !isDevelopment && total > 0) {
       // --- Batch production path ---
@@ -1217,7 +1274,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     if (total === 0) {
       setOtherWorkflow({ step: 'submitting-position-create', current: 0, total: posCreateTotal });
     }
-  }, [preparedOtherDeptCoData, preparedPositionCreateData, setOtherWorkflow]);
+  }, [preparedOtherDeptCoData, setOtherWorkflow]);
 
   /**
    * Submit POSITION_CREATE_CI records for the Other queue.
@@ -1446,6 +1503,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
           currentItem: status.progress.currentItem,
         });
         setIsOtherWorkflowPaused(false);
+        updateRecordStatuses(status.results.transactionResults, status.progress.currentItem);
       } else if (status.status === 'paused' && status.progress) {
         setOtherWorkflow({
           step: 'approving',
@@ -1454,9 +1512,11 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
           currentItem: status.progress.currentItem,
         });
         setIsOtherWorkflowPaused(true);
+        updateRecordStatuses(status.results.transactionResults, status.progress.currentItem);
       } else if (status.status === 'completed') {
         setOtherWorkflow({ step: 'approved' });
         setIsOtherWorkflowPaused(false);
+        updateRecordStatuses(status.results.transactionResults, undefined);
         if (stopOtherPollingRef.current) {
           stopOtherPollingRef.current();
           stopOtherPollingRef.current = null;
@@ -1481,7 +1541,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         }
       }
     });
-  }, [state.queryResults, setOtherWorkflow]);
+  }, [state.queryResults, setOtherWorkflow, updateRecordStatuses]);
 
   /**
    * Pause the Other approval workflow
@@ -1537,6 +1597,16 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     setPreparedOtherDeptCoData([]);
     setPreparedPositionCreateData([]);
     setIsOtherWorkflowPaused(false);
+    // Reset other record statuses to 'pending'
+    setState(prev => {
+      if (!prev.queryResults) return prev;
+      const transactions = prev.queryResults.transactions.map(txn =>
+        txn.MGR_CUR === 0 && txn.status !== 'pending'
+          ? { ...txn, status: 'pending' as const }
+          : txn
+      );
+      return { ...prev, queryResults: { ...prev.queryResults, transactions } };
+    });
   }, [setOtherWorkflow]);
 
   /* ==============================================
@@ -1556,6 +1626,45 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         return numA - numB;
       });
   }, [state.queryResults, state.activeSubTab]);
+
+  // Pre-compute effective record counts (selected ∩ non-duplicate) for each CI type.
+  // Section components use this for task completion overrides; submit functions use the
+  // ref version for accurate look-ahead totals without stale closures.
+  const effectiveRecordCounts: EffectiveRecordCounts = useMemo(() => {
+    const managerSel = selectedByTab.manager;
+    const otherSel = selectedByTab.other;
+    const parsed = state.parsedCIData;
+
+    // Manager: dept co
+    const selDeptCo = parsed.deptCoUpdate.filter(r => managerSel.has(r.transactionNbr));
+    const deptCoDups = findCIDuplicates(selDeptCo, DEPT_CO_UPDATE_CI_TEMPLATE.fields);
+    const deptCo = selDeptCo.filter(r => !deptCoDups.has(r.transactionNbr)).length;
+
+    // Manager: position update
+    const selPosUpdate = parsed.positionUpdate.filter(r => managerSel.has(r.transactionNbr));
+    const posUpdateDups = findCIDuplicates(selPosUpdate, POSITION_UPDATE_CI_TEMPLATE.fields);
+    const positionUpdate = selPosUpdate.filter(r => !posUpdateDups.has(r.transactionNbr)).length;
+
+    // Manager: job update
+    const selJobUpdate = parsed.jobUpdate.filter(r => managerSel.has(r.transactionNbr));
+    const jobUpdateDups = findCIDuplicates(selJobUpdate, JOB_UPDATE_CI_TEMPLATE.fields);
+    const jobUpdate = selJobUpdate.filter(r => !jobUpdateDups.has(r.transactionNbr)).length;
+
+    // Other: dept co
+    const selOtherDeptCo = parsed.deptCoUpdate.filter(r => otherSel.has(r.transactionNbr));
+    const otherDeptCoDups = findCIDuplicates(selOtherDeptCo, DEPT_CO_UPDATE_CI_TEMPLATE.fields);
+    const otherDeptCo = selOtherDeptCo.filter(r => !otherDeptCoDups.has(r.transactionNbr)).length;
+
+    // Other: position create
+    const selPosCreate = parsed.positionCreate.filter(r => otherSel.has(r.transactionNbr));
+    const posCreateDups = findCIDuplicates(selPosCreate, POSITION_CREATE_CI_TEMPLATE.fields);
+    const positionCreate = selPosCreate.filter(r => !posCreateDups.has(r.transactionNbr)).length;
+
+    return { deptCo, positionUpdate, jobUpdate, otherDeptCo, positionCreate };
+  }, [selectedByTab, state.parsedCIData]);
+
+  const effectiveRecordCountsRef = useRef(effectiveRecordCounts);
+  effectiveRecordCountsRef.current = effectiveRecordCounts;
 
   /* ==============================================
      Context Value
@@ -1592,6 +1701,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       preparedOtherDeptCoData,
       preparedPositionCreateData,
       parsedCIData: state.parsedCIData,
+      effectiveRecordCounts,
     }),
     [
       state,
@@ -1622,6 +1732,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       preparedJobData,
       preparedOtherDeptCoData,
       preparedPositionCreateData,
+      effectiveRecordCounts,
     ]
   );
 

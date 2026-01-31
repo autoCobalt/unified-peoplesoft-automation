@@ -128,11 +128,16 @@ function getStepIndex<TStepName extends string>(
 
 /**
  * Compute task status based on current step and step order.
+ *
+ * @param forceComplete - When true, overrides pending tasks to 'completed'.
+ *   Only applies when the task would otherwise be 'pending' (not yet reached
+ *   by the workflow). Active and step-completed tasks are unaffected.
  */
 function computeTaskStatus<TStepName extends string>(
   currentStepName: TStepName,
   stepOrder: readonly TStepName[],
-  task: TaskConfig<TStepName>
+  task: TaskConfig<TStepName>,
+  forceComplete?: boolean
 ): TaskStatus {
   const currentIndex = getStepIndex(currentStepName, stepOrder);
   const completionIndex = getStepIndex(task.completionStep, stepOrder);
@@ -145,6 +150,14 @@ function computeTaskStatus<TStepName extends string>(
 
   // Task is complete when we've reached or passed its completion step
   if (currentIndex >= completionIndex) {
+    return 'completed';
+  }
+
+  // Force-completion override: tasks with no records stay visually complete
+  // even when the workflow reaches their trigger step. Checked before 'active'
+  // so it takes precedence — the companion auto-skip useEffect handles the
+  // runtime state transition to advance past the empty step.
+  if (forceComplete) {
     return 'completed';
   }
 
@@ -173,7 +186,7 @@ export function useWorkflowDefinition<
 >(
   options: UseWorkflowDefinitionOptions<TStepName, TStep>
 ): UseWorkflowDefinitionReturn<TStepName, TStep> {
-  const { definition, workflowStep, requirementStatus = {} } = options;
+  const { definition, workflowStep, requirementStatus = {}, taskCompletionOverrides } = options;
 
   return useMemo(() => {
     const stepName = workflowStep.step;
@@ -210,7 +223,12 @@ export function useWorkflowDefinition<
     const tasksWithStatus: TaskConfigWithStatus<TStepName>[] = definition.tasks.map(
       (task, index) => ({
         ...task,
-        status: computeTaskStatus(stepName, stepOrder, task),
+        status: computeTaskStatus(
+          stepName,
+          stepOrder,
+          task,
+          taskCompletionOverrides?.[task.id]
+        ),
         index,
       })
     );
@@ -269,5 +287,5 @@ export function useWorkflowDefinition<
       canProceed,
       missingRequirements,
     };
-  }, [definition, workflowStep, requirementStatus]);
+  }, [definition, workflowStep, requirementStatus, taskCompletionOverrides]);
 }

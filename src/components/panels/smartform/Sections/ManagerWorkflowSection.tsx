@@ -36,8 +36,8 @@ export function ManagerWorkflowSection() {
     submitDeptCoData,
     submitPositionData,
     submitJobData,
-    preparedDeptCoData,
     isWorkflowPaused,
+    effectiveRecordCounts,
   } = useSmartForm();
 
   const {
@@ -65,6 +65,14 @@ export function ManagerWorkflowSection() {
     // browser: browserState.isConnected,
   }), [soapState.isConnected]);
 
+  // Pre-complete tasks that have no submittable records (selected + non-duplicate).
+  // Uses centralized effectiveRecordCounts from context for consistency with submit functions.
+  const taskCompletionOverrides = useMemo(() => ({
+    'dept-co': effectiveRecordCounts.deptCo === 0,
+    'position': effectiveRecordCounts.positionUpdate === 0,
+    'job': effectiveRecordCounts.jobUpdate === 0,
+  }), [effectiveRecordCounts]);
+
   // Use definition-driven workflow hook
   const {
     stepName,
@@ -81,6 +89,7 @@ export function ManagerWorkflowSection() {
     definition: managerWorkflowDefinition,
     workflowStep: managerWorkflow,
     requirementStatus,
+    taskCompletionOverrides,
   });
 
   // Convert tasks to checklist format
@@ -120,14 +129,27 @@ export function ManagerWorkflowSection() {
     setSoapHintActive(false);
   };
 
-  // Auto-skip dept co step when no records exist
-  // When the workflow reaches 'approved' and there are no dept co records,
-  // immediately fire submitDeptCoData which transitions to submitting-position
+  // Auto-skip steps when no selected records exist for that CI type.
+  // Each fires the submit function which handles the empty case internally
+  // (transitions to the next step with total=0). Uses taskCompletionOverrides
+  // so it respects checkbox selection, not just the raw prepared array length.
   useEffect(() => {
-    if (stepName === 'approved' && preparedDeptCoData.length === 0) {
+    if (stepName === 'approved' && taskCompletionOverrides['dept-co']) {
       void submitDeptCoData();
     }
-  }, [stepName, preparedDeptCoData.length, submitDeptCoData]);
+  }, [stepName, taskCompletionOverrides, submitDeptCoData]);
+
+  useEffect(() => {
+    if (stepName === 'submitting-position' && taskCompletionOverrides['position']) {
+      void submitPositionData();
+    }
+  }, [stepName, taskCompletionOverrides, submitPositionData]);
+
+  useEffect(() => {
+    if (stepName === 'submitting-job' && taskCompletionOverrides['job']) {
+      void submitJobData();
+    }
+  }, [stepName, taskCompletionOverrides, submitJobData]);
 
   return (
     <section className="sf-workflow-container">

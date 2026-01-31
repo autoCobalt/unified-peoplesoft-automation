@@ -34,8 +34,8 @@ export function OtherWorkflowSection() {
     openOtherBrowser,
     pauseOtherApprovals,
     resumeOtherApprovals,
-    preparedOtherDeptCoData,
     isOtherWorkflowPaused,
+    effectiveRecordCounts,
   } = useSmartForm();
 
   const {
@@ -59,6 +59,12 @@ export function OtherWorkflowSection() {
     soap: soapState.isConnected,
   }), [soapState.isConnected]);
 
+  // Pre-complete tasks that have no submittable records (selected + non-duplicate).
+  const taskCompletionOverrides = useMemo(() => ({
+    'other-dept-co': effectiveRecordCounts.otherDeptCo === 0,
+    'other-position-create': effectiveRecordCounts.positionCreate === 0,
+  }), [effectiveRecordCounts]);
+
   // Use definition-driven workflow hook
   const {
     stepName,
@@ -75,6 +81,7 @@ export function OtherWorkflowSection() {
     definition: otherWorkflowDefinition,
     workflowStep: otherWorkflow,
     requirementStatus,
+    taskCompletionOverrides,
   });
 
   // Convert tasks to checklist format
@@ -114,12 +121,20 @@ export function OtherWorkflowSection() {
     setSoapHintActive(false);
   };
 
-  // Auto-skip dept co step when no Other queue dept co records exist
+  // Auto-skip steps when no selected records exist for that CI type.
+  // The 'idle' step guard needs hasQueried since idle is the initial state —
+  // without it, the effect would fire on mount before any query runs.
   useEffect(() => {
-    if (stepName === 'idle' && state.hasQueried && preparedOtherDeptCoData.length === 0) {
+    if (stepName === 'idle' && state.hasQueried && taskCompletionOverrides['other-dept-co']) {
       void submitOtherDeptCoData();
     }
-  }, [stepName, state.hasQueried, preparedOtherDeptCoData.length, submitOtherDeptCoData]);
+  }, [stepName, state.hasQueried, taskCompletionOverrides, submitOtherDeptCoData]);
+
+  useEffect(() => {
+    if (stepName === 'submitting-position-create' && taskCompletionOverrides['other-position-create']) {
+      void submitPositionCreateData();
+    }
+  }, [stepName, taskCompletionOverrides, submitPositionCreateData]);
 
   // Don't render if no other records and workflow is idle
   if (otherCount === 0 && stepName === 'idle') {
