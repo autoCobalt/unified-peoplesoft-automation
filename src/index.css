@@ -55,6 +55,10 @@
    Reset & Base
    ============================================== */
 
+html {
+  scrollbar-gutter: stable;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
