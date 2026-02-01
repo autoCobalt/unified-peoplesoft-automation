@@ -288,7 +288,8 @@ tr.sf-cross-hover td.dt-sticky-col {
 
 /* ===== DOWNLOAD BUTTON ===== */
 
-/* Prominent button inside title bar — Excel-green accent */
+/* Borderless text+icon button — Excel-green accent signals download.
+ * Parent .sf-ci-title-controls provides visual containment. */
 .sf-download-btn {
   --excel-green: #27c56e;
   display: inline-flex;
@@ -296,22 +297,22 @@ tr.sf-cross-hover td.dt-sticky-col {
   gap: 4px;
   flex-shrink: 0;
   white-space: nowrap;
+  margin: 0;
   height: 24px;
-  padding: 0 8px;
+  padding: 2px 8px;
   font-size: 0.75rem;
   font-weight: 500;
-  border: 1px solid color-mix(in srgb, var(--excel-green) 30%, transparent);
+  border: none;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--excel-green) 12%, transparent);
+  background: transparent;
   color: var(--excel-green);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
 .sf-download-btn:hover {
-  background: color-mix(in srgb, var(--excel-green) 22%, transparent);
-  border-color: color-mix(in srgb, var(--excel-green) 50%, transparent);
-  transform: scale(1.1);
+  background: color-mix(in srgb, var(--excel-green) 15%, transparent);
+  transform: scale(1.05);
 }
 
 .sf-download-btn:focus-visible {
@@ -321,7 +322,7 @@ tr.sf-cross-hover td.dt-sticky-col {
 
 .sf-download-btn:active {
   transform: scale(0.95);
-  background: color-mix(in srgb, var(--excel-green) 30%, transparent);
+  background: color-mix(in srgb, var(--excel-green) 25%, transparent);
 }
 
 .sf-download-btn svg {
@@ -329,30 +330,67 @@ tr.sf-cross-hover td.dt-sticky-col {
   height: 14px;
 }
 
+/* ===== CI TITLE CONTROLS GROUP ===== */
+
+/* Groups the collapse chevron, download button, and txn toggle into a
+ * visually distinct section separated from the table name / counts. */
+.sf-ci-title-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 4px;
+  margin-right: 4px;
+  background: var(--bg-secondary);
+  border: 1.5px solid color-mix(in srgb, var(--text-tertiary) 70%, transparent);
+  border-radius: 6px;
+}
+
+/* ===== TRANSACTION NUMBER TOGGLE ===== */
+
+/* Checkbox+label inside the CI title controls — toggles whether
+ * TRANSACTION_NBR is included in the Excel download. */
+.sf-ci-txn-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sf-ci-txn-toggle input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--excel-green, #27c56e);
+}
+
 /* ===== COLLAPSE/EXPAND BUTTON ===== */
 
-/* Bordered icon button — opaque background so it stands out from the
- * title bar's warning/success tinted background */
+/* Minimal icon button — no border/background of its own since the parent
+ * .sf-ci-title-controls provides visual containment. Hover shows a soft
+ * circular highlight for feedback. */
 .sf-collapse-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--text-tertiary) 50%, transparent);
-  border-radius: 4px;
-  background: var(--bg-secondary);
+  border: none;
+  border-radius: 50%;
+  background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
 .sf-collapse-btn:hover {
-  background: var(--bg-primary);
-  border-color: var(--text-tertiary);
-  transform: scale(1.1);
+  background: color-mix(in srgb, var(--text-tertiary) 25%, transparent);
+  color: var(--text-primary);
 }
 
 .sf-collapse-btn:focus-visible {
@@ -361,18 +399,64 @@ tr.sf-cross-hover td.dt-sticky-col {
 }
 
 .sf-collapse-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.9);
+  background: color-mix(in srgb, var(--text-tertiary) 35%, transparent);
 }
 
 /* Chevron: collapsed = right (-90deg), expanded = down (0deg) */
 .sf-collapse-chevron {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   transform: rotate(-90deg);
   transition: transform 0.2s ease;
 }
 
 .sf-collapse-chevron--expanded {
   transform: rotate(0deg);
+}
+
+/* ===== DOWNLOAD PREVIEW PULSE ===== */
+
+/* Subtle inset glow on EXPORTED cells when hovering the Download Excel button.
+ * Uses inset box-shadow instead of background-color so it layers on top of
+ * existing backgrounds (sticky columns, null highlights, etc.) without
+ * overriding their opaque fills. Green tint echoes the Excel-green button. */
+
+@keyframes sf-download-pulse {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 10px 0 rgba(70, 200, 150, 0.08),
+      inset 0 0 0 1px rgba(70, 200, 150, 0.18);
+  }
+  40%, 60% {
+    box-shadow:
+      inset 0 0 16px 0 rgba(70, 200, 150, 0.22),
+      inset 0 0 0 1px rgba(70, 200, 150, 0.18);
+  }
+}
+
+/* Main results table — pulse exported cells only.
+ * Columns: Row#(1) | Checkbox(2) | Status(3) | TRANSACTION_NBR(4)…
+ * nth-child(n+4) skips the 3 non-export columns. */
+.sf-results-container:has(.sf-download-btn:hover) .dt-table tbody tr:not(.sf-table-row--unchecked) td:nth-child(n+4) {
+  animation: sf-download-pulse 1.5s ease-in-out infinite;
+}
+
+/* CI preview tables — pulse exported cells only.
+ * Excludes Row# (:first-child) and the optional STATUS column
+ * (detected by its .dt-status child span). */
+.sf-ci-preview-container:has(.sf-download-btn:hover) .dt-table tbody tr:not(.sf-ci-row--duplicate) td:not(:first-child):not(:has(.dt-status)):not(.sf-ci-cell--non-export) {
+  animation: sf-download-pulse 1.5s ease-in-out infinite;
+}
+
+/* Accessibility: static highlight instead of animation for reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .sf-results-container:has(.sf-download-btn:hover) .dt-table tbody tr:not(.sf-table-row--unchecked) td:nth-child(n+4),
+  .sf-ci-preview-container:has(.sf-download-btn:hover) .dt-table tbody tr:not(.sf-ci-row--duplicate) td:not(:first-child):not(:has(.dt-status)):not(.sf-ci-cell--non-export) {
+    animation: none;
+    box-shadow:
+      inset 0 0 16px 0 rgba(70, 200, 150, 0.22),
+      inset 0 0 0 1px rgba(70, 200, 150, 0.18);
+  }
 }
 

@@ -216,6 +216,11 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     other: new Set(),
   }));
 
+  // Table UI preferences — lifted from DataTableSection so they persist across tab switches.
+  // Panel components unmount on tab change (key={activeTab} in TabContent), but context state survives.
+  const [tableCollapseOverrides, setTableCollapseOverrides] = useState(() => new Map<string, boolean>());
+  const [txnExcludedTables, setTxnExcludedTables] = useState<Set<string>>(() => new Set());
+
   // Refs for stable callbacks that need current state without dependency churn
   const activeSubTabRef = useRef(state.activeSubTab);
   activeSubTabRef.current = state.activeSubTab;
@@ -1761,6 +1766,10 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       selectedByTab,
       setTransactionSelected,
       setAllTransactionsSelected,
+      tableCollapseOverrides,
+      setTableCollapseOverrides,
+      txnExcludedTables,
+      setTxnExcludedTables,
       filteredRecords,
       preparedDeptCoData,
       preparedPositionData,
@@ -1797,6 +1806,10 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       selectedByTab,
       setTransactionSelected,
       setAllTransactionsSelected,
+      tableCollapseOverrides,
+      setTableCollapseOverrides,
+      txnExcludedTables,
+      setTxnExcludedTables,
       filteredRecords,
       preparedDeptCoData,
       preparedPositionData,

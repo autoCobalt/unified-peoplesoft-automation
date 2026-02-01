@@ -5,7 +5,7 @@
  * Contains only types and createContext - no state or hooks.
  */
 
-import { createContext } from 'react';
+import { createContext, type Dispatch, type SetStateAction } from 'react';
 import type {
   SmartFormState,
   SmartFormSubTab,
@@ -81,6 +81,14 @@ export interface SmartFormContextType {
   setTransactionSelected: (txnNbr: string, selected: boolean) => void;
   /** Select or deselect all transactions in the active sub-tab */
   setAllTransactionsSelected: (selected: boolean) => void;
+
+  // Table UI Preferences (persist across tab switches)
+  /** Manual collapse/expand overrides keyed by tableKey */
+  tableCollapseOverrides: Map<string, boolean>;
+  setTableCollapseOverrides: Dispatch<SetStateAction<Map<string, boolean>>>;
+  /** Tables with TRANSACTION_NBR excluded from Excel export */
+  txnExcludedTables: Set<string>;
+  setTxnExcludedTables: Dispatch<SetStateAction<Set<string>>>;
 
   // Computed Values
   filteredRecords: SmartFormRecord[];

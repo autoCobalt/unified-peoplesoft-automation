@@ -21,7 +21,7 @@
  * - Non-export header coloring on Row#, Checkbox, and Status columns
  */
 
-import { useMemo, useEffect, useRef, useState, useCallback } from 'react';
+import { useMemo, useEffect, useRef, useCallback } from 'react';
 import { useSmartForm, useCILabels } from '../../../../context';
 import type {
   SmartFormRecord,
@@ -162,6 +162,7 @@ const CI_NAMES_TO_LOAD = [...new Set(CI_PREVIEW_CONFIG.map(c => c.template.ciNam
 function buildCIPreviewColumns<T extends ParsedCIRecordBase>(
   template: CIUsageTemplate,
   getLabel: (ciName: string, fieldName: string) => string,
+  includeTxnNbr = true,
 ): ColumnDef<T>[] {
   const txnColumn: ColumnDef<T> = {
     id: 'transactionNbr',
@@ -171,6 +172,8 @@ function buildCIPreviewColumns<T extends ParsedCIRecordBase>(
         <span className="sf-ci-header-label">Transaction Number</span>
       </>
     ),
+    headerClassName: includeTxnNbr ? undefined : 'sf-ci-header--non-export',
+    cellClassName: includeTxnNbr ? undefined : 'sf-ci-cell--non-export',
     accessor: 'transactionNbr' as keyof T,
     type: 'mono',
     width: '134px',
@@ -300,6 +303,10 @@ export function DataTableSection() {
     preparedJobData,
     preparedOtherDeptCoData,
     preparedPositionCreateData,
+    tableCollapseOverrides: manualOverrides,
+    setTableCollapseOverrides: setManualOverrides,
+    txnExcludedTables,
+    setTxnExcludedTables,
   } = useSmartForm();
   const { activeSubTab, managerWorkflow, otherWorkflow } = state;
   const { ensureLabels, getLabel } = useCILabels();
@@ -406,51 +413,55 @@ export function DataTableSection() {
     return result;
   }, [ciTableAllSuccess, approvalsComplete]);
 
-  // Collapse/expand for all tables (CI previews + main results).
-  //
-  // Manual overrides are keyed by tableKey. When absent, allSuccess drives
-  // auto-collapse: allSuccess=true → collapsed, allSuccess=false → expanded.
-  // Overrides are cleared when allSuccess changes, restoring auto behavior.
-  //
-  // The previous allSuccess snapshot lets us detect transitions and clear stale
-  // overrides. Both are pure state — no refs read during render.
-  const [manualOverrides, setManualOverrides] = useState(() => new Map<string, boolean>());
-  const [prevAllSuccess, setPrevAllSuccess] = useState(() => new Map<string, boolean>());
+  const toggleTxnExclude = (tableKey: string) => {
+    setTxnExcludedTables(prev => {
+      const next = new Set(prev);
+      if (next.has(tableKey)) next.delete(tableKey);
+      else next.add(tableKey);
+      return next;
+    });
+  };
 
   // Detect allSuccess transitions → clear manual overrides so auto behavior resumes.
-  // React pattern: derive state from props/state during render (no effect needed).
-  // See https://react.dev/reference/react/useState#storing-information-from-previous-renders
-  let allSuccessChanged = false;
-  for (const [tableKey, allSuccess] of allTableSuccess) {
-    if ((prevAllSuccess.get(tableKey) ?? false) !== allSuccess) {
-      allSuccessChanged = true;
-      break;
+  // Uses a ref for the previous snapshot (transition tracking, not a user preference).
+  // Uses useEffect (not render-time setState) because manualOverrides lives in context.
+  //
+  // Key design decisions:
+  //  - null sentinel: On mount (or remount after main-tab switch), the ref is null.
+  //    The first effect run snapshots allTableSuccess without clearing overrides,
+  //    so context-persisted overrides survive component remount.
+  //  - Merge, don't replace: When sub-tabs switch, allTableSuccess has different keys.
+  //    We merge current keys INTO the ref (preserving entries from other sub-tabs)
+  //    so returning to a sub-tab doesn't see stale false→true "transitions".
+  const prevAllSuccessRef = useRef<Map<string, boolean> | null>(null);
+
+  useEffect(() => {
+    // First run after (re)mount: snapshot current state, skip clearing.
+    if (prevAllSuccessRef.current === null) {
+      prevAllSuccessRef.current = new Map(allTableSuccess);
+      return;
     }
-  }
-  if (!allSuccessChanged) {
-    // Check for keys that disappeared (table no longer rendered on current tab)
-    for (const tableKey of prevAllSuccess.keys()) {
-      if (!allTableSuccess.has(tableKey)) {
-        allSuccessChanged = true;
-        break;
-      }
-    }
-  }
-  if (allSuccessChanged) {
-    setPrevAllSuccess(new Map(allTableSuccess));
-    // Clear overrides for any key whose allSuccess value changed
-    setManualOverrides(prev => {
+
+    const prev = prevAllSuccessRef.current;
+
+    // Clear overrides only for keys whose allSuccess genuinely transitioned.
+    setManualOverrides(prevOverrides => {
       let changed = false;
-      const next = new Map(prev);
+      const next = new Map(prevOverrides);
       for (const [tableKey, allSuccess] of allTableSuccess) {
-        if ((prevAllSuccess.get(tableKey) ?? false) !== allSuccess && next.has(tableKey)) {
+        if ((prev.get(tableKey) ?? false) !== allSuccess && next.has(tableKey)) {
           next.delete(tableKey);
           changed = true;
         }
       }
-      return changed ? next : prev;
+      return changed ? next : prevOverrides;
     });
-  }
+
+    // Merge current keys into ref — preserves entries from other sub-tabs.
+    for (const [key, value] of allTableSuccess) {
+      prev.set(key, value);
+    }
+  }, [allTableSuccess, setManualOverrides]);
 
   // Determine effective collapse: manual override wins, else allSuccess auto-collapses.
   const isTableCollapsed = useCallback((tableKey: string): boolean => {
@@ -467,7 +478,7 @@ export function DataTableSection() {
       next.set(tableKey, !currentlyCollapsed);
       return next;
     });
-  }, [allTableSuccess]);
+  }, [allTableSuccess, setManualOverrides]);
 
   // Disable checkboxes once the workflow leaves 'idle'. Changing selections
   // mid-workflow could orphan CI records that have already been approved/submitted.
@@ -626,34 +637,36 @@ export function DataTableSection() {
         </span>
       </div>
       <h4 className={`sf-results-title${mainTableAllSuccess ? ' sf-title--success' : ''}`}>
-        <button
-          type="button"
-          className="sf-collapse-btn"
-          title={isTableCollapsed('results') ? 'Expand table' : 'Collapse table'}
-          aria-label={isTableCollapsed('results') ? 'Expand Pending Transactions' : 'Collapse Pending Transactions'}
-          aria-expanded={!isTableCollapsed('results')}
-          onClick={() => { toggleCollapse('results'); }}
-        >
-          <ChevronIcon className={`sf-collapse-chevron${isTableCollapsed('results') ? '' : ' sf-collapse-chevron--expanded'}`} />
-        </button>
-        <button
-          type="button"
-          className="sf-download-btn"
-          title="Download checked transactions as Excel"
-          aria-label="Download checked transactions as Excel"
-          onClick={() => {
-            const checked = filteredRecords.filter(r => selectedRows.has(r.TRANSACTION_NBR));
-            if (checked.length === 0) return;
-            exportToExcel(
-              checked as Record<string, unknown>[],
-              buildResultsExcelColumns(checked[0]),
-              buildExcelFileName('Pending_Transactions'),
-            );
-          }}
-        >
-          <DownloadIcon />
-          Download Excel
-        </button>
+        <div className="sf-ci-title-controls">
+          <button
+            type="button"
+            className="sf-collapse-btn"
+            title={isTableCollapsed('results') ? 'Expand table' : 'Collapse table'}
+            aria-label={isTableCollapsed('results') ? 'Expand Pending Transactions' : 'Collapse Pending Transactions'}
+            aria-expanded={!isTableCollapsed('results')}
+            onClick={() => { toggleCollapse('results'); }}
+          >
+            <ChevronIcon className={`sf-collapse-chevron${isTableCollapsed('results') ? '' : ' sf-collapse-chevron--expanded'}`} />
+          </button>
+          <button
+            type="button"
+            className="sf-download-btn"
+            title="Download checked transactions as Excel"
+            aria-label="Download checked transactions as Excel"
+            onClick={() => {
+              const checked = filteredRecords.filter(r => selectedRows.has(r.TRANSACTION_NBR));
+              if (checked.length === 0) return;
+              exportToExcel(
+                checked as Record<string, unknown>[],
+                buildResultsExcelColumns(checked[0]),
+                buildExcelFileName('Pending_Transactions'),
+              );
+            }}
+          >
+            <DownloadIcon />
+            Download Excel
+          </button>
+        </div>
         Pending Transactions
       </h4>
       {!isTableCollapsed('results') && (
@@ -694,7 +707,10 @@ export function DataTableSection() {
         const records = allRecords.filter(r => selectedRows.has(r.transactionNbr));
         if (records.length === 0) return null;
 
-        const ciColumns = buildCIPreviewColumns(template, getLabel);
+        const tableKey = `${activeSubTab}-${dataKey}`;
+        const includeTxnNbr = !txnExcludedTables.has(tableKey);
+
+        const ciColumns = buildCIPreviewColumns(template, getLabel, includeTxnNbr);
         const showStatusColumn = statusMaps.has(dataKey);
         const dataStatusMap = showStatusColumn
           ? (statusMaps.get(dataKey) ?? new Map<string, PreparedSubmissionStatus>())
@@ -713,39 +729,54 @@ export function DataTableSection() {
           ? filterCIDuplicates(records, template.fields)
           : records;
 
-        const tableKey = `${activeSubTab}-${dataKey}`;
         const isCollapsed = isTableCollapsed(tableKey);
         const allSuccess = ciTableAllSuccess.get(tableKey) ?? false;
+
+        // Excel columns — conditionally drop TRANSACTION_NBR when toggle is unchecked
+        const excelColumns = buildCIExcelColumns(template);
+        const finalExcelColumns = includeTxnNbr
+          ? excelColumns
+          : excelColumns.filter(c => c.accessor !== 'transactionNbr');
 
         return (
           <div key={dataKey} className="sf-ci-preview-container">
             <h4 className={`sf-ci-preview-title${allSuccess ? ' sf-title--success' : ''}`}>
-              <button
-                type="button"
-                className="sf-collapse-btn"
-                title={isCollapsed ? 'Expand table' : 'Collapse table'}
-                aria-label={isCollapsed ? `Expand ${template.queryFieldName}` : `Collapse ${template.queryFieldName}`}
-                aria-expanded={!isCollapsed}
-                onClick={() => { toggleCollapse(tableKey); }}
-              >
-                <ChevronIcon className={`sf-collapse-chevron${isCollapsed ? '' : ' sf-collapse-chevron--expanded'}`} />
-              </button>
-              <button
-                type="button"
-                className="sf-download-btn"
-                title={`Download ${template.queryFieldName} as Excel`}
-                aria-label={`Download ${template.queryFieldName} as Excel`}
-                onClick={() => {
-                  exportToExcel(
-                    exportRecords as unknown as Record<string, unknown>[],
-                    buildCIExcelColumns(template),
-                    buildExcelFileName(template.queryFieldName),
-                  );
-                }}
-              >
-                <DownloadIcon />
-                Download Excel
-              </button>
+              <div className="sf-ci-title-controls">
+                <button
+                  type="button"
+                  className="sf-collapse-btn"
+                  title={isCollapsed ? 'Expand table' : 'Collapse table'}
+                  aria-label={isCollapsed ? `Expand ${template.queryFieldName}` : `Collapse ${template.queryFieldName}`}
+                  aria-expanded={!isCollapsed}
+                  onClick={() => { toggleCollapse(tableKey); }}
+                >
+                  <ChevronIcon className={`sf-collapse-chevron${isCollapsed ? '' : ' sf-collapse-chevron--expanded'}`} />
+                </button>
+                <button
+                  type="button"
+                  className="sf-download-btn"
+                  title={`Download ${template.queryFieldName} as Excel`}
+                  aria-label={`Download ${template.queryFieldName} as Excel`}
+                  onClick={() => {
+                    exportToExcel(
+                      exportRecords as unknown as Record<string, unknown>[],
+                      finalExcelColumns,
+                      buildExcelFileName(template.queryFieldName),
+                    );
+                  }}
+                >
+                  <DownloadIcon />
+                  Download Excel
+                </button>
+                <label className="sf-ci-txn-toggle" title="Include Transaction Number in download">
+                  <input
+                    type="checkbox"
+                    checked={includeTxnNbr}
+                    onChange={() => { toggleTxnExclude(tableKey); }}
+                  />
+                  Include Transaction Column
+                </label>
+              </div>
               {template.queryFieldName}
               <span className="sf-ci-submit-count">
                 {exportRecords.length} submission{exportRecords.length !== 1 ? 's' : ''}
