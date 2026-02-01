@@ -55,43 +55,6 @@ import { DownloadIcon, ChevronIcon } from '../../../icons';
 import './DataTableSection.css';
 
 /**
- * Format an Oracle date string to MM/DD/YYYY.
- * Handles common formats: "2025-01-15", "15-JAN-25", ISO strings.
- */
-function formatDateMMDDYYYY(oracleDate: unknown): string {
-  // Only process string values
-  if (typeof oracleDate !== 'string') {
-    // Handle null/undefined
-    if (oracleDate == null) return '';
-    // Handle numbers (might be timestamp)
-    if (typeof oracleDate === 'number') {
-      const date = new Date(oracleDate);
-      if (!isNaN(date.getTime())) {
-        const mm = String(date.getMonth() + 1).padStart(2, '0');
-        const dd = String(date.getDate()).padStart(2, '0');
-        const yyyy = String(date.getFullYear());
-        return `${mm}/${dd}/${yyyy}`;
-      }
-    }
-    // For other types (objects, etc.), return empty
-    return '';
-  }
-
-  if (!oracleDate) return '';
-
-  const date = new Date(oracleDate);
-  if (isNaN(date.getTime())) {
-    // Return as-is if parsing fails
-    return oracleDate;
-  }
-
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  const yyyy = String(date.getFullYear());
-  return `${mm}/${dd}/${yyyy}`;
-}
-
-/**
  * Build dynamic columns from the first row's keys.
  * Applies type-specific rendering based on field configuration arrays.
  */
@@ -129,10 +92,8 @@ function buildDynamicColumns(
           </a>
         );
       }
-      // Date formatting for date columns
+      // Warning styling when NEW_EFFDT === CUR_EFFDT (dates displayed in Oracle format)
       else if (isDate) {
-        column.render = (value) => formatDateMMDDYYYY(value);
-        // Add warning styling for date match (only highlight cells when dates match)
         column.cellClassName = (_value, row) => {
           const newEffdt = row.NEW_EFFDT;
           const curEffdt = row.CUR_EFFDT;
