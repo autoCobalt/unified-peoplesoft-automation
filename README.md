@@ -122,9 +122,12 @@ async function fetchEmployeeData(employeeId: string) {
 | Feature | Status | Description |
 |---------|--------|-------------|
 | Core UI Framework | 🟢 Complete | Tab-based navigation with 6 feature panels, type-safe routing |
-| SmartForm Panel | 🟢 Complete | Primary workflow panel with data tables, sub-tabs, and workflow sections |
+| SmartForm Panel | 🟢 Complete | Primary workflow panel with data tables, sub-tabs, workflow sections, CI preview tables, Excel export, and collapsible sections |
 | Manager Workflow | 🟢 Complete | Approval processing via Playwright with real-time per-transaction status tracking + SOAP CI submissions (Dept Co, Position, Job) in production |
 | Other Workflow | 🟢 Complete | SOAP CI submissions (Dept Co, Position Create) + approval processing via Playwright with real-time per-transaction status tracking in production |
+| Transaction Selection | 🟢 Complete | Per-row checkbox selection with tri-state header, per-sub-tab persistence, disabled during active workflows |
+| CI Preview Tables | 🟢 Complete | Per-template preview tables with two-row headers, duplicate detection, cross-table hover, auto-collapse on success |
+| Excel Export | 🟢 Complete | Download Excel on main results and CI preview tables with optional TRANSACTION_NBR toggle for CI tables |
 | Oracle SQL Interface | 🟢 Complete | Full API: connect, disconnect, and query endpoints (`/api/oracle/*`) |
 | PeopleSoft SOAP Interface | 🟢 Complete | Full API with HTTPS enforcement in production (`/api/soap/*`) |
 | Mock Test Site | 🟢 Complete | Development-only PeopleSoft simulator for testing automation |

@@ -345,6 +345,18 @@ Navigate to: `http://localhost:5173`
 - Status column shows "pending" for all records (between checkbox and TRANSACTION_NBR)
 - Row#, Checkbox, and Status column headers have plum/purple non-export tint
 - Table width shrinks to content (not full container width)
+- Checkboxes in each row allow selecting/deselecting individual transactions
+- Tri-state header checkbox reflects selection state (all/some/none)
+- CI preview tables appear for records with parsed CI data
+- CI preview tables show two-row headers (field name + label)
+- Title bar controls group (chevron + Download Excel + "Include Transaction Column" toggle) is visible on each CI preview table
+- Main results table has title bar controls (chevron + Download Excel) without the toggle
+- Clicking the collapse chevron collapses/expands the table
+- Download Excel button exports selected (non-duplicate) records
+- Hovering Download Excel triggers a green pulse animation on exported cells
+- "Include Transaction Column" checkbox toggles TRANSACTION_NBR in CI preview Excel export
+- When unchecked, the TRANSACTION_NBR header dims and pulse animation skips those cells
+- Cross-table hover highlights matching transaction rows across all tables
 
 > **IMPORTANT — Live CI Submissions**: In production mode, running the Manager or Other workflow submissions (Dept Co, Position, Job) will make **real SOAP calls to PeopleSoft** using the CI strings from the query results. These operations create, update, or modify live data via Component Interfaces. Only proceed with workflow submissions after verifying your query data is correct. See `docs/SOAP-SUBMISSION-WALKTHROUGH.md` for the full submission pipeline.
 
@@ -354,7 +366,7 @@ Navigate to: `http://localhost:5173`
 
 The DataTable uses a **dynamic column generation** system. Here's how it works:
 
-### Column Build Process
+### Main Results Table — Column Build Process
 
 ```
 Oracle Query Results
@@ -373,6 +385,30 @@ Map: Apply special formatting to dynamic columns
 Render: Display in DataTable
   - 4 sticky columns: Row# | Checkbox | Status | TRANSACTION_NBR
   - Non-export header tint on Row#, Checkbox, Status
+```
+
+### CI Preview Tables — Column Build Process
+
+```
+Parsed CI Records (from pipe-delimited CI string columns)
+       ↓
+Template-Driven Columns (from CIUsageTemplate.fields)
+       ↓
+Prepend: TRANSACTION_NBR + optional CI_ACTION (for variable-action templates)
+       ↓
+Two-Row Headers: field name (mono, muted) + label (primary, bold)
+       ↓
+Optional STATUS column prepended (submission status from PreparedSubmission)
+       ↓
+Title Bar Controls:
+  - Collapse/expand chevron
+  - Download Excel button (with green pulse preview)
+  - "Include Transaction Column" toggle (controls TRANSACTION_NBR in export)
+       ↓
+Render: Display in DataTable
+  - Duplicate rows faded with exclusion from Excel export
+  - Non-export header tint on Row# and STATUS columns
+  - Auto-collapse when all eligible records succeed
 ```
 
 ### Approval Status Column

@@ -10,7 +10,7 @@
  * - Approval status column on main results table (pending → processing → success/error)
  *   Updated in real-time from server polling during approval workflows
  * - Row numbers column (first column, sticky, auto-generated)
- * - Row selection via checkbox column (sticky)
+ * - Row selection via checkbox column (sticky, tri-state header)
  * - Sticky columns: Row# | Checkbox | Status | TRANSACTION_NBR (4 total)
  * - TRANSACTION_NBR displayed as clickable hyperlink (uses WEB_LINK)
  * - Dynamic columns based on Oracle query results
@@ -19,6 +19,14 @@
  * - Date cell highlighting when NEW_EFFDT === CUR_EFFDT
  * - Hidden fields (MGR_CUR, WEB_LINK) excluded from display
  * - Non-export header coloring on Row#, Checkbox, and Status columns
+ * - Excel export with Download button on both main results and CI preview tables
+ * - Transaction number toggle: per-CI-table checkbox controlling TRANSACTION_NBR
+ *   inclusion in Excel export (state persisted via context: txnExcludedTables)
+ * - Collapsible table sections with auto-collapse on all-success, manual override
+ *   (state persisted via context: tableCollapseOverrides)
+ * - Title bar controls group (.sf-ci-title-controls) with chevron, download, toggle
+ * - Cross-table hover highlighting for matching transaction rows
+ * - CI duplicate detection with faded row styling and count badge
  */
 
 import { useMemo, useEffect, useRef, useCallback } from 'react';

@@ -297,7 +297,7 @@ tr.sf-cross-hover td.dt-sticky-col {
   gap: 4px;
   flex-shrink: 0;
   white-space: nowrap;
-  margin: 0;
+  margin: 0 4px 0 0;
   height: 24px;
   padding: 2px 8px;
   font-size: 0.75rem;
