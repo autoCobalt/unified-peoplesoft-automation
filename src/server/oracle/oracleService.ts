@@ -308,6 +308,10 @@ class OracleService {
    *
    * Searches server/ (local/untracked) first, then bundled/ (tracked).
    * This allows local files to shadow bundled ones.
+   *
+   * Raw file content is sanitized before caching — the @sql-meta block
+   * and trailing semicolons are stripped since oracledb sends SQL directly
+   * to the Oracle engine which rejects them.
    */
   private async loadSqlFile(filename: string): Promise<string> {
     // Check cache first
@@ -322,9 +326,10 @@ class OracleService {
     for (const dir of directories) {
       try {
         const sqlPath = join(dir, filename);
-        const sql = await readFile(sqlPath, 'utf-8');
+        const raw = await readFile(sqlPath, 'utf-8');
+        const sql = this.sanitizeSqlForExecution(raw);
 
-        // Cache for future use
+        // Cache sanitized SQL for future use
         this.sqlCache.set(filename, sql);
         return sql;
       } catch {
@@ -333,6 +338,20 @@ class OracleService {
     }
 
     throw new Error(`SQL file not found in any directory: ${filename}`);
+  }
+
+  /**
+   * Sanitize raw SQL file content for oracledb execution
+   *
+   * 1. Strips the @sql-meta comment block (metadata is only needed by the UI parser)
+   * 2. Strips trailing semicolons (oracledb sends SQL directly; Oracle engine rejects them)
+   */
+  private sanitizeSqlForExecution(raw: string): string {
+    return raw
+      .replace(/\/\*[\s\S]*?@sql-meta[\s\S]*?\*\//, '')
+      .trimEnd()
+      .replace(/;$/, '')
+      .trim();
   }
 
   /**
