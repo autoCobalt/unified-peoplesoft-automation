@@ -262,4 +262,7 @@ export interface DataTableProps<TData> {
     /** Y offset to animate from (pixels). Default: 12 */
     offset?: number;
   };
+
+  /** Enable Excel-like cell selection with Ctrl+C copy as TSV. */
+  enableCellSelection?: boolean;
 }

@@ -128,6 +128,7 @@ async function fetchEmployeeData(employeeId: string) {
 | Transaction Selection | 🟢 Complete | Per-row checkbox selection with tri-state header, per-sub-tab persistence, disabled during active workflows |
 | CI Preview Tables | 🟢 Complete | Per-template preview tables with two-row headers, duplicate detection, cross-table hover, auto-collapse on success |
 | Excel Export | 🟢 Complete | Download Excel on main results and CI preview tables with optional TRANSACTION_NBR toggle for CI tables |
+| Cell Selection & Copy | 🟢 Complete | Excel-like click-drag cell selection with Ctrl+C copy as TSV for pasting into Excel or text editors |
 | Oracle SQL Interface | 🟢 Complete | Full API: connect, disconnect, and query endpoints (`/api/oracle/*`) |
 | PeopleSoft SOAP Interface | 🟢 Complete | Full API with HTTPS enforcement in production (`/api/soap/*`) |
 | Mock Test Site | 🟢 Complete | Development-only PeopleSoft simulator for testing automation |

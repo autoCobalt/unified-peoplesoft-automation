@@ -25,7 +25,9 @@ import { FadeIn } from '../motion';
 import type { DataTableProps, ColumnDef } from '../../types/table';
 import { renderCell } from './cellRenderers';
 import { getValue, getRowKey, getAlignClass } from './tableHelpers';
+import { useCellSelection } from './useCellSelection';
 import './DataTable.css';
+import './cellSelection.css';
 
 /* ==============================================
    Stagger Animation Configuration
@@ -102,6 +104,7 @@ export function DataTable<TData>({
   showRowNumbers = false,
   stickyColumns = 0,
   staggerRows = false,
+  enableCellSelection = false,
 }: DataTableProps<TData>) {
   const prefersReducedMotion = useReducedMotion();
 
@@ -111,6 +114,14 @@ export function DataTable<TData>({
   const [canScroll, setCanScroll] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // Cell selection hook (Excel-like click-drag + Ctrl+C copy)
+  const {
+    tableRef,
+    getCellSelectionClass,
+    getCellSelectionStyle,
+    isDragging,
+  } = useCellSelection({ enabled: enableCellSelection, scrollContainerRef });
 
   // Sticky column left offsets (measured from actual DOM)
   const [stickyOffsets, setStickyOffsets] = useState<number[]>([]);
@@ -279,6 +290,8 @@ export function DataTable<TData>({
       return (
         <td
           key={column.id}
+          data-cell-row={index}
+          data-cell-col={colIndex}
           className={`
             ${getAlignClass(column.align)}
             ${(column.mono || column.type === 'mono') ? 'dt-cell--mono' : ''}
@@ -286,11 +299,12 @@ export function DataTable<TData>({
             ${isSticky ? 'dt-sticky-col' : ''}
             ${colIndex === stickyColumns - 1 ? 'dt-sticky-col-last' : ''}
             ${isNullValue ? 'dt-cell--null' : ''}
-            ${cellClass}
+            ${cellClass}${getCellSelectionClass(index, colIndex)}
           `.trim()}
           style={{
             ...(stickyLeft !== undefined && { left: stickyLeft }),
             ...(isSticky && column.width && { width: column.width, minWidth: column.width, maxWidth: column.width }),
+            ...getCellSelectionStyle(index, colIndex),
           }}
         >
           {renderCell({ column, row, value, index })}
@@ -397,7 +411,7 @@ export function DataTable<TData>({
           className="dt-scroll-container"
           onScroll={updateScrollState}
         >
-          <table className="dt-table" aria-label={ariaLabel}>
+          <table ref={tableRef} className={`dt-table${isDragging ? ' dt-table--selecting' : ''}`} aria-label={ariaLabel}>
             <thead ref={theadRef}>
               <tr>
                 {effectiveColumns.map((column, colIndex) => {

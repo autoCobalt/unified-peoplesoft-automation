@@ -1,0 +1,25 @@
+/* ===== CELL SELECTION STYLES ===== */
+
+/* Suppress native text selection during drag */
+.dt-table--selecting {
+  user-select: none;
+}
+
+.dt-table--selecting tbody td {
+  cursor: cell;
+}
+
+/* Selected cell background tint */
+.dt-cell--selected {
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent) !important;
+}
+
+/* Sticky columns need an opaque base so the tint doesn't reveal scrolled content */
+.dt-cell--selected.dt-sticky-col {
+  background: color-mix(in srgb, var(--accent-primary) 15%, var(--bg-secondary)) !important;
+}
+
+/* Hover row + sticky + selected: preserve tint on hover */
+.dt-table tbody tr:hover td.dt-cell--selected.dt-sticky-col {
+  background: color-mix(in srgb, var(--accent-primary) 15%, var(--dt-row-bg-hover)) !important;
+}

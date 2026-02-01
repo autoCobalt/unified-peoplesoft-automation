@@ -686,6 +686,7 @@ export function DataTableSection() {
           showRowNumbers={true}
           stickyColumns={4}
           staggerRows={true}
+          enableCellSelection={true}
           emptyMessage="No transactions in this queue"
           rowConfig={{
             className: (row) =>
@@ -803,6 +804,7 @@ export function DataTableSection() {
                 keyAccessor="transactionNbr"
                 showRowNumbers={true}
                 stickyColumns={showStatusColumn ? 3 : 2}
+                enableCellSelection={true}
                 emptyMessage="No records"
                 ariaLabel={`${template.queryFieldName} preview`}
                 rowConfig={duplicateCount > 0 ? {
