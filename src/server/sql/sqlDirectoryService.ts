@@ -122,12 +122,24 @@ async function parseSqlFileInfo(
    ============================================== */
 
 /**
- * Get all SQL files from the server directory (bundled with app)
+ * Get all SQL files from both server directories (local + bundled)
  *
- * This tier is always available and contains curated queries.
+ * Merges files from server/ (local/untracked) and bundled/ (tracked).
+ * If a filename exists in both, the local version takes priority.
  */
 export async function getServerSqlFiles(): Promise<SqlFileInfo[]> {
-  return getSqlFilesFromDirectory(SQL_DIRECTORIES.server, 'server');
+  const [serverFiles, bundledFiles] = await Promise.all([
+    getSqlFilesFromDirectory(SQL_DIRECTORIES.server, 'server'),
+    getSqlFilesFromDirectory(SQL_DIRECTORIES.bundled, 'server'),
+  ]);
+
+  // Local files shadow bundled files with the same filename
+  const serverFilenames = new Set(serverFiles.map(f => f.filename));
+  const uniqueBundled = bundledFiles.filter(f => !serverFilenames.has(f.filename));
+
+  return [...serverFiles, ...uniqueBundled].sort((a, b) =>
+    a.filename.localeCompare(b.filename)
+  );
 }
 
 /**
@@ -184,15 +196,19 @@ export async function getSqlSourceStatus(
 ): Promise<SqlSourceConfig[]> {
   const configs: SqlSourceConfig[] = [];
 
-  // Server tier (always available)
-  const serverAvailable = await validateSqlDirectory(SQL_DIRECTORIES.server);
-  const serverFiles = serverAvailable ? await getServerSqlFiles() : [];
+  // Server tier (local + bundled directories)
+  const [serverAvailable, bundledAvailable] = await Promise.all([
+    validateSqlDirectory(SQL_DIRECTORIES.server),
+    validateSqlDirectory(SQL_DIRECTORIES.bundled),
+  ]);
+  const anyServerAvailable = serverAvailable || bundledAvailable;
+  const serverFiles = anyServerAvailable ? await getServerSqlFiles() : [];
   configs.push({
     source: 'server',
     path: SQL_DIRECTORIES.server,
-    isAvailable: serverAvailable,
+    isAvailable: anyServerAvailable,
     fileCount: serverFiles.length,
-    error: serverAvailable ? undefined : 'Server SQL directory not found',
+    error: anyServerAvailable ? undefined : 'Server SQL directories not found',
   });
 
   // Shared tier (configurable)
@@ -245,6 +261,8 @@ export async function getSqlSourceStatus(
 /**
  * Get a single SQL file by source and filename
  *
+ * For 'server' source, checks server/ (local) first, then bundled/.
+ *
  * @param source - Which tier to look in
  * @param filename - The SQL filename to find
  * @param paths - Configured paths for shared/personal tiers
@@ -255,12 +273,17 @@ export async function getSqlFile(
   filename: string,
   paths: { shared?: string; personal?: string }
 ): Promise<SqlFileInfo | null> {
-  let dirPath: string;
+  if (source === 'server') {
+    // Try local (untracked) first, then bundled (tracked)
+    const localResult = await parseSqlFileInfo(
+      join(SQL_DIRECTORIES.server, filename), source
+    );
+    if (localResult) return localResult;
+    return parseSqlFileInfo(join(SQL_DIRECTORIES.bundled, filename), source);
+  }
 
+  let dirPath: string;
   switch (source) {
-    case 'server':
-      dirPath = SQL_DIRECTORIES.server;
-      break;
     case 'shared':
       if (!paths.shared) return null;
       dirPath = paths.shared;
@@ -278,6 +301,8 @@ export async function getSqlFile(
 /**
  * Read raw SQL file content
  *
+ * For 'server' source, checks server/ (local) first, then bundled/.
+ *
  * @param source - Which tier to look in
  * @param filename - The SQL filename to read
  * @param paths - Configured paths for shared/personal tiers
@@ -288,12 +313,20 @@ export async function getSqlFileContent(
   filename: string,
   paths: { shared?: string; personal?: string }
 ): Promise<string | null> {
-  let dirPath: string;
+  if (source === 'server') {
+    // Try local (untracked) first, then bundled (tracked)
+    for (const dir of [SQL_DIRECTORIES.server, SQL_DIRECTORIES.bundled]) {
+      try {
+        return await readFile(join(dir, filename), 'utf-8');
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  }
 
+  let dirPath: string;
   switch (source) {
-    case 'server':
-      dirPath = SQL_DIRECTORIES.server;
-      break;
     case 'shared':
       if (!paths.shared) return null;
       dirPath = paths.shared;

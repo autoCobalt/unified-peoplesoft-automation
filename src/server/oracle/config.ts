@@ -54,13 +54,19 @@ export function getSqlExamplesDirectory(): string {
 /**
  * SQL directory paths for all three tiers
  *
- * - server: Built-in SQL files (read-only)
+ * - server: Local SQL files (untracked by git, like submission-captures)
+ * - bundled: Tracked SQL files safe for GitHub (version-controlled)
  * - shared: Configurable via environment variable
  * - personal: Stored in localStorage on the client
+ *
+ * Resolution order: server (local) → bundled (tracked)
+ * Local files in server/ take priority over bundled/ files with the same name.
  */
 export const SQL_DIRECTORIES = {
-  /** Bundled server SQL files */
+  /** Local server SQL files (untracked, not committed to git) */
   server: 'src/server/sql/server',
+  /** Bundled SQL files (tracked in git, safe for GitHub) */
+  bundled: 'src/server/sql/bundled',
   /** Examples for documentation/testing */
   examples: 'src/server/sql/examples',
 } as const;

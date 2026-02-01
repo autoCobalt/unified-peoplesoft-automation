@@ -73,6 +73,10 @@ issues/
 SOAP_Guides/
 .playwright-mcp/
 
+# ===== SERVER SQL FILES (LOCAL/UNTRACKED) =====
+src/server/sql/server/*
+!src/server/sql/server/.gitkeep
+
 # ===== SUBMISSION REDIRECT CAPTURES =====
 submission-captures/*
 !submission-captures/.gitkeep

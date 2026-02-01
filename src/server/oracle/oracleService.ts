@@ -26,7 +26,7 @@ import type {
   QueryResultRow,
 } from '../../types/oracle.js';
 import { getQueryConfig } from '../sql/index.js';
-import { getSqlDirectory } from './config.js';
+import { getSqlDirectory, SQL_DIRECTORIES } from './config.js';
 import {
   logConnectionAttempt,
   logConnectionSuccess,
@@ -305,6 +305,9 @@ class OracleService {
 
   /**
    * Load SQL file from disk with caching
+   *
+   * Searches server/ (local/untracked) first, then bundled/ (tracked).
+   * This allows local files to shadow bundled ones.
    */
   private async loadSqlFile(filename: string): Promise<string> {
     // Check cache first
@@ -313,14 +316,23 @@ class OracleService {
       return cached;
     }
 
-    // Load from disk
-    const sqlPath = join(getSqlDirectory(), filename);
-    const sql = await readFile(sqlPath, 'utf-8');
+    // Try server (local/untracked) first, then bundled (tracked)
+    const directories = [getSqlDirectory(), SQL_DIRECTORIES.bundled];
 
-    // Cache for future use
-    this.sqlCache.set(filename, sql);
+    for (const dir of directories) {
+      try {
+        const sqlPath = join(dir, filename);
+        const sql = await readFile(sqlPath, 'utf-8');
 
-    return sql;
+        // Cache for future use
+        this.sqlCache.set(filename, sql);
+        return sql;
+      } catch {
+        continue;
+      }
+    }
+
+    throw new Error(`SQL file not found in any directory: ${filename}`);
   }
 
   /**

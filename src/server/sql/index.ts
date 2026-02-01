@@ -19,7 +19,8 @@ import type { OracleQueryId, QueryConfig, QueryRegistry } from '../../types/orac
  *
  * When adding a new query:
  * 1. Add the query ID to OracleQueryId in src/types/oracle.ts
- * 2. Create the SQL file in src/server/sql/server/
+ * 2. Create the SQL file in src/server/sql/server/ (local, untracked)
+ *    or src/server/sql/bundled/ (tracked, safe for GitHub)
  * 3. Add the entry to this registry
  */
 export const QUERY_REGISTRY: QueryRegistry = {
