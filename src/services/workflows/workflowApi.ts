@@ -30,6 +30,7 @@ export interface ManagerWorkflowState {
     approvedCount?: number;
     submittedCount?: number;
     transactionResults?: Record<string, 'approved' | 'error'>;
+    pauseReason?: string;
   };
 }
 
@@ -127,9 +128,14 @@ export async function resetManagerWorkflow(): Promise<ApiResponse<{ message: str
 
 /**
  * Pause the Manager workflow (pauses between transactions)
+ *
+ * @param reason - Optional reason for pausing (e.g., 'tab-switch')
  */
-export async function pauseManagerWorkflow(): Promise<ApiResponse<{ message: string }>> {
-  return apiRequest('/manager/pause', { method: 'POST' });
+export async function pauseManagerWorkflow(reason?: string): Promise<ApiResponse<{ message: string }>> {
+  return apiRequest('/manager/pause', {
+    method: 'POST',
+    body: reason ? JSON.stringify({ reason }) : undefined,
+  });
 }
 
 /**
@@ -207,6 +213,7 @@ export interface OtherWorkflowApiState {
   results: {
     approvedCount?: number;
     transactionResults?: Record<string, 'approved' | 'error'>;
+    pauseReason?: string;
   };
 }
 
@@ -249,9 +256,14 @@ export async function resetOtherWorkflow(): Promise<ApiResponse<{ message: strin
 
 /**
  * Pause the Other workflow (pauses between transactions)
+ *
+ * @param reason - Optional reason for pausing (e.g., 'tab-switch')
  */
-export async function pauseOtherWorkflow(): Promise<ApiResponse<{ message: string }>> {
-  return apiRequest('/other/pause', { method: 'POST' });
+export async function pauseOtherWorkflow(reason?: string): Promise<ApiResponse<{ message: string }>> {
+  return apiRequest('/other/pause', {
+    method: 'POST',
+    body: reason ? JSON.stringify({ reason }) : undefined,
+  });
 }
 
 /**

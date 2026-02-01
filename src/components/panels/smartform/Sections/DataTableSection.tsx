@@ -40,7 +40,7 @@ import {
   JOB_UPDATE_CI_TEMPLATE,
   POSITION_CREATE_CI_TEMPLATE,
 } from '../../../../server/ci-definitions/templates/smartform';
-import { DataTable } from '../../../table';
+import { DataTable, TriStateCheckbox } from '../../../table';
 import { exportToExcel, findCIDuplicates, filterCIDuplicates } from '../../../../utils';
 import type { ExcelColumn } from '../../../../utils';
 import { DownloadIcon, ChevronIcon } from '../../../icons';
@@ -294,6 +294,7 @@ export function DataTableSection() {
     parsedCIData,
     selectedByTab,
     setTransactionSelected,
+    setAllTransactionsSelected,
     preparedDeptCoData,
     preparedPositionData,
     preparedJobData,
@@ -480,7 +481,16 @@ export function DataTableSection() {
     // Checkbox column definition (will be second after row number)
     const checkboxColumn: ColumnDef<SmartFormRecord> = {
       id: '__selected',
-      header: '',
+      header: (
+        <TriStateCheckbox
+          checked={selectedRows.size > 0 && selectedRows.size === filteredRecords.length}
+          indeterminate={selectedRows.size > 0 && selectedRows.size < filteredRecords.length}
+          disabled={workflowProcessing || filteredRecords.length === 0}
+          onChange={(checked) => { setAllTransactionsSelected(checked); }}
+          ariaLabel={`Select all ${activeSubTab} transactions`}
+          className="dt-checkbox"
+        />
+      ),
       headerClassName: 'sf-ci-header--non-export',
       type: 'checkbox',
       align: 'center',
@@ -532,7 +542,7 @@ export function DataTableSection() {
     }
 
     return [checkboxColumn, statusColumn, ...buildDynamicColumns(filteredRecords[0])];
-  }, [filteredRecords, selectedRows, setTransactionSelected, workflowProcessing]);
+  }, [filteredRecords, selectedRows, setTransactionSelected, setAllTransactionsSelected, workflowProcessing, activeSubTab]);
 
   const queueLabel = activeSubTab === 'manager' ? 'Manager' : 'Other';
   const rowCount = filteredRecords.length;
@@ -642,6 +652,7 @@ export function DataTableSection() {
           }}
         >
           <DownloadIcon />
+          Download Excel
         </button>
         Pending Transactions
       </h4>
@@ -733,6 +744,7 @@ export function DataTableSection() {
                 }}
               >
                 <DownloadIcon />
+                Download Excel
               </button>
               {template.queryFieldName}
               <span className="sf-ci-submit-count">

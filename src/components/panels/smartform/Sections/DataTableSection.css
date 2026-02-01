@@ -288,16 +288,18 @@ tr.sf-cross-hover td.dt-sticky-col {
 
 /* ===== DOWNLOAD BUTTON ===== */
 
-/* Prominent icon button inside title bar — Excel-green accent */
+/* Prominent button inside title bar — Excel-green accent */
 .sf-download-btn {
   --excel-green: #27c56e;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 4px;
   flex-shrink: 0;
-  width: 24px;
+  white-space: nowrap;
   height: 24px;
-  padding: 0;
+  padding: 0 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
   border: 1px solid color-mix(in srgb, var(--excel-green) 30%, transparent);
   border-radius: 4px;
   background: color-mix(in srgb, var(--excel-green) 12%, transparent);

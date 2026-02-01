@@ -143,12 +143,25 @@ export function handleReset(
 /**
  * POST /api/workflows/other/pause
  * Pause the current workflow (pauses between transactions)
+ *
+ * Optional body: { reason?: string } — e.g., 'tab-switch'
  */
-export function handlePause(
-  _req: IncomingMessage,
+export async function handlePause(
+  req: IncomingMessage,
   res: ServerResponse
-): void {
-  otherWorkflowService.pause();
+): Promise<void> {
+  let reason: string | undefined;
+  try {
+    const body = await getRawBody(req);
+    if (body) {
+      const data = JSON.parse(body) as { reason?: string };
+      reason = data.reason;
+    }
+  } catch {
+    // No body or invalid JSON — proceed without reason
+  }
+
+  otherWorkflowService.pause(reason);
 
   sendJson(res, 200, {
     success: true,

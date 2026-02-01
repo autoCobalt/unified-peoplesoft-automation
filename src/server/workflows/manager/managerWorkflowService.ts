@@ -53,6 +53,15 @@ let abortController: AbortController | null = null;
 /** Flag to track pause state (checked between transactions) */
 let isPaused = false;
 
+/**
+ * Read isPaused through a function call to prevent TypeScript control flow analysis
+ * from incorrectly caching the boolean value. This is necessary because isPaused is
+ * modified externally by pause()/resume() from different async contexts.
+ */
+function checkIsPaused(): boolean {
+  return isPaused;
+}
+
 /* ==============================================
    State Accessors
    ============================================== */
@@ -136,7 +145,7 @@ export async function runApprovals(
       return { success: false, approvedCount: 0, error: browserResult.error.message };
     }
 
-    const page = browserResult.page;
+    let page = browserResult.page;
     let approvedCount = 0;
     const transactionResults: Record<string, 'approved' | 'error'> = {};
 
@@ -160,6 +169,16 @@ export async function runApprovals(
       if (isAborted) {
         updateState({ status: 'cancelled', currentStep: 'idle', isPaused: false });
         return { success: false, approvedCount, error: 'Workflow cancelled' };
+      }
+
+      // Browser health check after pause resume — browser may have died while paused
+      if (!playwrightService.isConnected()) {
+        console.log('[Manager Workflow] Browser died while paused — re-launching');
+        const recoveryResult = await playwrightService.ensureReady();
+        if (!recoveryResult.success) {
+          throw new Error(`Browser recovery failed: ${recoveryResult.error.message}`);
+        }
+        page = recoveryResult.page;
       }
 
       const transactionId = transactionIds[i];
@@ -202,13 +221,49 @@ export async function runApprovals(
         const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
         console.error(`[Manager Workflow] Error approving ${transactionId}:`, errorMessage);
 
-        // Check if this is a fatal browser disconnection error
-        // These errors mean the browser is gone and we can't continue
-        const isFatalError = isBrowserDisconnectedError(errorMessage);
+        // Check if this is a browser disconnection error
+        // Instead of crashing, auto-pause so the user can choose when to resume
+        if (isBrowserDisconnectedError(errorMessage)) {
+          isPaused = true;
+          updateState({
+            status: 'paused',
+            isPaused: true,
+            results: {
+              ...workflowState.results,
+              approvedCount,
+              transactionResults: { ...transactionResults },
+              pauseReason: 'browser-closed',
+            },
+          });
+          console.log(`[Manager Workflow] Browser closed — auto-paused at transaction ${transactionId}`);
 
-        if (isFatalError) {
-          // Re-throw to fail the entire workflow
-          throw new Error(`Browser disconnected: ${errorMessage}`);
+          // Wait for resume (same pattern as manual pause)
+          // Uses checkIsPaused() to prevent TS control flow from caching the true assignment above
+          while (checkIsPaused()) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (abortController.signal.aborted) break;
+          }
+          if (abortController.signal.aborted) {
+            updateState({ status: 'cancelled', currentStep: 'idle', isPaused: false });
+            return { success: false, approvedCount, error: 'Workflow cancelled' };
+          }
+
+          // User resumed — re-launch browser
+          const recoveryResult = await playwrightService.ensureReady();
+          if (!recoveryResult.success) {
+            throw new Error(`Browser recovery failed: ${recoveryResult.error.message}`);
+          }
+          page = recoveryResult.page;
+
+          // Clear pause reason now that we've recovered
+          updateState({
+            status: 'running',
+            results: { ...workflowState.results, pauseReason: undefined },
+          });
+
+          // Retry this transaction (decrement i to re-process current index)
+          i--;
+          continue;
         }
 
         // Non-fatal error - log and continue with next transaction
@@ -272,11 +327,17 @@ export async function stop(): Promise<void> {
 /**
  * Pause a running workflow (pauses between transactions)
  * Does nothing if workflow is not running
+ *
+ * @param reason - Optional reason for pausing (e.g., 'tab-switch', 'browser-closed')
  */
-export function pause(): void {
+export function pause(reason?: string): void {
   if (workflowState.status === 'running') {
     isPaused = true;
-    updateState({ status: 'paused', isPaused: true });
+    updateState({
+      status: 'paused',
+      isPaused: true,
+      results: { ...workflowState.results, pauseReason: reason },
+    });
   }
 }
 
@@ -287,7 +348,11 @@ export function pause(): void {
 export function resume(): void {
   if (workflowState.status === 'paused') {
     isPaused = false;
-    updateState({ status: 'running', isPaused: false });
+    updateState({
+      status: 'running',
+      isPaused: false,
+      results: { ...workflowState.results, pauseReason: undefined },
+    });
   }
 }
 

@@ -88,3 +88,22 @@
 .sf-workflow-resume-btn:hover {
   filter: brightness(1.1);
 }
+
+/* Pause Reason Messages */
+.sf-workflow-pause-message {
+  font-size: 0.8125rem;
+  margin: 0;
+  text-align: center;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+.sf-workflow-pause-message--warning {
+  color: var(--status-warning);
+  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+}
+
+.sf-workflow-pause-message--info {
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-tertiary) 10%, transparent);
+}

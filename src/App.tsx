@@ -5,7 +5,7 @@
  * Component order defines the visual hierarchy of the application.
  */
 
-import { AppProviders } from './context';
+import { AppProviders, useSmartForm } from './context';
 import { ConnectionPanel, ErrorBoundary, Footer, Header, ModeBanner, TabContent } from './components';
 
 /**
@@ -14,13 +14,15 @@ import { ConnectionPanel, ErrorBoundary, Footer, Header, ModeBanner, TabContent 
  * Simple layout listing components in display order.
  */
 function AppContent() {
+  const { onTabSwitch } = useSmartForm();
+
   return (
     <div className="app">
       <ModeBanner />
       <Header />
       <main className="main-content">
         <ConnectionPanel />
-        <TabContent />
+        <TabContent onTabChange={onTabSwitch} />
       </main>
       <Footer />
     </div>

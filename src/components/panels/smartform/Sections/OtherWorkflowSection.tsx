@@ -13,7 +13,7 @@
  * Uses the definition-driven workflow system from src/workflows/.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useSmartForm, useConnection } from '../../../../context';
 import type { ChecklistTask } from '../../../../types';
 import { useWorkflowDefinition } from '../../../../hooks';
@@ -35,6 +35,7 @@ export function OtherWorkflowSection() {
     pauseOtherApprovals,
     resumeOtherApprovals,
     isOtherWorkflowPaused,
+    otherPauseReason,
     effectiveRecordCounts,
   } = useSmartForm();
 
@@ -136,6 +137,17 @@ export function OtherWorkflowSection() {
     }
   }, [stepName, taskCompletionOverrides, submitPositionCreateData]);
 
+  // Resume handler with confirmation for browser-closed pause reason
+  const handleResume = useCallback(() => {
+    if (otherPauseReason === 'browser-closed') {
+      const confirmed = window.confirm(
+        'The browser was closed. A new browser will open to continue approvals. Continue?'
+      );
+      if (!confirmed) return;
+    }
+    void resumeOtherApprovals();
+  }, [otherPauseReason, resumeOtherApprovals]);
+
   // Don't render if no other records and workflow is idle
   if (otherCount === 0 && stepName === 'idle') {
     return (
@@ -182,13 +194,25 @@ export function OtherWorkflowSection() {
                   ⏸ Pause
                 </button>
               ) : (
-                <button
-                  type="button"
-                  className="sf-workflow-resume-btn"
-                  onClick={() => { void resumeOtherApprovals(); }}
-                >
-                  ▶ Resume
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="sf-workflow-resume-btn"
+                    onClick={handleResume}
+                  >
+                    ▶ Resume
+                  </button>
+                  {otherPauseReason === 'browser-closed' && (
+                    <p className="sf-workflow-pause-message sf-workflow-pause-message--warning">
+                      Browser was closed. Press Resume to re-open and continue.
+                    </p>
+                  )}
+                  {otherPauseReason === 'tab-switch' && (
+                    <p className="sf-workflow-pause-message sf-workflow-pause-message--info">
+                      Paused due to tab switch.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           )}

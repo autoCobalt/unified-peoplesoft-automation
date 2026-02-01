@@ -6,3 +6,4 @@
  */
 
 export { DataTable } from './DataTable';
+export { TriStateCheckbox } from './TriStateCheckbox';

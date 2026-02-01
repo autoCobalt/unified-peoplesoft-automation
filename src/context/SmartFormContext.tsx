@@ -29,6 +29,7 @@ import type {
   ManagerWorkflowStep,
   OtherWorkflowStep,
   PreparedSubmission,
+  TabId,
 } from '../types';
 import type { QueryResultRow } from '../types/oracle';
 import {
@@ -204,6 +205,10 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   // Track if workflows are paused (from server polling)
   const [isWorkflowPaused, setIsWorkflowPaused] = useState(false);
   const [isOtherWorkflowPaused, setIsOtherWorkflowPaused] = useState(false);
+
+  // Track pause reasons from server polling
+  const [managerPauseReason, setManagerPauseReason] = useState<string | undefined>();
+  const [otherPauseReason, setOtherPauseReason] = useState<string | undefined>();
 
   // Per-tab transaction selection (all selected by default after query)
   const [selectedByTab, setSelectedByTab] = useState<Record<SmartFormSubTab, Set<string>>>(() => ({
@@ -496,6 +501,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
           currentItem: status.progress.currentItem,
         });
         setIsWorkflowPaused(false);
+        setManagerPauseReason(undefined);
         updateRecordStatuses(status.results.transactionResults, status.progress.currentItem);
       } else if (status.status === 'paused' && status.progress) {
         // Workflow is paused - keep showing progress but mark as paused
@@ -506,11 +512,13 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
           currentItem: status.progress.currentItem,
         });
         setIsWorkflowPaused(true);
+        setManagerPauseReason(status.results.pauseReason);
         updateRecordStatuses(status.results.transactionResults, status.progress.currentItem);
         // Keep polling - user might resume
       } else if (status.status === 'completed') {
         setManagerWorkflow({ step: 'approved' });
         setIsWorkflowPaused(false);
+        setManagerPauseReason(undefined);
         updateRecordStatuses(status.results.transactionResults, undefined);
         // Stop polling when complete
         if (stopPollingRef.current) {
@@ -1057,6 +1065,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     setPreparedPositionData([]);
     setPreparedJobData([]);
     setIsWorkflowPaused(false);
+    setManagerPauseReason(undefined);
     // Reset manager record statuses to 'pending'
     setState(prev => {
       if (!prev.queryResults) return prev;
@@ -1072,12 +1081,14 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   /**
    * Pause the approval workflow (pauses between transactions)
    * Guarded against rapid-fire calls to prevent race conditions
+   *
+   * @param reason - Optional reason for pausing (e.g., 'tab-switch')
    */
-  const pauseApprovals = useCallback(async () => {
+  const pauseApprovals = useCallback(async (reason?: string) => {
     if (isPauseActionInFlightRef.current) return;
     isPauseActionInFlightRef.current = true;
     try {
-      await workflowApi.manager.pause();
+      await workflowApi.manager.pause(reason);
     } finally {
       isPauseActionInFlightRef.current = false;
     }
@@ -1504,6 +1515,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
           currentItem: status.progress.currentItem,
         });
         setIsOtherWorkflowPaused(false);
+        setOtherPauseReason(undefined);
         updateRecordStatuses(status.results.transactionResults, status.progress.currentItem);
       } else if (status.status === 'paused' && status.progress) {
         setOtherWorkflow({
@@ -1513,10 +1525,12 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
           currentItem: status.progress.currentItem,
         });
         setIsOtherWorkflowPaused(true);
+        setOtherPauseReason(status.results.pauseReason);
         updateRecordStatuses(status.results.transactionResults, status.progress.currentItem);
       } else if (status.status === 'completed') {
         setOtherWorkflow({ step: 'approved' });
         setIsOtherWorkflowPaused(false);
+        setOtherPauseReason(undefined);
         updateRecordStatuses(status.results.transactionResults, undefined);
         if (stopOtherPollingRef.current) {
           stopOtherPollingRef.current();
@@ -1547,12 +1561,14 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
   /**
    * Pause the Other approval workflow
    * Guarded against rapid-fire calls to prevent race conditions
+   *
+   * @param reason - Optional reason for pausing (e.g., 'tab-switch')
    */
-  const pauseOtherApprovals = useCallback(async () => {
+  const pauseOtherApprovals = useCallback(async (reason?: string) => {
     if (isOtherPauseActionInFlightRef.current) return;
     isOtherPauseActionInFlightRef.current = true;
     try {
-      await workflowApi.other.pause();
+      await workflowApi.other.pause(reason);
     } finally {
       isOtherPauseActionInFlightRef.current = false;
     }
@@ -1571,6 +1587,34 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       isOtherPauseActionInFlightRef.current = false;
     }
   }, []);
+
+  // Refs for onTabSwitch — avoids dependency on frequently-changing state values
+  const managerWorkflowRef = useRef(state.managerWorkflow);
+  managerWorkflowRef.current = state.managerWorkflow;
+  const otherWorkflowRef = useRef(state.otherWorkflow);
+  otherWorkflowRef.current = state.otherWorkflow;
+  const isWorkflowPausedRef = useRef(isWorkflowPaused);
+  isWorkflowPausedRef.current = isWorkflowPaused;
+  const isOtherWorkflowPausedRef = useRef(isOtherWorkflowPaused);
+  isOtherWorkflowPausedRef.current = isOtherWorkflowPaused;
+
+  /**
+   * Tab switch handler — auto-pauses running approval workflows when leaving SmartForm.
+   * Uses refs for state reads to keep callback identity stable (no dependency churn).
+   */
+  const onTabSwitch = useCallback((newTabId: TabId) => {
+    if (newTabId === 'smartform') return; // Switching TO SmartForm, not away
+
+    // Auto-pause manager workflow if actively approving
+    if (managerWorkflowRef.current.step === 'approving' && !isWorkflowPausedRef.current) {
+      void pauseApprovals('tab-switch');
+    }
+
+    // Auto-pause other workflow if actively approving
+    if (otherWorkflowRef.current.step === 'approving' && !isOtherWorkflowPausedRef.current) {
+      void pauseOtherApprovals('tab-switch');
+    }
+  }, [pauseApprovals, pauseOtherApprovals]);
 
   // Track mount state and cleanup polling on unmount
   // Note: Explicitly setting isMountedRef in useEffect (not just useRef initializer)
@@ -1598,6 +1642,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
     setPreparedOtherDeptCoData([]);
     setPreparedPositionCreateData([]);
     setIsOtherWorkflowPaused(false);
+    setOtherPauseReason(undefined);
     // Reset other record statuses to 'pending'
     setState(prev => {
       if (!prev.queryResults) return prev;
@@ -1627,6 +1672,24 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
         return numA - numB;
       });
   }, [state.queryResults, state.activeSubTab]);
+
+  // Ref to filteredRecords for stable callback identity in setAllTransactionsSelected.
+  const filteredRecordsRef = useRef(filteredRecords);
+  filteredRecordsRef.current = filteredRecords;
+
+  /**
+   * Select or deselect all transactions in the active sub-tab.
+   * Uses refs for a stable callback identity (no dependency on activeSubTab or filteredRecords).
+   */
+  const setAllTransactionsSelected = useCallback((selected: boolean) => {
+    setSelectedByTab(prev => {
+      const tab = activeSubTabRef.current;
+      if (selected) {
+        return { ...prev, [tab]: new Set(filteredRecordsRef.current.map(r => r.TRANSACTION_NBR)) };
+      }
+      return { ...prev, [tab]: new Set<string>() };
+    });
+  }, []);
 
   // Pre-compute effective record counts (selected ∩ non-duplicate) for each CI type.
   // Section components use this for task completion overrides; submit functions use the
@@ -1686,6 +1749,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       submitJobData,
       resetManagerWorkflow,
       isWorkflowPaused,
+      managerPauseReason,
       submitOtherDeptCoData,
       submitPositionCreateData,
       openOtherBrowser,
@@ -1693,8 +1757,10 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       resumeOtherApprovals,
       resetOtherWorkflow,
       isOtherWorkflowPaused,
+      otherPauseReason,
       selectedByTab,
       setTransactionSelected,
+      setAllTransactionsSelected,
       filteredRecords,
       preparedDeptCoData,
       preparedPositionData,
@@ -1703,6 +1769,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       preparedPositionCreateData,
       parsedCIData: state.parsedCIData,
       effectiveRecordCounts,
+      onTabSwitch,
     }),
     [
       state,
@@ -1718,6 +1785,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       submitJobData,
       resetManagerWorkflow,
       isWorkflowPaused,
+      managerPauseReason,
       submitOtherDeptCoData,
       submitPositionCreateData,
       openOtherBrowser,
@@ -1725,8 +1793,10 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       resumeOtherApprovals,
       resetOtherWorkflow,
       isOtherWorkflowPaused,
+      otherPauseReason,
       selectedByTab,
       setTransactionSelected,
+      setAllTransactionsSelected,
       filteredRecords,
       preparedDeptCoData,
       preparedPositionData,
@@ -1734,6 +1804,7 @@ export function SmartFormProvider({ children }: SmartFormProviderProps) {
       preparedOtherDeptCoData,
       preparedPositionCreateData,
       effectiveRecordCounts,
+      onTabSwitch,
     ]
   );
 

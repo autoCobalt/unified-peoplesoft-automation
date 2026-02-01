@@ -42,6 +42,8 @@ export interface ManagerWorkflowState {
     approvedCount?: number;
     submittedCount?: number;
     transactionResults?: Record<string, 'approved' | 'error'>;
+    /** Why the workflow was paused (browser-closed, tab-switch, or undefined for manual) */
+    pauseReason?: string;
   };
 }
 
@@ -70,6 +72,8 @@ export interface OtherWorkflowState {
   results: {
     approvedCount?: number;
     transactionResults?: Record<string, 'approved' | 'error'>;
+    /** Why the workflow was paused (browser-closed, tab-switch, or undefined for manual) */
+    pauseReason?: string;
   };
 }
 

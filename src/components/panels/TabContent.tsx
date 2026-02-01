@@ -14,7 +14,12 @@ import { ErrorBoundary } from '../ErrorBoundary';
 import { DEFAULT_TAB, TABS, type TabId } from '../../types';
 import { PANEL_REGISTRY } from './panelRegistry';
 
-export function TabContent() {
+interface TabContentProps {
+  /** Callback when the active tab changes — used by parent for cross-tab coordination */
+  onTabChange?: (newTabId: TabId) => void;
+}
+
+export function TabContent({ onTabChange }: TabContentProps) {
   const [activeTab, setActiveTab] = useState<TabId>(DEFAULT_TAB);
   const [direction, setDirection] = useState<AnimationDirection>(1);
   const [transitionId, setTransitionId] = useState(0);
@@ -28,6 +33,9 @@ export function TabContent() {
   const handleTabChange = (newTabId: TabId) => {
     // Ignore clicks on the already-active tab
     if (newTabId === activeTab) return;
+
+    // Notify parent before switching (enables auto-pause on tab switch)
+    onTabChange?.(newTabId);
 
     const newIndex = TABS.findIndex((t) => t.id === newTabId);
     const prevIndex = prevIndexRef.current;

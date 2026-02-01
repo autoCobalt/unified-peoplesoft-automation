@@ -12,6 +12,7 @@ import type {
   SmartFormRecord,
   PreparedSubmission,
 } from '../types';
+import type { TabId } from '../types';
 import type { ParsedCIData } from '../server/ci-definitions/types';
 
 /**
@@ -59,6 +60,8 @@ export interface SmartFormContextType {
 
   // Manager Workflow State (from polling)
   isWorkflowPaused: boolean;
+  /** Pause reason for Manager workflow (from polling: 'browser-closed' | 'tab-switch' | undefined) */
+  managerPauseReason: string | undefined;
 
   // Other Workflow Actions
   submitOtherDeptCoData: () => Promise<void>;
@@ -70,10 +73,14 @@ export interface SmartFormContextType {
 
   // Other Workflow State (from polling)
   isOtherWorkflowPaused: boolean;
+  /** Pause reason for Other workflow (from polling: 'browser-closed' | 'tab-switch' | undefined) */
+  otherPauseReason: string | undefined;
 
   // Transaction Selection (per sub-tab, default: all selected after query)
   selectedByTab: Record<SmartFormSubTab, Set<string>>;
   setTransactionSelected: (txnNbr: string, selected: boolean) => void;
+  /** Select or deselect all transactions in the active sub-tab */
+  setAllTransactionsSelected: (selected: boolean) => void;
 
   // Computed Values
   filteredRecords: SmartFormRecord[];
@@ -90,6 +97,9 @@ export interface SmartFormContextType {
 
   // Effective record counts (selected ∩ non-duplicate) for overrides and look-ahead totals
   effectiveRecordCounts: EffectiveRecordCounts;
+
+  /** Tab switch handler — auto-pauses running workflows when leaving SmartForm */
+  onTabSwitch: (newTabId: TabId) => void;
 }
 
 /* ==============================================
