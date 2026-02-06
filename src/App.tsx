@@ -1,12 +1,13 @@
 /**
  * App Root Component
  *
- * Sets up providers and renders the main application layout.
+ * Renders the main application layout.
+ * All state is managed by Zustand stores (no Context providers needed).
  * Component order defines the visual hierarchy of the application.
  */
 
-import { AppProviders, useSmartForm } from './context';
 import { ConnectionPanel, ErrorBoundary, Footer, Header, ModeBanner, TabContent } from './components';
+import { useSmartFormStore } from './stores';
 
 /**
  * Main App Content
@@ -14,7 +15,7 @@ import { ConnectionPanel, ErrorBoundary, Footer, Header, ModeBanner, TabContent 
  * Simple layout listing components in display order.
  */
 function AppContent() {
-  const { onTabSwitch } = useSmartForm();
+  const onTabSwitch = useSmartFormStore(s => s.onTabSwitch);
 
   return (
     <div className="app">
@@ -32,14 +33,12 @@ function AppContent() {
 /**
  * App Component
  *
- * Root component that sets up all providers.
+ * Root component wrapping content in an error boundary.
  */
 function App() {
   return (
     <ErrorBoundary>
-      <AppProviders>
-        <AppContent />
-      </AppProviders>
+      <AppContent />
     </ErrorBoundary>
   );
 }

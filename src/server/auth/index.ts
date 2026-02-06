@@ -5,4 +5,3 @@
  */
 
 export { sessionService } from './sessionService.js';
-export { handleGetSessionStatus } from './handlers.js';

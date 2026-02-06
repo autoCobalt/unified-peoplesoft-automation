@@ -55,7 +55,15 @@ async function apiRequest<T>(
 ): Promise<ApiResponse<T>> {
   try {
     const headers = new Headers(options.headers);
-    if (!headers.has('Content-Type')) {
+
+    // Fastify v5 rejects Content-Type: application/json with an empty body
+    // (FST_ERR_CTP_EMPTY_JSON_BODY). Ensure POST/PUT/PATCH always send at
+    // least '{}' so the JSON parser has something valid to consume.
+    const method = options.method?.toUpperCase();
+    const needsBody = method === 'POST' || method === 'PUT' || method === 'PATCH';
+    const effectiveBody = options.body ?? (needsBody ? '{}' : undefined);
+
+    if (effectiveBody && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
     }
 
@@ -68,6 +76,7 @@ async function apiRequest<T>(
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers,
+      body: effectiveBody,
     });
 
     const data = await response.json() as ApiResponse<T>;

@@ -5,14 +5,14 @@
  * side by side. Collapses to a single line when both are connected.
  */
 
-import { useConnection } from '../../context';
+import { useConnectionStore } from '../../stores';
 import { FadeIn } from '../motion';
 import { OracleConnection } from './OracleConnection';
 import { SoapConnection } from './SoapConnection';
 import './ConnectionPanel.css';
 
 export function ConnectionPanel() {
-  const { isFullyConnected } = useConnection();
+  const isFullyConnected = useConnectionStore(s => s.isFullyConnected);
 
   return (
     <FadeIn

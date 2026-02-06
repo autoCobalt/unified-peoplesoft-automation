@@ -13,8 +13,9 @@
  * Uses the definition-driven workflow system from src/workflows/.
  */
 
-import { useCallback, useEffect, useMemo } from 'react';
-import { useSmartForm, useConnection } from '../../../../context';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { useSmartFormStore, selectEffectiveRecordCounts, useConnectionStore } from '../../../../stores';
 import type { ChecklistTask } from '../../../../types';
 import { useWorkflowDefinition } from '../../../../hooks';
 import type { ActionMap, RequirementStatus } from '../../../../workflows';
@@ -24,29 +25,37 @@ import {
   WorkflowChecklist,
   WorkflowStatusMessage,
 } from '../../../workflow';
+import { getProgress } from '../../../../utils/workflow/workflowHelpers';
 import './OtherWorkflowSection.css';
 
 export function OtherWorkflowSection() {
-  const {
-    state,
-    submitOtherDeptCoData,
-    submitPositionCreateData,
-    openOtherBrowser,
-    pauseOtherApprovals,
-    resumeOtherApprovals,
-    isOtherWorkflowPaused,
-    otherPauseReason,
-    effectiveRecordCounts,
-  } = useSmartForm();
+  const { otherWorkflow, queryResults, hasQueried, isOtherWorkflowPaused, otherPauseReason } = useSmartFormStore(
+    useShallow(s => ({
+      otherWorkflow: s.otherWorkflow,
+      queryResults: s.queryResults,
+      hasQueried: s.hasQueried,
+      isOtherWorkflowPaused: s.isOtherWorkflowPaused,
+      otherPauseReason: s.otherPauseReason,
+    })),
+  );
+  const submitOtherDeptCoData = useSmartFormStore(s => s.submitOtherDeptCoData);
+  const submitPositionCreateData = useSmartFormStore(s => s.submitPositionCreateData);
+  const openOtherBrowser = useSmartFormStore(s => s.openOtherBrowser);
+  const pauseOtherApprovals = useSmartFormStore(s => s.pauseOtherApprovals);
+  const resumeOtherApprovals = useSmartFormStore(s => s.resumeOtherApprovals);
+  const effectiveRecordCounts = useSmartFormStore(useShallow(selectEffectiveRecordCounts));
+  const managerWorkflow = useSmartFormStore(s => s.managerWorkflow);
+  const isManagerPaused = useSmartFormStore(s => s.isWorkflowPaused);
 
-  const {
-    soapState,
-    setOracleHintActive,
-    setSoapHintActive,
-  } = useConnection();
+  const soapState = useConnectionStore(s => s.soapState);
+  const setOracleHintActive = useConnectionStore(s => s.setOracleHintActive);
+  const setSoapHintActive = useConnectionStore(s => s.setSoapHintActive);
 
-  const { otherWorkflow, queryResults } = state;
   const otherCount = queryResults?.otherCount ?? 0;
+
+  // Cross-workflow: detect when Manager workflow is actively processing
+  const crossProgress = getProgress(managerWorkflow);
+  const isCrossWorkflowActive = crossProgress !== null && !crossProgress.isComplete;
 
   // Action map connects task IDs to context-provided actions
   const actionMap: ActionMap = useMemo(() => ({
@@ -122,20 +131,32 @@ export function OtherWorkflowSection() {
     setSoapHintActive(false);
   };
 
+  // Ref for reading overrides without re-triggering effects on checkbox changes.
+  // Auto-skip should only fire on step transitions (including mount), not when
+  // the user unchecks rows causing record counts to drop to 0.
+  const overridesRef = useRef(taskCompletionOverrides);
+  useEffect(() => {
+    overridesRef.current = taskCompletionOverrides;
+  }, [taskCompletionOverrides]);
+
   // Auto-skip steps when no selected records exist for that CI type.
   // The 'idle' step guard needs hasQueried since idle is the initial state —
   // without it, the effect would fire on mount before any query runs.
+  // The selectedByTab check prevents phantom workflow advancement when
+  // the user unchecks all rows then switches tabs (causing remount).
   useEffect(() => {
-    if (stepName === 'idle' && state.hasQueried && taskCompletionOverrides['other-dept-co']) {
+    if (stepName === 'idle' && hasQueried && overridesRef.current['other-dept-co']) {
+      const otherSelected = useSmartFormStore.getState().selectedByTab.other;
+      if (otherSelected.size === 0) return;
       void submitOtherDeptCoData();
     }
-  }, [stepName, state.hasQueried, taskCompletionOverrides, submitOtherDeptCoData]);
+  }, [stepName, hasQueried, submitOtherDeptCoData]);
 
   useEffect(() => {
-    if (stepName === 'submitting-position-create' && taskCompletionOverrides['other-position-create']) {
+    if (stepName === 'submitting-position-create' && overridesRef.current['other-position-create']) {
       void submitPositionCreateData();
     }
-  }, [stepName, taskCompletionOverrides, submitPositionCreateData]);
+  }, [stepName, submitPositionCreateData]);
 
   // Resume handler with confirmation for browser-closed pause reason
   const handleResume = useCallback(() => {
@@ -165,56 +186,69 @@ export function OtherWorkflowSection() {
       {/* Action Button */}
       {activeTask && activeAction && !isComplete && !isError && (
         <div className="sf-workflow-action-container">
-          <WorkflowActionButton
-            label={activeTask.buttonLabel}
-            isProcessing={isProcessing}
-            isPaused={isOtherWorkflowPaused}
-            progress={progress}
-            onAction={() => { void activeAction(); }}
-            disabled={!canProceed}
-            onPointerEnter={handlePointerEnter}
-            onPointerLeave={handlePointerLeave}
-          />
-          {/* Missing requirements message */}
-          {!canProceed && missingRequirementsText && (
-            <p className="sf-workflow-requirements-warning">
-              Requires {missingRequirementsText} connection
-            </p>
-          )}
-          {/* Pause/Resume controls - visible during approval processing */}
-          {stepName === 'approving' && (
-            <div className="sf-workflow-pause-controls">
-              {!isOtherWorkflowPaused ? (
-                <button
-                  type="button"
-                  className="sf-workflow-pause-btn"
-                  onClick={() => { void pauseOtherApprovals(); }}
-                  title="Pause workflow between transactions"
-                >
-                  ⏸ Pause
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="sf-workflow-resume-btn"
-                    onClick={handleResume}
-                  >
-                    ▶ Resume
-                  </button>
-                  {otherPauseReason === 'browser-closed' && (
-                    <p className="sf-workflow-pause-message sf-workflow-pause-message--warning">
-                      Browser was closed. Press Resume to re-open and continue.
-                    </p>
-                  )}
-                  {otherPauseReason === 'tab-switch' && (
-                    <p className="sf-workflow-pause-message sf-workflow-pause-message--info">
-                      Paused due to tab switch.
-                    </p>
-                  )}
-                </>
+          {isCrossWorkflowActive ? (
+            <WorkflowActionButton
+              label="Manager Workflow"
+              isProcessing={!isManagerPaused}
+              isPaused={isManagerPaused}
+              progress={crossProgress}
+              onAction={() => undefined}
+              disabled
+            />
+          ) : (
+            <>
+              <WorkflowActionButton
+                label={activeTask.buttonLabel}
+                isProcessing={isProcessing}
+                isPaused={isOtherWorkflowPaused}
+                progress={progress}
+                onAction={() => { void activeAction(); }}
+                disabled={!canProceed}
+                onPointerEnter={handlePointerEnter}
+                onPointerLeave={handlePointerLeave}
+              />
+              {/* Missing requirements message */}
+              {!canProceed && missingRequirementsText && (
+                <p className="sf-workflow-requirements-warning">
+                  Requires {missingRequirementsText} connection
+                </p>
               )}
-            </div>
+              {/* Pause/Resume controls - visible during approval processing */}
+              {stepName === 'approving' && (
+                <div className="sf-workflow-pause-controls">
+                  {!isOtherWorkflowPaused ? (
+                    <button
+                      type="button"
+                      className="sf-workflow-pause-btn"
+                      onClick={() => { void pauseOtherApprovals(); }}
+                      title="Pause workflow between transactions"
+                    >
+                      ⏸ Pause
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="sf-workflow-resume-btn"
+                        onClick={handleResume}
+                      >
+                        ▶ Resume
+                      </button>
+                      {otherPauseReason === 'browser-closed' && (
+                        <p className="sf-workflow-pause-message sf-workflow-pause-message--warning">
+                          Browser was closed. Press Resume to re-open and continue.
+                        </p>
+                      )}
+                      {otherPauseReason === 'tab-switch' && (
+                        <p className="sf-workflow-pause-message sf-workflow-pause-message--info">
+                          Paused due to tab switch.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

@@ -7,7 +7,8 @@
  */
 
 import { motion } from 'framer-motion';
-import { useSmartForm } from '../../../../context';
+import { useShallow } from 'zustand/react/shallow';
+import { useSmartFormStore } from '../../../../stores';
 import { SMARTFORM_SUBTABS } from '../../../../types';
 import './SubTabsSection.css';
 
@@ -17,8 +18,10 @@ interface SubTabsSectionProps {
 }
 
 export function SubTabsSection({ className = '' }: SubTabsSectionProps) {
-  const { state, setActiveSubTab } = useSmartForm();
-  const { queryResults, activeSubTab } = state;
+  const { queryResults, activeSubTab } = useSmartFormStore(
+    useShallow(s => ({ queryResults: s.queryResults, activeSubTab: s.activeSubTab })),
+  );
+  const setActiveSubTab = useSmartFormStore(s => s.setActiveSubTab);
 
   if (!queryResults) return null;
 

@@ -194,33 +194,6 @@ export type OtherWorkflowStep =
 export type OtherWorkflowStepName = OtherWorkflowStep['step'];
 
 /* ==============================================
-   Context State Type
-   ============================================== */
-
-/**
- * Full SmartForm state shape
- *
- * Stored in SmartFormContext, this represents all state
- * needed for the SmartForm panel and its sections.
- */
-export interface SmartFormState {
-  /** Whether a query has been executed at least once */
-  hasQueried: boolean;
-  /** Whether a query is currently running */
-  isLoading: boolean;
-  /** Results from the most recent query */
-  queryResults: SmartFormQueryResult | null;
-  /** Currently active sub-tab */
-  activeSubTab: SmartFormSubTab;
-  /** Manager workflow current step */
-  managerWorkflow: ManagerWorkflowStep;
-  /** Other workflow current step */
-  otherWorkflow: OtherWorkflowStep;
-  /** Parsed CI data from pipe-delimited strings (grouped by CI type) */
-  parsedCIData: ParsedCIData;
-}
-
-/* ==============================================
    Initial/Default States
    ============================================== */
 
@@ -238,13 +211,3 @@ export const INITIAL_PARSED_CI_DATA: ParsedCIData = {
   deptCoUpdate: [],
 };
 
-/** Initial SmartForm state */
-export const INITIAL_SMARTFORM_STATE: SmartFormState = {
-  hasQueried: false,
-  isLoading: false,
-  queryResults: null,
-  activeSubTab: 'manager',
-  managerWorkflow: INITIAL_MANAGER_WORKFLOW,
-  otherWorkflow: INITIAL_OTHER_WORKFLOW,
-  parsedCIData: INITIAL_PARSED_CI_DATA,
-};

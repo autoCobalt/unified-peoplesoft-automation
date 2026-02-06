@@ -422,7 +422,7 @@ The Status column shows real-time per-transaction approval outcomes during workf
 | `success` | Green | Approved successfully |
 | `error` | Red | Approval failed (non-fatal, workflow continues) |
 
-Status updates are driven by server polling (250ms interval). When a workflow is reset, all records in that queue revert to `pending`.
+Status updates are driven by WebSocket push (instant). Falls back to HTTP polling if WebSocket is unavailable. When a workflow is reset, all records in that queue revert to `pending`.
 
 ### Modifying Field Behavior
 

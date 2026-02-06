@@ -83,5 +83,3 @@ export {
   parseMetadataFromContent,
 } from './sqlDirectoryService.js';
 
-// HTTP handlers
-export { createSqlHandlers } from './handlers.js';

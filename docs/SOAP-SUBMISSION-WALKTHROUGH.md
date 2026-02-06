@@ -1,6 +1,6 @@
 # SOAP Submission Walkthrough
 
-How CI data flows from an Oracle query result through the client-side context, across the Vite middleware API, and into a PeopleSoft SOAP XML envelope.
+How CI data flows from an Oracle query result through the client-side store, across the Fastify API, and into a PeopleSoft SOAP XML envelope.
 
 ---
 
@@ -30,7 +30,7 @@ parseCIDataFromRecords()          ← src/server/ci-definitions/parser.ts
   │  (splits pipes, extracts ACTION|CI_NAME|KEY:VALUE pairs)
   ▼
 Typed CI Records                  ← PositionCreateRecord, JobUpdateRecord, etc.
-  │  (stored in SmartFormState.parsedCIData via context)
+  │  (stored in SmartForm store state)
   ▼
 buildSOAPPayload()                ← src/server/ci-definitions/parser.ts
   │  (filters record fields through template definition)
@@ -58,7 +58,7 @@ PeopleSoft IScript_SOAPToCI       ← HTTPS endpoint on PeopleSoft server
 parseSOAPResponse()               ← src/server/soap/xmlParser.ts
   │  (extracts notification code + transaction messages)
   ▼
-SmartFormContext status update     ← 'success' or 'error' with message
+SmartForm store status update      ← 'success' or 'error' with message
 ```
 
 ---
@@ -97,7 +97,7 @@ A column value of `null` means "no CI submission needed for this record/type."
 After the Oracle query returns, `parseCIDataFromRecords()` processes all rows:
 
 ```typescript
-// Called in SmartFormContext after query execution
+// Called in smartFormStore after query execution
 const parsedCIData = parseCIDataFromRecords(transactions);
 ```
 
@@ -145,7 +145,7 @@ Segment 3: "EFFDT:01-FEB-25"       → fields.set('EFFDT', '01-FEB-25')
 }
 ```
 
-All parsed records are stored in `SmartFormState.parsedCIData`, grouped by type:
+All parsed records are stored in the SmartForm store's `parsedCIData`, grouped by type:
 
 ```typescript
 interface ParsedCIData {
@@ -168,7 +168,7 @@ When a submission function runs (e.g., `submitPositionData`), it:
 2. Calls `buildSOAPPayload(ciRecord, TEMPLATE.fields)` to extract only template-defined fields
 
 ```typescript
-const ciRecord = parsedCIDataRef.current.positionUpdate.find(
+const ciRecord = get().parsedCIData.positionUpdate.find(
   r => r.transactionNbr === txnNbr
 );
 const payload = buildSOAPPayload(ciRecord, POSITION_UPDATE_CI_TEMPLATE.fields);
@@ -206,7 +206,7 @@ const payload = buildSOAPPayload(ciRecord, POSITION_UPDATE_CI_TEMPLATE.fields);
 
 **File:** `src/services/soap/soapApi.ts`
 
-The context calls `soapApi.ci.submit()`:
+The store calls `soapApi.ci.submit()`:
 
 ```typescript
 const result = await soapApi.ci.submit(ciRecord.ciName, ciRecord.action, payload);
@@ -415,7 +415,7 @@ interface SOAPResponse {
 }
 ```
 
-In `SmartFormContext`, the submission function checks two levels:
+In the SmartForm store, the submission function checks two levels:
 
 ```typescript
 // Level 1: Network/API error (fetch failed, 401, etc.)
@@ -506,7 +506,7 @@ POSITION_CREATE_CI: 'CREATE|CI_POSITION_DATA|POSITION_NBR:00000000|EFFDT:15-JAN-
 
 ## Dev vs. Production Branching
 
-The `SmartFormContext` submission functions use a three-way branch based on `isDevelopment` and `isSoapBatchMode` (both from `src/config/appMode.ts`):
+The SmartForm store submission functions use a three-way branch based on `isDevelopment` and `isSoapBatchMode` (both from `src/config/appMode.ts`):
 
 ```
 Development mode         → simulated 400ms delay (no SOAP call)
@@ -604,7 +604,7 @@ Some `PreparedSubmission` entries have no matching parsed CI record (the Oracle 
 | File | Role |
 |------|------|
 | `src/config/appMode.ts` | Batch mode config (`isSoapBatchMode`, `soapBatchSize`) |
-| `src/context/SmartFormContext.tsx` | Submission orchestration (5 functions, batch + sequential paths) |
+| `src/stores/smartFormStore.ts` | Submission orchestration (5 functions, batch + sequential paths) |
 | `src/server/ci-definitions/parser.ts` | CI string parsing + `buildSOAPPayload` |
 | `src/server/ci-definitions/types.ts` | Typed record interfaces |
 | `src/server/ci-definitions/templates/smartform/` | Template definitions (field lists) |

@@ -17,7 +17,8 @@
  * - Workflow sections animate with PresenceWrapper
  */
 
-import { useSmartForm } from '../../../context';
+import { useShallow } from 'zustand/react/shallow';
+import { useSmartFormStore } from '../../../stores';
 import {
   ScaleIn,
   ExpandCollapse,
@@ -51,8 +52,9 @@ const WORKFLOW_SECTIONS = {
    ============================================== */
 
 export function SmartFormPanel() {
-  const { state } = useSmartForm();
-  const { hasQueried, activeSubTab, queryResults } = state;
+  const { hasQueried, activeSubTab, queryResults } = useSmartFormStore(
+    useShallow(s => ({ hasQueried: s.hasQueried, activeSubTab: s.activeSubTab, queryResults: s.queryResults })),
+  );
 
   // Get the active workflow component
   const WorkflowSection = WORKFLOW_SECTIONS[activeSubTab];

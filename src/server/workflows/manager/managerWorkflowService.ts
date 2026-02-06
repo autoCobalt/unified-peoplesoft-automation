@@ -6,6 +6,7 @@
  */
 
 import { playwrightService } from '../../playwright/index.js';
+import { eventBus } from '../../events/index.js';
 import type {
   ManagerWorkflowState,
   RawWorkflowProgress,
@@ -53,6 +54,9 @@ let abortController: AbortController | null = null;
 /** Flag to track pause state (checked between transactions) */
 let isPaused = false;
 
+/** Session token of the client that started this workflow (for event routing) */
+let activeSessionToken: string | null = null;
+
 /**
  * Read isPaused through a function call to prevent TypeScript control flow analysis
  * from incorrectly caching the boolean value. This is necessary because isPaused is
@@ -82,6 +86,7 @@ export function reset(): void {
     abortController = null;
   }
   isPaused = false;
+  activeSessionToken = null;
   workflowState = { ...INITIAL_MANAGER_STATE };
 }
 
@@ -105,6 +110,32 @@ function setError(message: string): void {
   };
 }
 
+/**
+ * Emit current workflow state as a WebSocket event.
+ * Called after every state mutation to push updates to the client instantly.
+ * No-ops if no session token is set (e.g., workflow started without WebSocket).
+ */
+function emitProgress(): void {
+  if (!activeSessionToken) return;
+
+  eventBus.emit({
+    type: 'workflow:progress',
+    sessionToken: activeSessionToken,
+    payload: {
+      workflowType: 'manager',
+      status: workflowState.status,
+      step: workflowState.currentStep,
+      progress: workflowState.progress,
+      error: workflowState.error,
+      results: {
+        approvedCount: workflowState.results.approvedCount,
+        transactionResults: workflowState.results.transactionResults,
+        pauseReason: workflowState.results.pauseReason,
+      },
+    },
+  });
+}
+
 /* ==============================================
    Workflow Actions
    ============================================== */
@@ -115,14 +146,19 @@ function setError(message: string): void {
  *
  * @param transactionIds - List of transaction IDs to approve
  * @param testSiteUrl - URL to the test site (optional, for development)
+ * @param sessionToken - Session token for WebSocket event routing
  */
 export async function runApprovals(
   transactionIds: string[],
-  testSiteUrl?: string
+  testSiteUrl?: string,
+  sessionToken?: string,
 ): Promise<{ success: boolean; approvedCount: number; error?: string }> {
   if (workflowState.status === 'running') {
     return { success: false, approvedCount: 0, error: 'Workflow already running' };
   }
+
+  // Store session token for event routing
+  activeSessionToken = sessionToken ?? null;
 
   // Initialize state (use 1-indexed for user-facing progress display)
   // Clear results to prevent stale transactionResults from a previous run
@@ -135,6 +171,7 @@ export async function runApprovals(
     progress: { current: 1, total: transactionIds.length, currentItem: transactionIds[0] },
     results: {},
   });
+  emitProgress();
 
   try {
     // Launch browser internally - this is NOT exposed to the frontend
@@ -142,6 +179,7 @@ export async function runApprovals(
 
     if (!browserResult.success) {
       setError(browserResult.error.message);
+      emitProgress();
       return { success: false, approvedCount: 0, error: browserResult.error.message };
     }
 
@@ -150,17 +188,18 @@ export async function runApprovals(
     const transactionResults: Record<string, 'approved' | 'error'> = {};
 
     for (let i = 0; i < transactionIds.length; i++) {
-      // Check for cancellation (use variable to satisfy TS control flow analysis)
+      // Check for cancellation — variable prevents TS from narrowing
+      // abortController.signal.aborted (it can change across await boundaries)
       let isAborted = abortController.signal.aborted;
       if (isAborted) {
         updateState({ status: 'cancelled', currentStep: 'idle', isPaused: false });
+        emitProgress();
         return { success: false, approvedCount, error: 'Workflow cancelled' };
       }
 
       // Check for pause - wait until resumed (or aborted)
-      // Re-read signal each iteration since it can change asynchronously
       while (isPaused) {
-        await new Promise(resolve => setTimeout(resolve, 100)); // Poll every 100ms
+        await new Promise(resolve => setTimeout(resolve, 100));
         isAborted = abortController.signal.aborted;
         if (isAborted) break;
       }
@@ -168,6 +207,7 @@ export async function runApprovals(
       // Re-check cancellation after potential pause wait
       if (isAborted) {
         updateState({ status: 'cancelled', currentStep: 'idle', isPaused: false });
+        emitProgress();
         return { success: false, approvedCount, error: 'Workflow cancelled' };
       }
 
@@ -188,6 +228,7 @@ export async function runApprovals(
         total: transactionIds.length,
         currentItem: transactionId,
       });
+      emitProgress();
 
       try {
         // Check if page is still available before each operation
@@ -235,6 +276,7 @@ export async function runApprovals(
               pauseReason: 'browser-closed',
             },
           });
+          emitProgress();
           console.log(`[Manager Workflow] Browser closed — auto-paused at transaction ${transactionId}`);
 
           // Wait for resume (same pattern as manual pause)
@@ -260,6 +302,7 @@ export async function runApprovals(
             status: 'running',
             results: { ...workflowState.results, pauseReason: undefined },
           });
+          emitProgress();
 
           // Retry this transaction (decrement i to re-process current index)
           i--;
@@ -271,10 +314,11 @@ export async function runApprovals(
         transactionResults[transactionId] = 'error';
       }
 
-      // Update results in real-time for polling (spreads for immutable snapshot)
+      // Update results in real-time for polling + WebSocket push
       updateState({
         results: { ...workflowState.results, approvedCount, transactionResults: { ...transactionResults } },
       });
+      emitProgress();
 
       // Add configurable delay between transactions (skip after last item)
       if (i < transactionIds.length - 1) {
@@ -291,12 +335,14 @@ export async function runApprovals(
       currentStep: 'completed',
       results: { ...workflowState.results, approvedCount },
     });
+    emitProgress();
 
     return { success: true, approvedCount };
 
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     setError(message);
+    emitProgress();
     return { success: false, approvedCount: 0, error: message };
 
   } finally {
@@ -322,11 +368,15 @@ export async function stop(): Promise<void> {
     currentStep: 'idle',
     isPaused: false,
   });
+  emitProgress();
 }
 
 /**
- * Pause a running workflow (pauses between transactions)
- * Does nothing if workflow is not running
+ * Pause a running workflow.
+ *
+ * Takes effect BETWEEN transactions — if called mid-transaction, the current
+ * transaction completes before the workflow pauses (up to ~10s for page operations).
+ * Does nothing if workflow is not running.
  *
  * @param reason - Optional reason for pausing (e.g., 'tab-switch', 'browser-closed')
  */
@@ -338,6 +388,7 @@ export function pause(reason?: string): void {
       isPaused: true,
       results: { ...workflowState.results, pauseReason: reason },
     });
+    emitProgress();
   }
 }
 
@@ -353,6 +404,7 @@ export function resume(): void {
       isPaused: false,
       results: { ...workflowState.results, pauseReason: undefined },
     });
+    emitProgress();
   }
 }
 

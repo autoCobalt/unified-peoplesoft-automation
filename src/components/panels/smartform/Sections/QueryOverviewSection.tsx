@@ -6,7 +6,8 @@
  * - Post-query: Shows "Refresh SmartForm" button + stats
  */
 
-import { useSmartForm, useConnection } from '../../../../context';
+import { useShallow } from 'zustand/react/shallow';
+import { useSmartFormStore, useConnectionStore } from '../../../../stores';
 import { InteractiveElement } from '../../../motion';
 import { PlayIcon, RefreshIcon } from '../../../icons';
 import './QueryOverviewSection.css';
@@ -17,9 +18,12 @@ interface QueryOverviewSectionProps {
 }
 
 export function QueryOverviewSection({ className = '' }: QueryOverviewSectionProps) {
-  const { state, runQuery } = useSmartForm();
-  const { oracleState, setOracleHintActive } = useConnection();
-  const { hasQueried, isLoading } = state;
+  const { hasQueried, isLoading } = useSmartFormStore(
+    useShallow(s => ({ hasQueried: s.hasQueried, isLoading: s.isLoading })),
+  );
+  const runQuery = useSmartFormStore(s => s.runQuery);
+  const oracleState = useConnectionStore(s => s.oracleState);
+  const setOracleHintActive = useConnectionStore(s => s.setOracleHintActive);
 
   // Query requires Oracle connection
   const canRun = oracleState.isConnected;

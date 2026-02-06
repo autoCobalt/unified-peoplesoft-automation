@@ -1,5 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
-import { useConnection } from '../context';
+import { useConnectionStore } from '../stores';
 import { SlideIn, InteractiveElement } from './motion';
 import { AppLogoIcon, LogoutIcon } from './icons';
 import { ResponsiveText } from './ResponsiveText';
@@ -23,7 +23,8 @@ const HEADER_CONFIG = {
  * Shows a disconnect button when either connection is active.
  */
 export function Header() {
-  const { hasActiveConnection, disconnectAll } = useConnection();
+  const hasActiveConnection = useConnectionStore(s => s.hasActiveConnection);
+  const disconnectAll = useConnectionStore(s => s.disconnectAll);
 
   return (
     <SlideIn

@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { oracleConfig } from '../../config';
-import { useConnection } from '../../context';
+import { useConnectionStore } from '../../stores';
 import { SlideIn, FadeIn } from '../motion';
 import {
   InfoRow,
@@ -19,12 +19,10 @@ import {
 } from './shared';
 
 export function OracleConnection() {
-  const {
-    oracleState,
-    oracleCredentials,
-    connectOracle,
-    oracleHintActive,
-  } = useConnection();
+  const oracleState = useConnectionStore(s => s.oracleState);
+  const oracleCredentials = useConnectionStore(s => s.oracleCredentials);
+  const connectOracle = useConnectionStore(s => s.connectOracle);
+  const oracleHintActive = useConnectionStore(s => s.oracleHintActive);
 
   const [showInfo, setShowInfo] = useState(false);
 

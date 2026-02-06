@@ -12,15 +12,6 @@
 // Service singleton
 export { soapService } from './soapService.js';
 
-// Route handlers
-export {
-  handleGetStatus as soapGetStatus,
-  handleConnect as soapConnect,
-  handleDisconnect as soapDisconnect,
-  handleGetCIShape as soapGetCIShape,
-  handleSubmit as soapSubmit,
-} from './handlers.js';
-
 // Configuration
 export { buildSoapConfig, buildEndpointURL, validateProtocolSecurity } from './config.js';
 export type { ProtocolValidationResult } from './config.js';

@@ -127,6 +127,16 @@ class OracleService {
       };
 
     } catch (error) {
+      // Close connection allocated by getConnection() to prevent leak
+      if (this.connection) {
+        try {
+          await this.connection.close();
+        } catch (closeError) {
+          logWarn('Oracle', `Error closing failed connection: ${String(closeError)}`);
+        }
+        this.connection = null;
+      }
+
       const message = this.formatOracleError(error);
       logError('Oracle', `Connection failed: ${message}`);
 
@@ -268,37 +278,6 @@ class OracleService {
     }
   }
 
-  /**
-   * Execute raw SQL (for advanced use cases)
-   * Use with caution - prefer registered queries for safety
-   */
-  async executeRawSql<TRow = QueryResultRow>(
-    sql: string,
-    parameters?: QueryParameters
-  ): Promise<OracleApiResponse<OracleQueryResult<TRow>>> {
-    if (!this.state.isConnected) {
-      return this.createError('NOT_CONNECTED', 'Not connected to Oracle database');
-    }
-
-    const startTime = performance.now();
-
-    try {
-      // Execute raw SQL using real oracledb connection
-      const result = await this.executeReal<TRow>(sql, parameters);
-
-      return {
-        success: true,
-        data: {
-          ...result,
-          executionTimeMs: Math.round(performance.now() - startTime),
-        },
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      return this.createError('QUERY_EXECUTION_ERROR', message);
-    }
-  }
-
   /* ==============================================
      Private Helpers
      ============================================== */
@@ -327,7 +306,7 @@ class OracleService {
       try {
         const sqlPath = join(dir, filename);
         const raw = await readFile(sqlPath, 'utf-8');
-        const sql = this.sanitizeSqlForExecution(raw);
+        const sql = this.prepareSqlForOracledb(raw);
 
         // Cache sanitized SQL for future use
         this.sqlCache.set(filename, sql);
@@ -341,12 +320,15 @@ class OracleService {
   }
 
   /**
-   * Sanitize raw SQL file content for oracledb execution
+   * Prepare raw SQL file content for oracledb execution
+   *
+   * This is format cleanup only, NOT security sanitization.
+   * SQL injection protection comes from parameterized queries in executeReal().
    *
    * 1. Strips the @sql-meta comment block (metadata is only needed by the UI parser)
    * 2. Strips trailing semicolons (oracledb sends SQL directly; Oracle engine rejects them)
    */
-  private sanitizeSqlForExecution(raw: string): string {
+  private prepareSqlForOracledb(raw: string): string {
     return raw
       .replace(/\/\*[\s\S]*?@sql-meta[\s\S]*?\*\//, '')
       .trimEnd()

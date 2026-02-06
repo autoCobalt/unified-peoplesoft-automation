@@ -30,7 +30,8 @@
  */
 
 import { useMemo, useEffect, useRef, useCallback } from 'react';
-import { useSmartForm, useCILabels } from '../../../../context';
+import { useShallow } from 'zustand/react/shallow';
+import { useSmartFormStore, selectFilteredRecords, useCILabelsStore } from '../../../../stores';
 import type {
   SmartFormRecord,
   ColumnDef,
@@ -260,25 +261,47 @@ function buildExcelFileName(prefix: string): string {
 }
 
 export function DataTableSection() {
+  // State values (useShallow for object equality)
   const {
-    state,
-    filteredRecords,
+    activeSubTab,
+    managerWorkflow,
+    otherWorkflow,
     parsedCIData,
     selectedByTab,
-    setTransactionSelected,
-    setAllTransactionsSelected,
     preparedDeptCoData,
     preparedPositionData,
     preparedJobData,
     preparedOtherDeptCoData,
     preparedPositionCreateData,
     tableCollapseOverrides: manualOverrides,
-    setTableCollapseOverrides: setManualOverrides,
     txnExcludedTables,
-    setTxnExcludedTables,
-  } = useSmartForm();
-  const { activeSubTab, managerWorkflow, otherWorkflow } = state;
-  const { ensureLabels, getLabel } = useCILabels();
+  } = useSmartFormStore(
+    useShallow(s => ({
+      activeSubTab: s.activeSubTab,
+      managerWorkflow: s.managerWorkflow,
+      otherWorkflow: s.otherWorkflow,
+      parsedCIData: s.parsedCIData,
+      selectedByTab: s.selectedByTab,
+      preparedDeptCoData: s.preparedDeptCoData,
+      preparedPositionData: s.preparedPositionData,
+      preparedJobData: s.preparedJobData,
+      preparedOtherDeptCoData: s.preparedOtherDeptCoData,
+      preparedPositionCreateData: s.preparedPositionCreateData,
+      tableCollapseOverrides: s.tableCollapseOverrides,
+      txnExcludedTables: s.txnExcludedTables,
+    })),
+  );
+
+  // Actions (stable refs, no useShallow needed)
+  const setTransactionSelected = useSmartFormStore(s => s.setTransactionSelected);
+  const setAllTransactionsSelected = useSmartFormStore(s => s.setAllTransactionsSelected);
+  const setManualOverrides = useSmartFormStore(s => s.setTableCollapseOverrides);
+  const setTxnExcludedTables = useSmartFormStore(s => s.setTxnExcludedTables);
+
+  // Computed selector
+  const filteredRecords = useSmartFormStore(useShallow(selectFilteredRecords));
+  const ensureLabels = useCILabelsStore(s => s.ensureLabels);
+  const getLabel = useCILabelsStore(s => s.getLabel);
 
   // Fetch labels for all CI shapes used by preview tables
   useEffect(() => {

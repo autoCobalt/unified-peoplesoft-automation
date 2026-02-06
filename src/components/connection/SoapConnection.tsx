@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { soapConfig } from '../../config';
-import { useConnection } from '../../context';
+import { useConnectionStore } from '../../stores';
 import { SlideIn, FadeIn } from '../motion';
 import {
   InfoRow,
@@ -19,12 +19,10 @@ import {
 } from './shared';
 
 export function SoapConnection() {
-  const {
-    soapState,
-    soapCredentials,
-    connectSoap,
-    soapHintActive,
-  } = useConnection();
+  const soapState = useConnectionStore(s => s.soapState);
+  const soapCredentials = useConnectionStore(s => s.soapCredentials);
+  const connectSoap = useConnectionStore(s => s.connectSoap);
+  const soapHintActive = useConnectionStore(s => s.soapHintActive);
 
   const [showInfo, setShowInfo] = useState(false);
 

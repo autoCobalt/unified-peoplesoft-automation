@@ -8,7 +8,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useConnection } from '../../context';
+import { useConnectionStore } from '../../stores';
 import { useDevSimulation } from '../../hooks';
 
 /* ==============================================
@@ -64,7 +64,9 @@ const SIMULATION_BUTTONS: readonly SimulationButtonConfig[] = [
 
 export function DevControls() {
   const [username, setUsername] = useState('dev_user');
-  const { oracleState, soapState, disconnectAll } = useConnection();
+  const oracleState = useConnectionStore(s => s.oracleState);
+  const soapState = useConnectionStore(s => s.soapState);
+  const disconnectAll = useConnectionStore(s => s.disconnectAll);
   const { simulateOracle, simulateSoap, simulateBoth } = useDevSimulation();
 
   const hasAnyConnection = oracleState.isConnected || soapState.isConnected;

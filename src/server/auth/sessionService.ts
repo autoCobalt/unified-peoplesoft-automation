@@ -1,19 +1,26 @@
 /**
  * Session Service
  *
- * Manages authentication sessions for the API middleware.
- * Sessions are created when users successfully authenticate via Oracle or SOAP,
- * and must be included in subsequent API requests.
+ * Manages authentication sessions with a multi-tier auth model.
+ * A single session token can have independent Oracle and SOAP auth levels.
+ *
+ * Token Lifecycle:
+ * 1. POST /api/session/create → general session (no auth levels)
+ * 2. Oracle connect → session.auth.oracle.verified = true (same token)
+ * 3. SOAP connect → session.auth.soap.verified = true (same token)
+ * 4. Oracle disconnect → oracle level revoked (token stays alive)
+ * 5. SOAP disconnect → soap level revoked (token stays alive)
+ * 6. 30-min inactivity → entire session expires
  *
  * Security Features:
  * - Cryptographically secure random tokens (256-bit)
  * - Automatic expiration after inactivity
- * - Session invalidation on disconnect
  * - Memory-only storage (no persistence - intentional for security)
  */
 
 import { randomBytes } from 'crypto';
 import { logInfo } from '../utils/index.js';
+import { eventBus } from '../events/index.js';
 
 /* ==============================================
    Configuration
@@ -21,18 +28,11 @@ import { logInfo } from '../utils/index.js';
 
 /**
  * Session timeout in milliseconds (30 minutes of inactivity)
- *
- * Why 30 minutes?
- * - Long enough for normal workflow operations
- * - Short enough to limit exposure if token is compromised
- * - Standard session timeout for enterprise applications
  */
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 
 /**
  * Cleanup interval in milliseconds (5 minutes)
- *
- * Periodically removes expired sessions to prevent memory leaks.
  */
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -40,35 +40,36 @@ const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
    Types
    ============================================== */
 
-interface Session {
+interface AuthLevel {
+  /** Whether this auth level is currently verified */
+  verified: boolean;
+  /** Username that authenticated this level (null if not verified) */
+  username: string | null;
+  /** When this level was last verified (null if never) */
+  verifiedAt: Date | null;
+}
+
+export interface Session {
   /** The session token (also the map key for O(1) lookup) */
   token: string;
-
-  /** Username associated with this session */
-  username: string;
-
-  /** Which service authenticated this session */
-  authSource: 'oracle' | 'soap';
 
   /** Timestamp of session creation */
   createdAt: Date;
 
   /** Timestamp of last activity (updated on each valid request) */
   lastActivityAt: Date;
+
+  /** Multi-tier authentication state */
+  auth: {
+    oracle: AuthLevel;
+    soap: AuthLevel;
+  };
 }
 
 /* ==============================================
    Session Service Class
    ============================================== */
 
-/**
- * Singleton service for managing API sessions
- *
- * Why a singleton?
- * - Sessions must be shared across all request handlers
- * - Single source of truth for authentication state
- * - Consistent cleanup scheduling
- */
 class SessionService {
   /** Active sessions indexed by token for O(1) lookup */
   private sessions = new Map<string, Session>();
@@ -84,19 +85,6 @@ class SessionService {
      Token Generation
      ============================================== */
 
-  /**
-   * Generate a cryptographically secure session token
-   *
-   * Why 32 bytes (256 bits)?
-   * - Same entropy as a 256-bit AES key
-   * - Impossible to brute force (2^256 possibilities)
-   * - URL-safe when hex-encoded (64 characters)
-   *
-   * Why randomBytes instead of UUID?
-   * - UUIDs have predictable structure (only ~122 bits of randomness)
-   * - randomBytes uses OS-level cryptographic RNG
-   * - Better resistance against timing attacks
-   */
   private generateToken(): string {
     return randomBytes(32).toString('hex');
   }
@@ -106,75 +94,161 @@ class SessionService {
      ============================================== */
 
   /**
-   * Create a new session for an authenticated user
+   * Create a new general session (no auth levels verified yet)
    *
-   * @param username - The authenticated username
-   * @param authSource - Which service verified the credentials
-   * @returns The session token to be sent to the client
+   * Returns an existing session token if one is provided and still valid,
+   * otherwise creates a new one.
    */
-  createSession(username: string, authSource: 'oracle' | 'soap'): string {
+  createSession(existingToken?: string): string {
+    // If an existing valid token is provided, return it
+    if (existingToken) {
+      const existing = this.sessions.get(existingToken);
+      if (existing && !this.isExpired(existing)) {
+        existing.lastActivityAt = new Date();
+        return existingToken;
+      }
+    }
+
     const token = this.generateToken();
     const now = new Date();
 
     const session: Session = {
       token,
-      username,
-      authSource,
       createdAt: now,
       lastActivityAt: now,
+      auth: {
+        oracle: { verified: false, username: null, verifiedAt: null },
+        soap: { verified: false, username: null, verifiedAt: null },
+      },
     };
 
     this.sessions.set(token, session);
 
-    logInfo('Auth', `Session created for ${authSource} user (active sessions: ${String(this.sessions.size)})`);
+    logInfo('Auth', `Session created (active sessions: ${String(this.sessions.size)})`);
 
     return token;
   }
 
   /**
-   * Validate a session token and update last activity
+   * Upgrade a session's auth level after successful connection.
    *
-   * Returns the session if valid, null if invalid or expired.
-   * Updates lastActivityAt on successful validation (sliding expiration).
-   *
-   * Why sliding expiration?
-   * - Active users stay logged in
-   * - Inactive sessions auto-expire
-   * - Better UX than fixed expiration
+   * If no token is provided, creates a new session first.
+   * Returns the token (existing or newly created).
    */
-  validateSession(token: string | undefined): Session | null {
-    if (!token) {
-      return null;
-    }
-
+  upgradeAuth(
+    authSource: 'oracle' | 'soap',
+    username: string,
+    existingToken?: string,
+  ): string {
+    // Ensure we have a valid session
+    const token = this.createSession(existingToken);
     const session = this.sessions.get(token);
 
-    if (!session) {
-      return null;
+    if (session) {
+      session.auth[authSource] = {
+        verified: true,
+        username,
+        verifiedAt: new Date(),
+      };
+      session.lastActivityAt = new Date();
+
+      logInfo('Auth', `Session upgraded: ${authSource} verified for ${username}`);
+
+      // Notify WebSocket clients of auth change
+      const eventType = authSource === 'oracle' ? 'auth:oracle-changed' : 'auth:soap-changed';
+      eventBus.emit({
+        type: eventType,
+        sessionToken: token,
+        payload: { verified: true, username, reason: 'connected' },
+      });
     }
 
-    // Check if session has expired
-    const now = Date.now();
-    const lastActivity = session.lastActivityAt.getTime();
-    const elapsed = now - lastActivity;
+    return token;
+  }
 
-    if (elapsed > SESSION_TIMEOUT_MS) {
-      // Session expired - remove it
+  /**
+   * Downgrade a session's auth level (disconnect without invalidating session).
+   */
+  downgradeAuth(token: string | undefined, authSource: 'oracle' | 'soap'): void {
+    if (!token) return;
+
+    const session = this.sessions.get(token);
+    if (session) {
+      const wasVerified = session.auth[authSource].verified;
+      session.auth[authSource] = {
+        verified: false,
+        username: null,
+        verifiedAt: null,
+      };
+
+      logInfo('Auth', `Session downgraded: ${authSource} auth revoked`);
+
+      // Notify WebSocket clients if auth level actually changed
+      if (wasVerified) {
+        const eventType = authSource === 'oracle' ? 'auth:oracle-changed' : 'auth:soap-changed';
+        eventBus.emit({
+          type: eventType,
+          sessionToken: token,
+          payload: { verified: false, username: null, reason: 'disconnected' },
+        });
+      }
+    }
+  }
+
+  /**
+   * Downgrade all sessions' auth level for a source.
+   * Used when a service disconnects affecting all users.
+   */
+  downgradeAllByAuthSource(authSource: 'oracle' | 'soap'): void {
+    let count = 0;
+    const eventType = authSource === 'oracle' ? 'auth:oracle-changed' : 'auth:soap-changed';
+
+    for (const session of this.sessions.values()) {
+      if (session.auth[authSource].verified) {
+        session.auth[authSource] = {
+          verified: false,
+          username: null,
+          verifiedAt: null,
+        };
+        count++;
+
+        // Notify each affected session's WebSocket clients
+        eventBus.emit({
+          type: eventType,
+          sessionToken: session.token,
+          payload: { verified: false, username: null, reason: 'service-disconnected' },
+        });
+      }
+    }
+
+    if (count > 0) {
+      logInfo('Auth', `Downgraded ${String(count)} session(s): ${authSource} auth revoked`);
+    }
+  }
+
+  /**
+   * Validate a session token and update last activity (sliding expiration).
+   */
+  validateSession(token: string | undefined): Session | null {
+    if (!token) return null;
+
+    const session = this.sessions.get(token);
+    if (!session) return null;
+
+    if (this.isExpired(session)) {
       this.sessions.delete(token);
       logInfo('Auth', 'Session expired and removed');
+      eventBus.emit({ type: 'session:expired', sessionToken: token, payload: {} });
       return null;
     }
 
     // Update last activity (sliding expiration)
     session.lastActivityAt = new Date();
-
     return session;
   }
 
   /**
-   * Invalidate a specific session (logout/disconnect)
-   *
-   * @param token - The session token to invalidate
+   * Invalidate a specific session entirely (full logout).
    */
   invalidateSession(token: string | undefined): void {
     if (token && this.sessions.has(token)) {
@@ -183,75 +257,41 @@ class SessionService {
     }
   }
 
-  /**
-   * Invalidate all sessions for a specific auth source
-   *
-   * Used when Oracle or SOAP disconnects - invalidates all sessions
-   * that were authenticated through that service.
-   */
-  invalidateByAuthSource(authSource: 'oracle' | 'soap'): void {
-    let count = 0;
-
-    for (const [token, session] of this.sessions) {
-      if (session.authSource === authSource) {
-        this.sessions.delete(token);
-        count++;
-      }
-    }
-
-    if (count > 0) {
-      logInfo('Auth', `Invalidated ${String(count)} ${authSource} session(s)`);
-    }
-  }
-
   /* ==============================================
      Cleanup Scheduler
      ============================================== */
 
-  /**
-   * Start the periodic cleanup of expired sessions
-   *
-   * Why periodic cleanup?
-   * - Sessions that expire without new requests won't be checked
-   * - Prevents memory growth from abandoned sessions
-   * - Runs every 5 minutes to balance performance and memory
-   */
+  private isExpired(session: Session): boolean {
+    const elapsed = Date.now() - session.lastActivityAt.getTime();
+    return elapsed > SESSION_TIMEOUT_MS;
+  }
+
   private startCleanupScheduler(): void {
     this.cleanupInterval = setInterval(() => {
       this.cleanupExpiredSessions();
     }, CLEANUP_INTERVAL_MS);
 
-    // Don't prevent Node.js from exiting
     this.cleanupInterval.unref();
   }
 
-  /**
-   * Remove all expired sessions
-   *
-   * Uses a two-phase approach (collect then delete) for defensive coding:
-   * - Phase 1: Identify expired tokens without modifying the Map
-   * - Phase 2: Delete identified tokens
-   *
-   * Note: While JavaScript's single-threaded nature makes in-loop deletion
-   * safe, this pattern is clearer and more robust for future maintainers.
-   */
   private cleanupExpiredSessions(): void {
-    const now = Date.now();
-
-    // Phase 1: Collect tokens to remove (no mutation during iteration)
     const tokensToRemove: string[] = [];
 
     for (const [token, session] of this.sessions) {
-      const elapsed = now - session.lastActivityAt.getTime();
-
-      if (elapsed > SESSION_TIMEOUT_MS) {
+      if (this.isExpired(session)) {
         tokensToRemove.push(token);
       }
     }
 
-    // Phase 2: Remove collected tokens
     for (const token of tokensToRemove) {
       this.sessions.delete(token);
+
+      // Notify WebSocket clients that their session has expired
+      eventBus.emit({
+        type: 'session:expired',
+        sessionToken: token,
+        payload: {},
+      });
     }
 
     if (tokensToRemove.length > 0) {
@@ -271,48 +311,44 @@ class SessionService {
   }
 
   /* ==============================================
-     Debug/Status Methods
+     Status Methods
      ============================================== */
 
-  /**
-   * Get the count of active sessions (for status endpoints)
-   */
   getActiveSessionCount(): number {
     return this.sessions.size;
   }
 
   /**
-   * Get session info without updating last activity (read-only check)
-   *
-   * Returns session validity and time remaining until expiration.
-   * Does NOT extend the session (no sliding expiration on this call).
-   *
-   * Why a separate method from validateSession?
-   * - Client polling for status shouldn't extend session lifetime
-   * - Polling should be passive - only actual API usage extends session
+   * Get session info without updating last activity (read-only check).
+   * Used by session status endpoint — passive polling shouldn't extend sessions.
    */
-  getSessionInfo(token: string | undefined): { valid: boolean; expiresInMs: number } | null {
-    if (!token) {
-      return null;
-    }
+  getSessionInfo(token: string | undefined): {
+    valid: boolean;
+    expiresInMs: number;
+    oracleVerified: boolean;
+    soapVerified: boolean;
+  } | null {
+    if (!token) return null;
 
     const session = this.sessions.get(token);
 
     if (!session) {
-      return { valid: false, expiresInMs: 0 };
+      return { valid: false, expiresInMs: 0, oracleVerified: false, soapVerified: false };
     }
 
-    const now = Date.now();
-    const lastActivity = session.lastActivityAt.getTime();
-    const elapsed = now - lastActivity;
+    const elapsed = Date.now() - session.lastActivityAt.getTime();
     const expiresInMs = SESSION_TIMEOUT_MS - elapsed;
 
     if (expiresInMs <= 0) {
-      // Session has expired
-      return { valid: false, expiresInMs: 0 };
+      return { valid: false, expiresInMs: 0, oracleVerified: false, soapVerified: false };
     }
 
-    return { valid: true, expiresInMs };
+    return {
+      valid: true,
+      expiresInMs,
+      oracleVerified: session.auth.oracle.verified,
+      soapVerified: session.auth.soap.verified,
+    };
   }
 }
 
@@ -320,7 +356,4 @@ class SessionService {
    Singleton Export
    ============================================== */
 
-/**
- * Singleton instance of the session service
- */
 export const sessionService = new SessionService();

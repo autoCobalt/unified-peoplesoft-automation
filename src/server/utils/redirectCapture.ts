@@ -7,7 +7,7 @@
  *
  * Follows the secureLogger.ts initialization pattern:
  * - Module-level state initialized via sync init()
- * - Called once from configureWorkflowMiddleware()
+ * - Called once from buildApp() during server startup
  */
 
 import { writeFile, mkdirSync } from 'fs';
@@ -79,7 +79,7 @@ let sequenceNumber = 0;
 /**
  * Initialize redirect capture with environment configuration
  *
- * Must be called once from configureWorkflowMiddleware() after
+ * Must be called once from buildApp() after
  * initializeSecureLogger(). Stores environment config and creates
  * the output directory if needed.
  *

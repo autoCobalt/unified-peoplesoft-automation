@@ -5,7 +5,7 @@
  * Values are derived from environment variables at build time.
  *
  * These are read-only configuration values, not runtime state.
- * For connection state (isConnected, credentials, etc.), see ConnectionContext.
+ * For connection state (isConnected, credentials, etc.), see connectionStore (src/stores/connectionStore.ts).
  */
 
 /* ==============================================
