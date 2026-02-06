@@ -181,23 +181,25 @@ class SOAPService {
           SOAP_TIMEOUTS.REQUEST
         );
 
-        const response = await fetch(url, {
-          method: 'POST',
-          headers,
-          body,
-          signal: controller.signal,
-        });
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body,
+            signal: controller.signal,
+          });
 
-        clearTimeout(timeoutId);
+          // Check HTTP status
+          if (!response.ok) {
+            throw new Error(`HTTP ${String(response.status)}: ${response.statusText}`);
+          }
 
-        // Check HTTP status
-        if (!response.ok) {
-          throw new Error(`HTTP ${String(response.status)}: ${response.statusText}`);
+          // Parse response
+          const responseText = await response.text();
+          return await parseSOAPResponse(responseText);
+        } finally {
+          clearTimeout(timeoutId);
         }
-
-        // Parse response
-        const responseText = await response.text();
-        return await parseSOAPResponse(responseText);
 
       } catch (error) {
         lastError = error as Error;

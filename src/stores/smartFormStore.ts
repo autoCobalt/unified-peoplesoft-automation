@@ -310,6 +310,7 @@ interface SmartFormStoreState {
   _isOtherPauseInFlight: boolean;
   _stopPolling: (() => void) | null;
   _stopOtherPolling: (() => void) | null;
+  _otherCompleteTimeout: ReturnType<typeof setTimeout> | null;
 }
 
 /* ==============================================
@@ -1374,9 +1375,10 @@ export const useSmartFormStore = create<SmartFormStoreState>()((set, get) => ({
           set({ _stopOtherPolling: null });
         }
         // Auto-transition to complete after approved
-        setTimeout(() => {
-          set({ otherWorkflow: { step: 'complete' } });
+        const completeTimeout = setTimeout(() => {
+          set({ otherWorkflow: { step: 'complete' }, _otherCompleteTimeout: null });
         }, 300);
+        set({ _otherCompleteTimeout: completeTimeout });
       } else if (status.status === 'error') {
         set({
           otherWorkflow: { step: 'error', message: status.error ?? 'Unknown error' },
@@ -1466,6 +1468,11 @@ export const useSmartFormStore = create<SmartFormStoreState>()((set, get) => ({
     if (stopOtherPolling) {
       stopOtherPolling();
       set({ _stopOtherPolling: null });
+    }
+    const completeTimeout = get()._otherCompleteTimeout;
+    if (completeTimeout) {
+      clearTimeout(completeTimeout);
+      set({ _otherCompleteTimeout: null });
     }
     void workflowApi.other.stop();
     set({
@@ -1858,4 +1865,5 @@ export const useSmartFormStore = create<SmartFormStoreState>()((set, get) => ({
   _isOtherPauseInFlight: false,
   _stopPolling: null,
   _stopOtherPolling: null,
+  _otherCompleteTimeout: null,
 }));

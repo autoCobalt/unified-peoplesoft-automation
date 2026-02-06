@@ -14,7 +14,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import { soapService } from '../soap/index.js';
 import { parseCIShapeXML } from '../ci-definitions/ciShapeParser.js';
 import { loadCIShape, listCIShapes, saveCIShape } from '../ci-definitions/index.js';
-import { logInfo, logError } from '../utils/index.js';
+import { logInfo } from '../utils/index.js';
 
 export function ciShapesRoutes(app: FastifyInstance): void {
   // All CI shape routes require session auth
@@ -123,7 +123,4 @@ export function ciShapesRoutes(app: FastifyInstance): void {
 
     return reply.send({ success: true, data: shape.fieldLabels });
   });
-
-  // Suppress unused variable if logError is not called directly in a catch
-  void logError;
 }
