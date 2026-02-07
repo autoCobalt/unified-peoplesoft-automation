@@ -45,7 +45,7 @@ export function ManagerWorkflowSection() {
   const otherWorkflow = useSmartFormStore(s => s.otherWorkflow);
   const isOtherPaused = useSmartFormStore(s => s.isOtherWorkflowPaused);
   const crossProgress = getProgress(otherWorkflow);
-  const isCrossWorkflowActive = crossProgress !== null && !crossProgress.isComplete;
+  const isCrossWorkflowActive = crossProgress !== null && !crossProgress.isComplete && crossProgress.current > 0;
 
   const soapState = useConnectionStore(s => s.soapState);
   const setOracleHintActive = useConnectionStore(s => s.setOracleHintActive);

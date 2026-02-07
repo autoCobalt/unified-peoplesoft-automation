@@ -55,7 +55,7 @@ export function OtherWorkflowSection() {
 
   // Cross-workflow: detect when Manager workflow is actively processing
   const crossProgress = getProgress(managerWorkflow);
-  const isCrossWorkflowActive = crossProgress !== null && !crossProgress.isComplete;
+  const isCrossWorkflowActive = crossProgress !== null && !crossProgress.isComplete && crossProgress.current > 0;
 
   // Action map connects task IDs to context-provided actions
   const actionMap: ActionMap = useMemo(() => ({
