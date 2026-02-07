@@ -472,13 +472,11 @@ export function DataTableSection() {
     });
   }, [allTableSuccess, setManualOverrides]);
 
-  // Disable checkboxes once actual processing begins. Changing selections
+  // Disable checkboxes once the workflow leaves 'idle'. Changing selections
   // mid-workflow could orphan CI records that have already been approved/submitted.
-  // For Other: the idle auto-skip advances to submitting-position-create with
-  // current=0 (waiting for user click) — that's NOT active processing.
   const workflowProcessing = activeSubTab === 'manager'
     ? managerWorkflow.step !== 'idle'
-    : otherWorkflow.step !== 'idle' && !('current' in otherWorkflow && otherWorkflow.current === 0);
+    : otherWorkflow.step !== 'idle';
 
   // Build columns dynamically from the first row's keys
   // Checkbox and status columns are prepended to the dynamic columns

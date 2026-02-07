@@ -29,11 +29,10 @@ import { getProgress } from '../../../../utils/workflow/workflowHelpers';
 import './OtherWorkflowSection.css';
 
 export function OtherWorkflowSection() {
-  const { otherWorkflow, queryResults, hasQueried, isOtherWorkflowPaused, otherPauseReason } = useSmartFormStore(
+  const { otherWorkflow, queryResults, isOtherWorkflowPaused, otherPauseReason } = useSmartFormStore(
     useShallow(s => ({
       otherWorkflow: s.otherWorkflow,
       queryResults: s.queryResults,
-      hasQueried: s.hasQueried,
       isOtherWorkflowPaused: s.isOtherWorkflowPaused,
       otherPauseReason: s.otherPauseReason,
     })),
@@ -139,19 +138,11 @@ export function OtherWorkflowSection() {
     overridesRef.current = taskCompletionOverrides;
   }, [taskCompletionOverrides]);
 
-  // Auto-skip steps when no selected records exist for that CI type.
-  // The 'idle' step guard needs hasQueried since idle is the initial state —
-  // without it, the effect would fire on mount before any query runs.
-  // The selectedByTab check prevents phantom workflow advancement when
-  // the user unchecks all rows then switches tabs (causing remount).
-  useEffect(() => {
-    if (stepName === 'idle' && hasQueried && overridesRef.current['other-dept-co']) {
-      const otherSelected = useSmartFormStore.getState().selectedByTab.other;
-      if (otherSelected.size === 0) return;
-      void submitOtherDeptCoData();
-    }
-  }, [stepName, hasQueried, submitOtherDeptCoData]);
-
+  // Auto-skip mid-workflow: when dept-co completes and position-create has
+  // no records, advance past it automatically. The idle→dept-co skip is no
+  // longer needed — useWorkflowDefinition promotes pending tasks to active
+  // when all predecessors are force-completed, so the button shows the
+  // correct next task without advancing the workflow step.
   useEffect(() => {
     if (stepName === 'submitting-position-create' && overridesRef.current['other-position-create']) {
       void submitPositionCreateData();
