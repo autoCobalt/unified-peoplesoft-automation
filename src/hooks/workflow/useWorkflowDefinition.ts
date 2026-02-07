@@ -219,19 +219,29 @@ export function useWorkflowDefinition<
       ? (workflowStep as { message: string }).message
       : null;
 
-    // Compute task statuses
-    const tasksWithStatus: TaskConfigWithStatus<TStepName>[] = definition.tasks.map(
-      (task, index) => ({
-        ...task,
-        status: computeTaskStatus(
-          stepName,
-          stepOrder,
-          task,
-          taskCompletionOverrides?.[task.id]
-        ),
-        index,
-      })
-    );
+    // Compute task statuses with predecessor promotion.
+    // If all previous tasks are completed (by step progression or force-completion),
+    // a pending task is promoted to active. This lets the button system show the
+    // correct next task without needing useEffect auto-skips from idle.
+    const tasksWithStatus: TaskConfigWithStatus<TStepName>[] = [];
+    for (let i = 0; i < definition.tasks.length; i++) {
+      const task = definition.tasks[i];
+      let status = computeTaskStatus(
+        stepName,
+        stepOrder,
+        task,
+        taskCompletionOverrides?.[task.id]
+      );
+
+      if (status === 'pending' && i > 0) {
+        const allPreviousCompleted = tasksWithStatus.every(t => t.status === 'completed');
+        if (allPreviousCompleted) {
+          status = 'active';
+        }
+      }
+
+      tasksWithStatus.push({ ...task, status, index: i });
+    }
 
     // Find active task (include requires field)
     const activeTaskWithStatus = tasksWithStatus.find(t => t.status === 'active');
