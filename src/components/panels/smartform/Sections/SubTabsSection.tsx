@@ -4,9 +4,12 @@
  * Displays the Manager/Other sub-tab navigation.
  * Hidden until query has been executed.
  * Shows count badges with status-based coloring.
+ *
+ * The sliding indicator uses CSS transform instead of Framer Motion's layoutId
+ * to avoid conflicts with CardStack's popLayout AnimatePresence mode, which
+ * shares the same internal layout animation system and prevents exit cleanup.
  */
 
-import { motion } from 'framer-motion';
 import { useShallow } from 'zustand/react/shallow';
 import { useSmartFormStore } from '../../../../stores';
 import { SMARTFORM_SUBTABS } from '../../../../types';
@@ -25,8 +28,18 @@ export function SubTabsSection({ className = '' }: SubTabsSectionProps) {
 
   if (!queryResults) return null;
 
+  const activeIndex = SMARTFORM_SUBTABS.findIndex(t => t.id === activeSubTab);
+
   return (
     <nav className={`sf-subtabs-container ${className}`} role="tablist" aria-label="SmartForm sub-tabs">
+      {/* Sliding indicator — positioned absolutely, slides via CSS transform */}
+      <div
+        className="sf-subtab-indicator"
+        style={activeIndex > 0
+          ? { transform: `translateX(calc(${String(activeIndex)} * (100% + 0.25rem)))` }
+          : undefined}
+      />
+
       {SMARTFORM_SUBTABS.map(({ id, label, countKey }) => {
         const count = queryResults[countKey];
         const isActive = activeSubTab === id;
@@ -50,14 +63,6 @@ export function SubTabsSection({ className = '' }: SubTabsSectionProps) {
             >
               {count}
             </span>
-
-            {isActive && (
-              <motion.div
-                className="sf-subtab-indicator"
-                layoutId="smartform-subtab-indicator"
-                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-              />
-            )}
           </button>
         );
       })}

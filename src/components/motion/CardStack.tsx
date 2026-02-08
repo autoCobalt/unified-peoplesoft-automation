@@ -51,6 +51,11 @@ export type CardStackProps<T extends ElementType = 'div'> =
 /**
  * Full 3D card stack variants.
  * Includes rotation, scale, blur, and position changes.
+ *
+ * Exit uses a tween transition (fixed duration) instead of springs to
+ * guarantee deterministic completion. Spring exits are asymptotic and
+ * can prevent AnimatePresence from removing the DOM element, causing
+ * orphaned divs to accumulate with popLayout mode.
  */
 const cardStackVariants: Variants = {
   enter: (direction: number) => ({
@@ -76,6 +81,7 @@ const cardStackVariants: Variants = {
     scale: 0.88,
     opacity: 0,
     filter: 'blur(3px)',
+    transition: { duration: 0.3, ease: 'easeIn' },
   }),
 };
 
