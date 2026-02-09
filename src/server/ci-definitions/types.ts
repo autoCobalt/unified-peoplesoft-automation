@@ -294,10 +294,10 @@ export interface PositionUpdateRecord extends ParsedCIRecordBase {
   EFFDT: string;
   EFF_STATUS: string;
   ACTION_REASON: string;
-  UPDATE_INCUMBENTS: string;
   BUSINESS_UNIT: string;
   DEPTID: string;
   JOBCODE: string;
+  UPDATE_INCUMBENTS: string;
   REPORTS_TO: string | null;
   LOCATION: string | null;
   COMPANY: string;
