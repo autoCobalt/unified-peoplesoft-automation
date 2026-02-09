@@ -585,6 +585,14 @@ export const useSmartFormStore = create<SmartFormStoreState>()((set, get) => ({
     const transactionIds = managerRecords.map(r => r.TRANSACTION_NBR);
     const firstTransactionId = transactionIds[0];
 
+    // Build per-transaction URL map: dev uses test-site mock, prod uses WEB_LINK from query
+    const transactionUrls: Record<string, string> = {};
+    for (const r of managerRecords) {
+      transactionUrls[r.TRANSACTION_NBR] = isDevelopment
+        ? `${window.location.origin}/test-site?TRANSACTION_NBR=${encodeURIComponent(r.TRANSACTION_NBR)}`
+        : r.WEB_LINK;
+    }
+
     // Start approval workflow - browser opens internally on server
     // Go directly to approving state (browser lifecycle is handled server-side)
     // Use 1-indexed display for user-facing progress
@@ -598,12 +606,7 @@ export const useSmartFormStore = create<SmartFormStoreState>()((set, get) => ({
       },
     });
 
-    // Get test site URL for development
-    const testSiteUrl = isDevelopment
-      ? `${window.location.origin}/test-site`
-      : undefined;
-
-    const response = await workflowApi.manager.startApprovals(transactionIds, testSiteUrl);
+    const response = await workflowApi.manager.startApprovals(transactionIds, transactionUrls);
 
     if (!response.success) {
       set({
@@ -1303,6 +1306,14 @@ export const useSmartFormStore = create<SmartFormStoreState>()((set, get) => ({
     const transactionIds = otherRecords.map(r => r.TRANSACTION_NBR);
     const firstTransactionId = transactionIds[0];
 
+    // Build per-transaction URL map: dev uses test-site mock, prod uses WEB_LINK from query
+    const transactionUrls: Record<string, string> = {};
+    for (const r of otherRecords) {
+      transactionUrls[r.TRANSACTION_NBR] = isDevelopment
+        ? `${window.location.origin}/test-site?TRANSACTION_NBR=${encodeURIComponent(r.TRANSACTION_NBR)}`
+        : r.WEB_LINK;
+    }
+
     // Go directly to approving state
     set({
       otherWorkflow: {
@@ -1313,12 +1324,7 @@ export const useSmartFormStore = create<SmartFormStoreState>()((set, get) => ({
       },
     });
 
-    // Get test site URL for development
-    const testSiteUrl = isDevelopment
-      ? `${window.location.origin}/test-site`
-      : undefined;
-
-    const response = await workflowApi.other.startApprovals(transactionIds, testSiteUrl);
+    const response = await workflowApi.other.startApprovals(transactionIds, transactionUrls);
 
     if (!response.success) {
       set({

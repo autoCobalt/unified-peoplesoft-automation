@@ -109,15 +109,15 @@ export async function getManagerStatus(): Promise<ApiResponse<ManagerWorkflowSta
  * Start the approval workflow
  *
  * @param transactionIds - List of transaction IDs to approve
- * @param testSiteUrl - Optional test site URL for development
+ * @param transactionUrls - Map of transaction ID → full navigation URL
  */
 export async function startManagerApprovals(
   transactionIds: string[],
-  testSiteUrl?: string
+  transactionUrls: Record<string, string>
 ): Promise<ApiResponse<{ message: string; transactionCount: number }>> {
   return apiRequest('/manager/approve', {
     method: 'POST',
-    body: JSON.stringify({ transactionIds, testSiteUrl }),
+    body: JSON.stringify({ transactionIds, transactionUrls }),
   });
 }
 
@@ -237,15 +237,15 @@ export async function getOtherStatus(): Promise<ApiResponse<OtherWorkflowApiStat
  * Start the Other approval workflow
  *
  * @param transactionIds - List of transaction IDs to approve
- * @param testSiteUrl - Optional test site URL for development
+ * @param transactionUrls - Map of transaction ID → full navigation URL
  */
 export async function startOtherApprovals(
   transactionIds: string[],
-  testSiteUrl?: string
+  transactionUrls: Record<string, string>
 ): Promise<ApiResponse<{ message: string; transactionCount: number }>> {
   return apiRequest('/other/approve', {
     method: 'POST',
-    body: JSON.stringify({ transactionIds, testSiteUrl }),
+    body: JSON.stringify({ transactionIds, transactionUrls }),
   });
 }
 

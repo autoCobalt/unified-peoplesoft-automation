@@ -151,7 +151,7 @@ function emitProgress(): void {
  */
 export async function runApprovals(
   transactionIds: string[],
-  testSiteUrl?: string,
+  transactionUrls: Record<string, string>,
   sessionToken?: string,
 ): Promise<{ success: boolean; approvedCount: number; error?: string }> {
   if (workflowState.status === 'running') {
@@ -237,11 +237,11 @@ export async function runApprovals(
           throw new Error('Browser was closed');
         }
 
-        // Navigate to transaction page
-        const encodedId = encodeURIComponent(transactionId);
-        const url = testSiteUrl
-          ? `${testSiteUrl}?TRANSACTION_NBR=${encodedId}`
-          : `https://peoplesoft.example.com/transaction/${encodedId}`;
+        // Navigate to transaction page using per-record URL from query results
+        const url = transactionUrls[transactionId];
+        if (!url) {
+          throw new Error(`No URL found for transaction ${transactionId}`);
+        }
 
         await page.goto(url, { waitUntil: 'networkidle' });
 

@@ -36,10 +36,10 @@ export function workflowsManagerRoutes(app: FastifyInstance): void {
   app.post<{
     Body: {
       transactionIds?: string[];
-      testSiteUrl?: string;
+      transactionUrls?: Record<string, string>;
     };
   }>('/approve', async (request, reply: FastifyReply) => {
-    const { transactionIds, testSiteUrl } = request.body;
+    const { transactionIds, transactionUrls } = request.body;
 
     if (!transactionIds || !Array.isArray(transactionIds)) {
       return reply.status(400).send({
@@ -55,9 +55,16 @@ export function workflowsManagerRoutes(app: FastifyInstance): void {
       });
     }
 
+    if (!transactionUrls || typeof transactionUrls !== 'object') {
+      return reply.status(400).send({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: 'transactionUrls map is required' },
+      });
+    }
+
     // Start workflow asynchronously — client receives updates via WebSocket + polling
     const sessionToken = (request.headers['x-session-token'] as string | undefined);
-    void managerWorkflowService.runApprovals(transactionIds, testSiteUrl, sessionToken);
+    void managerWorkflowService.runApprovals(transactionIds, transactionUrls, sessionToken);
 
     return reply.send({
       success: true,
