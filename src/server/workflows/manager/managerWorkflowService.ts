@@ -7,6 +7,7 @@
 
 import { playwrightService } from '../../playwright/index.js';
 import { eventBus } from '../../events/index.js';
+import { approveTransaction } from '../approveTransaction.js';
 import type {
   ManagerWorkflowState,
   RawWorkflowProgress,
@@ -129,6 +130,7 @@ function emitProgress(): void {
       error: workflowState.error,
       results: {
         approvedCount: workflowState.results.approvedCount,
+        skippedCount: workflowState.results.skippedCount,
         transactionResults: workflowState.results.transactionResults,
         pauseReason: workflowState.results.pauseReason,
       },
@@ -185,7 +187,8 @@ export async function runApprovals(
 
     let page = browserResult.page;
     let approvedCount = 0;
-    const transactionResults: Record<string, 'approved' | 'error'> = {};
+    let skippedCount = 0;
+    const transactionResults: Record<string, 'approved' | 'skipped' | 'error'> = {};
 
     for (let i = 0; i < transactionIds.length; i++) {
       // Check for cancellation — variable prevents TS from narrowing
@@ -244,20 +247,20 @@ export async function runApprovals(
 
         await page.goto(url, { waitUntil: 'networkidle' });
 
-        // Click approve button
-        await page.click('#APPROVE_BIN');
+        // Run the multi-modal approval flow (handles confirmations + hard stops)
+        const outcome = await approveTransaction(page);
 
-        // Wait for and confirm modal
-        await page.waitForSelector('#ptModTable_3', { state: 'visible' });
-        await page.click('#ICYes');
-
-        // Wait for success indicator
-        await page.waitForSelector('text=Transaction Approved Successfully', {
-          timeout: 10000,
-        });
-
-        approvedCount++;
-        transactionResults[transactionId] = 'approved';
+        if (outcome.result === 'approved') {
+          approvedCount++;
+          transactionResults[transactionId] = 'approved';
+        } else if (outcome.result === 'skipped') {
+          skippedCount++;
+          transactionResults[transactionId] = 'skipped';
+          console.log(`[Manager Workflow] Skipped ${transactionId}: ${outcome.detail ?? 'hard stop'}`);
+        } else {
+          transactionResults[transactionId] = 'error';
+          console.log(`[Manager Workflow] Error on ${transactionId}: ${outcome.detail ?? 'unknown'}`);
+        }
       } catch (pageError) {
         const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
         console.error(`[Manager Workflow] Error approving ${transactionId}:`, errorMessage);
@@ -333,7 +336,7 @@ export async function runApprovals(
     updateState({
       status: 'completed',
       currentStep: 'completed',
-      results: { ...workflowState.results, approvedCount },
+      results: { ...workflowState.results, approvedCount, skippedCount },
     });
     emitProgress();
 

@@ -19,7 +19,7 @@ export interface WorkflowProgressPayload {
   error: string | null;
   results: {
     approvedCount?: number;
-    transactionResults?: Record<string, 'approved' | 'error'>;
+    transactionResults?: Record<string, 'approved' | 'skipped' | 'error'>;
     pauseReason?: string;
   };
 }

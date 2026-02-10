@@ -16,7 +16,7 @@ import type { ParsedCIData } from '../server/ci-definitions/types.js';
    ============================================== */
 
 /** Status of an individual SmartForm record */
-export type SmartFormRecordStatus = 'pending' | 'processing' | 'success' | 'error';
+export type SmartFormRecordStatus = 'pending' | 'processing' | 'success' | 'skipped' | 'error';
 
 /**
  * SmartForm transaction record with dynamic Oracle columns.

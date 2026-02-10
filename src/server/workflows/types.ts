@@ -40,8 +40,9 @@ export interface ManagerWorkflowState {
   results: {
     preparedCount?: number;
     approvedCount?: number;
+    skippedCount?: number;
     submittedCount?: number;
-    transactionResults?: Record<string, 'approved' | 'error'>;
+    transactionResults?: Record<string, 'approved' | 'skipped' | 'error'>;
     /** Why the workflow was paused (browser-closed, tab-switch, or undefined for manual) */
     pauseReason?: string;
   };
@@ -71,7 +72,8 @@ export interface OtherWorkflowState {
   isPaused: boolean;
   results: {
     approvedCount?: number;
-    transactionResults?: Record<string, 'approved' | 'error'>;
+    skippedCount?: number;
+    transactionResults?: Record<string, 'approved' | 'skipped' | 'error'>;
     /** Why the workflow was paused (browser-closed, tab-switch, or undefined for manual) */
     pauseReason?: string;
   };
@@ -98,7 +100,7 @@ export interface WorkflowStatusResponse {
   progress: RawWorkflowProgress | null;
   error: string | null;
   results?: {
-    transactionResults?: Record<string, 'approved' | 'error'>;
+    transactionResults?: Record<string, 'approved' | 'skipped' | 'error'>;
     [key: string]: unknown;
   };
 }

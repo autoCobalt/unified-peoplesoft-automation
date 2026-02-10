@@ -29,7 +29,7 @@ export interface ManagerWorkflowState {
     preparedCount?: number;
     approvedCount?: number;
     submittedCount?: number;
-    transactionResults?: Record<string, 'approved' | 'error'>;
+    transactionResults?: Record<string, 'approved' | 'skipped' | 'error'>;
     pauseReason?: string;
   };
 }
@@ -221,7 +221,7 @@ export interface OtherWorkflowApiState {
   error: string | null;
   results: {
     approvedCount?: number;
-    transactionResults?: Record<string, 'approved' | 'error'>;
+    transactionResults?: Record<string, 'approved' | 'skipped' | 'error'>;
     pauseReason?: string;
   };
 }

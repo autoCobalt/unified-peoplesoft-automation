@@ -182,7 +182,7 @@ function buildPreparedSubmissions(
 function updateRecordStatuses(
   set: SetState,
   get: GetState,
-  transactionResults: Record<string, 'approved' | 'error'> | undefined,
+  transactionResults: Record<string, 'approved' | 'skipped' | 'error'> | undefined,
   currentItem: string | undefined,
 ): void {
   if (!transactionResults && !currentItem) return;
@@ -197,6 +197,8 @@ function updateRecordStatuses(
 
     if (result === 'approved') {
       newStatus = 'success';
+    } else if (result === 'skipped') {
+      newStatus = 'skipped';
     } else if (result === 'error') {
       newStatus = 'error';
     } else if (txn.TRANSACTION_NBR === currentItem) {
@@ -626,7 +628,7 @@ export const useSmartFormStore = create<SmartFormStoreState>()((set, get) => ({
     }
 
     // Shared handler for workflow status updates (used by both WebSocket and polling)
-    const handleManagerStatus = (status: { status: string; step?: string; progress: { current: number; total: number; currentItem?: string } | null; error: string | null; results: { transactionResults?: Record<string, 'approved' | 'error'>; pauseReason?: string } }) => {
+    const handleManagerStatus = (status: { status: string; step?: string; progress: { current: number; total: number; currentItem?: string } | null; error: string | null; results: { transactionResults?: Record<string, 'approved' | 'skipped' | 'error'>; pauseReason?: string } }) => {
       if (status.status === 'running' && status.progress) {
         set({
           managerWorkflow: {
@@ -1343,7 +1345,7 @@ export const useSmartFormStore = create<SmartFormStoreState>()((set, get) => ({
     }
 
     // Shared handler for Other workflow status updates (WebSocket or polling)
-    const handleOtherStatus = (status: { status: string; step?: string; progress: { current: number; total: number; currentItem?: string } | null; error: string | null; results: { transactionResults?: Record<string, 'approved' | 'error'>; pauseReason?: string } }) => {
+    const handleOtherStatus = (status: { status: string; step?: string; progress: { current: number; total: number; currentItem?: string } | null; error: string | null; results: { transactionResults?: Record<string, 'approved' | 'skipped' | 'error'>; pauseReason?: string } }) => {
       if (status.status === 'running' && status.progress) {
         set({
           otherWorkflow: {
